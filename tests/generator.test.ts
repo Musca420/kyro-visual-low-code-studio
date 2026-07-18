@@ -79,6 +79,7 @@ describe("web generator", () => {
     expect(source).toContain("current.type === 'updateUI'");
     expect(source).toContain("typeof value === 'object'");
     expect(source).toContain("Object.fromEntries(new FormData");
+    expect(source).toContain("current.config.rule || 'required'");
   });
 
   it("preserves nested containers in the exported markup", () => {

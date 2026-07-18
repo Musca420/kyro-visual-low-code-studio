@@ -206,4 +206,17 @@ describe('flow runtime', () => {
     await runFlow(create, { input: { name: 'Lampada', price: 39, active: true }, insert, refresh: async () => undefined })
     expect(insert).toHaveBeenCalledWith({ name: 'Lampada', price: 39, active: true }, 'products')
   })
+
+  it('valida un campo specifico di un record con regole guidate', async () => {
+    const validated: Flow = { id: 'validate-record', name: 'Validate', nodes: [
+      { id: 'event', type: 'event', label: 'Submit', position: { x: 0, y: 0 }, config: {} },
+      { id: 'validate', type: 'validate', label: 'Email', position: { x: 1, y: 0 }, config: { field: 'email', rule: 'email', message: 'Email non valida' } },
+      { id: 'insert', type: 'insert', label: 'Crea', position: { x: 2, y: 0 }, config: {} },
+    ], edges: [{ id: '1', source: 'event', target: 'validate', path: 'success' }, { id: '2', source: 'validate', target: 'insert', path: 'success' }] }
+    const insert = vi.fn(async (value: unknown) => value)
+    expect((await runFlow(validated, { input: { email: 'no' }, insert, refresh: async () => undefined })).some((entry) => entry.message === 'Email non valida')).toBe(true)
+    expect(insert).not.toHaveBeenCalled()
+    await runFlow(validated, { input: { email: 'ok@example.com' }, insert, refresh: async () => undefined })
+    expect(insert).toHaveBeenCalledOnce()
+  })
 })

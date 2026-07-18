@@ -43,10 +43,12 @@ test("un form visuale salva un record multi-campo reale", async ({ page }) => {
   await page.locator(".react-flow__node").filter({ hasText: "Leggi input" }).click();
   await page.getByRole("button", { name: "Elimina nodo" }).click();
   await page.locator(".react-flow__node").filter({ hasText: "Non vuoto" }).click();
-  await page.getByRole("button", { name: "Elimina nodo" }).click();
+  await page.getByLabel("Campo validazione").fill("name");
+  await page.getByLabel("Regola validazione").selectOption("required");
+  await page.getByLabel("Messaggio validazione").fill("Inserisci il nome del prodotto");
   const eventNode = page.locator(".react-flow__node").filter({ hasText: "Click pulsante" });
-  const insertNode = page.locator(".react-flow__node").filter({ hasText: "Inserisci record" });
-  await eventNode.locator(".react-flow__handle.source").dragTo(insertNode.locator(".react-flow__handle.target"));
+  await eventNode.click();
+  await page.getByLabel("Passo successivo").selectOption({ label: "Non vuoto" });
 
   await page.getByRole("button", { name: "Design", exact: true }).click();
   await page.getByRole("tree").getByRole("button", { name: /Form/ }).first().click();
@@ -55,9 +57,11 @@ test("un form visuale salva un record multi-campo reale", async ({ page }) => {
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
   expect(await preview.locator("script").evaluate((script) => script.textContent)).toContain('"event":"submit"');
-  await preview.getByLabel("Nome prodotto").fill("Lampada Aurora");
   await preview.getByLabel("Prezzo").fill("39");
   await expect(preview.getByRole("button", { name: "Salva prodotto" })).toHaveAttribute("type", "submit");
+  await preview.getByRole("button", { name: "Salva prodotto" }).click();
+  await expect(preview.getByRole("alert")).toContainText("Inserisci il nome del prodotto");
+  await preview.getByLabel("Nome prodotto").fill("Lampada Aurora");
   await preview.getByRole("button", { name: "Salva prodotto" }).click();
   expect(runtimeErrors).toEqual([]);
   await expect(page.locator(".log-console")).toContainText("Inserisci record: completato");

@@ -46,7 +46,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     try {
       if (node.config.breakpoint === 'true' && breakpointMatches(value, node.config.breakpointWhen, node.config.breakpointValue)) await context.onBreakpoint?.(node.id, value)
       if (node.type === 'readInput') value = context.input
-      if (node.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(node.config.message || 'Il valore è obbligatorio')
+      if (node.type === 'validate') validate(value, node.config.field, node.config.rule, node.config.value, node.config.message)
       const conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
       const switchPath = node.type === 'switch' ? switchCase(value, node.config.field, node.config.cases) : undefined
       let loopPath: string | undefined
@@ -112,6 +112,17 @@ const required = <T>(value: T | undefined, message: string): T => {
 }
 
 const field = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
+
+const validate = (value: unknown, key = '', rule = 'required', expected = '', message = '') => {
+  const actual = key ? field(value, key) : value
+  const valid = rule === 'required' ? actual !== undefined && actual !== null && String(actual).trim() !== ''
+    : rule === 'email' ? /^\S+@\S+\.\S+$/.test(String(actual ?? ''))
+      : rule === 'minLength' ? String(actual ?? '').length >= Math.max(0, Number(expected) || 0)
+        : rule === 'min' ? Number(actual) >= Number(expected)
+          : rule === 'max' ? Number(actual) <= Number(expected)
+            : false
+  if (!valid) throw new Error(message || `Il campo ${key || 'corrente'} non è valido`)
+}
 
 const filter = (value: unknown, key = '', expected = '') => {
   if (!Array.isArray(value)) throw new Error('Il nodo filtro richiede un elenco')
