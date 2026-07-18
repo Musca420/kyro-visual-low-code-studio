@@ -580,7 +580,7 @@ async function refresh() {
 }
 function route() { const path = decodeURIComponent(location.hash.slice(1) || '/'); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = section.dataset.route !== path }) }
 addEventListener('hashchange', route); route()
-${button?.events.click ? generatedFlowRuntime(project) : `document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
+${project.flows.length ? generatedFlowRuntime(project) : `document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
   const input = document.getElementById('${inputComponent?.id ?? ""}') as HTMLInputElement | null
   if (!input?.value.trim()) { input?.setAttribute('aria-invalid', 'true'); status!.textContent = 'Il valore è obbligatorio'; return }
   const value = ${modulePipeline(project, "input.value.trim()")}; await insert(String(value)); input.value = ''; input.removeAttribute('aria-invalid'); await refresh()
@@ -667,6 +667,7 @@ function modulePipeline(project: Project, initial: string) {
 function generatedFlowRuntime(project: Project) {
   const runners = referencedModules(project).map((module, index) => `${JSON.stringify(module.id)}: runExtension${index}`).join(",");
   const bindings = project.pages.flatMap((page) => page.components.flatMap((component) => Object.entries(component.events).map(([event, flowId]) => ({ componentId: component.id, event, flowId }))));
+  const automatic = project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "event" && ["pageLoad", "timer"].includes(node.config.trigger)).map((node) => ({ flowId: flow.id, trigger: node.config.trigger, interval: Math.min(3600000, Math.max(500, Number(node.config.interval) || 5000)) })));
   return `type GraphNode = { id: string; type: string; label: string; position: { x: number; y: number }; config: Record<string, string> }
 type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: string }[] }
 const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
@@ -712,7 +713,8 @@ async function runGraph(flowId: string, input: unknown = '') {
     const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
   }
 }
-${bindings.map((binding) => `document.getElementById(${JSON.stringify(binding.componentId)})?.addEventListener(${JSON.stringify(binding.event)}, (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}) })`).join("\n")}`;
+${bindings.map((binding) => `document.getElementById(${JSON.stringify(binding.componentId)})?.addEventListener(${JSON.stringify(binding.event)}, (event) => { event.preventDefault(); const target = event.target as HTMLInputElement; void runGraph(${JSON.stringify(binding.flowId)}, target?.value ?? '') })`).join("\n")}
+${automatic.map((item) => item.trigger === "pageLoad" ? `void runGraph(${JSON.stringify(item.flowId)})` : `setInterval(() => { void runGraph(${JSON.stringify(item.flowId)}) }, ${item.interval})`).join("\n")}`;
 }
 
 export async function downloadGeneratedApp(project: Project) {

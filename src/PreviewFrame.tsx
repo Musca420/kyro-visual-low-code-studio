@@ -9,6 +9,7 @@ type Props = {
   breakpoint: Breakpoint;
   interactive: boolean;
   onAdd: (value: string) => Promise<void>;
+  onRunFlow?: (flowId: string, input: unknown) => Promise<{ notification?: string; level?: string; navigate?: string; modalId?: string }>;
   onRefresh: () => Promise<LocalRecord[]>;
   onDashboardAction?: (
     action: string,
@@ -161,6 +162,19 @@ function styleFor(component: EditorComponent, breakpoint: Breakpoint) {
   return `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`;
 }
 
+function flowTriggerScript(project: Project, interactive: boolean) {
+  if (!interactive) return "";
+  const bindings = project.state.experience ? [] : project.pages.flatMap((page) => page.components.flatMap((component) =>
+    Object.entries(component.events).map(([event, flowId]) => ({ componentId: component.id, event, flowId, inputId: project.flows.find((flow) => flow.id === flowId)?.nodes.find((node) => node.type === "readInput")?.config.componentId })),
+  ));
+  const automatic = project.flows.flatMap((flow) => flow.nodes
+    .filter((node) => node.type === "event" && ["pageLoad", "timer"].includes(node.config.trigger))
+    .map((node) => ({ flowId: flow.id, trigger: node.config.trigger, interval: Math.min(3600000, Math.max(500, Number(node.config.interval) || 5000)) })),
+  );
+  const safe = (value: unknown) => JSON.stringify(value).replaceAll("<", "\\u003c");
+  return `;const feBindings=${safe(bindings)},feAutomatic=${safe(automatic)};const feInput=(event,binding)=>{const configured=binding.inputId&&document.querySelector('[data-component="'+CSS.escape(binding.inputId)+'"]');if(configured&&'value'in configured)return configured.value;const target=event.target;if(event.type==='submit'&&target instanceof HTMLFormElement)return Object.fromEntries(new FormData(target));return target&&'value'in target?target.value:''};feBindings.forEach((binding)=>document.querySelector('[data-component="'+CSS.escape(binding.componentId)+'"]')?.addEventListener(binding.event,(event)=>{event.preventDefault();send('RUN_FLOW',{flowId:binding.flowId,input:feInput(event,binding)})}));feAutomatic.forEach((item)=>item.trigger==='pageLoad'?send('RUN_FLOW',{flowId:item.flowId,input:''}):setInterval(()=>send('RUN_FLOW',{flowId:item.flowId,input:''}),item.interval));addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host'||message.action!=='flow')return;let status=document.querySelector('[data-flow-status]');if(!status){status=document.createElement('div');status.dataset.flowStatus='';status.setAttribute('role','status');status.style.cssText='position:fixed;right:16px;bottom:16px;z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white;box-shadow:0 12px 30px #0004';document.body.append(status)}if(message.notification){status.textContent=message.notification;status.hidden=false;clearTimeout(window.feStatusTimer);window.feStatusTimer=setTimeout(()=>status.hidden=true,2600)}if(message.navigate)location.hash=message.navigate;if(message.modalId)document.querySelector('[data-component="'+CSS.escape(message.modalId)+'"]')?.removeAttribute('hidden')});`;
+}
+
 function landingMarkup(components: EditorComponent[]) {
   const nav = bySlot(components, "navbar"),
     title = bySlot(components, "hero-title"),
@@ -276,6 +290,7 @@ export function PreviewFrame({
   breakpoint,
   interactive,
   onAdd,
+  onRunFlow,
   onRefresh,
   onDashboardAction,
   error,
@@ -305,15 +320,16 @@ export function PreviewFrame({
         : experience === "dashboard"
           ? dashboardCss()
           : "body{padding:24px}main{position:relative;min-height:680px;display:grid;gap:14px;width:min(680px,100%);margin:auto}";
+    const hasGraphBindings = components.some((component) => Object.keys(component.events).length > 0);
     const behavior =
       experience === "landing"
         ? landingScript(interactive) + landingValidationScript()
         : experience === "dashboard"
           ? dashboardScript(interactive) + dashboardValidationScript()
-          : todoScript(interactive);
+          : todoScript(interactive && !hasGraphBindings);
     const capture = `addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-capture')return;try{const width=Math.min(2400,Math.max(1,document.documentElement.scrollWidth)),height=Math.min(2400,Math.max(1,document.documentElement.scrollHeight)),copy=document.documentElement.cloneNode(true);copy.querySelectorAll('script').forEach((node)=>node.remove());send('CAPTURE_HTML',{html:'<!doctype html>'+copy.outerHTML,width,height})}catch(error){send('CAPTURE_ERROR',{error:String(error)})}});`;
-    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join("\n")}body{background:${project.theme.tokens.pageBackground ?? "#ffffff"};background-image:${project.theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${capture}${behavior}</script></body></html>`;
-  }, [page, project.pages, project.theme.tokens.pageBackground, project.theme.tokens.pageBackgroundImage, breakpoint, interactive, experience]);
+    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join("\n")}body{background:${project.theme.tokens.pageBackground ?? "#ffffff"};background-image:${project.theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${capture}${behavior}${flowTriggerScript(project, interactive)}</script></body></html>`;
+  }, [page, project, breakpoint, interactive, experience]);
 
   useEffect(() => {
     const listener = async (event: MessageEvent) => {
@@ -375,6 +391,14 @@ export function PreviewFrame({
           );
         }
       }
+      if (event.data.type === "RUN_FLOW" && onRunFlow) {
+        try {
+          const outcome = await onRunFlow(String(event.data.flowId ?? ""), event.data.input);
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", records: sourceId ? await onRefresh() : [], ...outcome }, "*");
+        } catch (problem) {
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", notification: problem instanceof Error ? problem.message : String(problem), level: "error" }, "*");
+        }
+      }
       if (event.data.type === "DASHBOARD_ACTION" && onDashboardAction) {
         try {
           const records = await onDashboardAction(
@@ -406,6 +430,7 @@ export function PreviewFrame({
     return () => window.removeEventListener("message", listener);
   }, [
     onAdd,
+    onRunFlow,
     onRefresh,
     onDashboardAction,
     sourceId,

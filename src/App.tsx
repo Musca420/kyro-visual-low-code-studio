@@ -1637,6 +1637,54 @@ function Editor({
     [project.flows, project.dataSources, project.codeModules, refreshRecords],
   );
 
+  const runPreviewFlow = useCallback(async (flowId: string, input: unknown) => {
+    const activeFlow = project.flows.find((item) => item.id === flowId);
+    const source = project.dataSources[0];
+    if (!activeFlow) throw new Error("Flow non trovato");
+    let notification: string | undefined, level: string | undefined, navigate: string | undefined, modalId: string | undefined;
+    setLogs([]);
+    const result = await runFlow(activeFlow, {
+      input,
+      insert: (value, sourceId) => insertRecord(sourceId || source?.id || "", value),
+      query: (sourceId) => queryRecords(sourceId || source?.id || ""),
+      update: async (value, sourceId) => {
+        if (!value || typeof value !== "object") throw new Error("Il record da modificare non è valido");
+        const record = value as Record<string, unknown>;
+        return updateProjectRecord(sourceId || source?.id || "", String(record.id || ""), record);
+      },
+      delete: async (value, sourceId) => {
+        const id = typeof value === "object" && value ? String((value as Record<string, unknown>).id || "") : String(value || "");
+        await deleteProjectRecord(sourceId || source?.id || "", id);
+      },
+      refresh: async () => { if (source) await refreshRecords(); },
+      navigate: (path) => { navigate = path; },
+      openModal: (componentId) => { modalId = componentId; },
+      notify: (message, kind) => { notification = message; level = kind; },
+      runModule: (moduleId, value) => {
+        const module = project.codeModules.find((item) => item.id === moduleId);
+        if (!module) throw new Error("Modulo avanzato non trovato");
+        return runCodeModule(module, value);
+      },
+      getState: (key) => runtimeState.current[key],
+      setState: (key, value) => { runtimeState.current[key] = value; },
+      resetState: (key) => { delete runtimeState.current[key]; },
+      request: async (url, method, body) => {
+        const response = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : undefined, body });
+        if (!response.ok) throw new Error(`API non disponibile (${response.status})`);
+        return response.status === 204 ? undefined : response.headers.get("content-type")?.includes("json") ? response.json() : response.text();
+      },
+      onLog: (log) => setLogs((current) => [...current, log]),
+      onBreakpoint: (nodeId, value) => new Promise<void>((resolve) => {
+        setPausedFlow({ nodeId, value });
+        resumeFlow.current = () => { setPausedFlow(undefined); resumeFlow.current = undefined; resolve(); };
+      }),
+    });
+    setLogs(result);
+    const failure = result.find((entry) => entry.level === "error");
+    if (failure) throw new Error(failure.message);
+    return { notification, level, navigate, modalId };
+  }, [project.flows, project.dataSources, project.codeModules, refreshRecords]);
+
   const dashboardAction = useCallback(
     async (action: string, payload?: Record<string, string>) => {
       const source = project.dataSources[0];
@@ -2391,12 +2439,21 @@ function Editor({
                 } : item),
               })}
               onChange={(updated) =>
-                change({
-                  ...project,
-                  flows: project.flows.map((item) =>
-                    item.id === updated.id ? updated : item,
-                  ),
-                })
+                change((() => {
+                  const triggers = updated.nodes.filter((node) => node.type === "event" && ["click", "change", "submit"].includes(node.config.trigger ?? "click") && node.config.componentId);
+                  return {
+                    ...project,
+                    flows: project.flows.map((item) => item.id === updated.id ? updated : item),
+                    pages: project.pages.map((page) => ({
+                      ...page,
+                      components: page.components.map((component) => {
+                        const events = Object.fromEntries(Object.entries(component.events).filter(([, flowId]) => flowId !== updated.id));
+                        for (const node of triggers) if (node.config.componentId === component.id) events[node.config.trigger ?? "click"] = updated.id;
+                        return { ...component, events };
+                      }),
+                    })),
+                  };
+                })())
               }
             />
           </Suspense>
@@ -2702,6 +2759,7 @@ function Editor({
               breakpoint={breakpoint}
               interactive={interactive}
               onAdd={addRecord}
+              onRunFlow={runPreviewFlow}
               onRefresh={refreshRecords}
               onDashboardAction={dashboardAction}
               captureRequest={

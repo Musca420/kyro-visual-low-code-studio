@@ -14,6 +14,11 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: /^Flow/ }).click();
   await page.getByRole("button", { name: "Crea flow dati" }).click();
 
+  await page.locator(".react-flow__node").filter({ hasText: "Click pulsante" }).click();
+  await expect(page.getByLabel("Tipo evento")).toHaveValue("click");
+  await page.getByLabel("Elemento collegato").selectOption({ label: "Button · button" });
+  await expect(page.getByText("Questo collegamento viene usato uguale in preview ed export.")).toBeVisible();
+
   const nodePalette = page.getByRole("complementary", { name: "Aggiungi nodi al flow" });
   const addNode = async (name: string) => {
     await nodePalette.getByLabel("Cerca azione").fill(name);
