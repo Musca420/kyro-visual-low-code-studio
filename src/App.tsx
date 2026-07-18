@@ -75,6 +75,13 @@ export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [active, setActive] = useState<Project>();
   const [loading, setLoading] = useState(true);
+  const [uiTheme, setUiTheme] = useState<"light" | "dark">(
+    () => (localStorage.getItem("frontend-editor-theme") === "light" ? "light" : "dark"),
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = uiTheme;
+    localStorage.setItem("frontend-editor-theme", uiTheme);
+  }, [uiTheme]);
   const refresh = useCallback(() => listProjects().then(setProjects), []);
   useEffect(() => {
     refresh().finally(() => setLoading(false));
@@ -84,6 +91,8 @@ export function App() {
       {active ? (
         <Editor
           initial={active}
+          uiTheme={uiTheme}
+          onToggleTheme={() => setUiTheme((value) => value === "dark" ? "light" : "dark")}
           onClose={() => {
             setActive(undefined);
             void refresh();
@@ -91,6 +100,8 @@ export function App() {
         />
       ) : (
         <Dashboard
+          uiTheme={uiTheme}
+          onToggleTheme={() => setUiTheme((value) => value === "dark" ? "light" : "dark")}
           loading={loading}
           projects={projects}
           onOpen={async (id) => {
@@ -105,11 +116,15 @@ export function App() {
 }
 
 function Dashboard({
+  uiTheme,
+  onToggleTheme,
   loading,
   projects,
   onOpen,
   onRefresh,
 }: {
+  uiTheme: "light" | "dark";
+  onToggleTheme: () => void;
   loading: boolean;
   projects: Project[];
   onOpen: (id: string) => void;
@@ -215,6 +230,7 @@ function Dashboard({
   };
   return (
     <main className="dashboard">
+      <ThemeToggle theme={uiTheme} onToggle={onToggleTheme} />
       <header className="hero">
         <div className="brand-mark">FE</div>
         <p className="eyebrow">Visual low-code studio</p>
@@ -440,9 +456,13 @@ function Dashboard({
 function Editor({
   initial,
   onClose,
+  uiTheme,
+  onToggleTheme,
 }: {
   initial: Project;
   onClose: () => void;
+  uiTheme: "light" | "dark";
+  onToggleTheme: () => void;
 }) {
   const [project, setProject] = useState(initial);
   const [pageId, setPageId] = useState(initial.pages[0]?.id ?? "");
@@ -1325,6 +1345,7 @@ function Editor({
           <span>{saveState}</span>
         </div>
         <div className="top-actions">
+          <ThemeToggle theme={uiTheme} onToggle={onToggleTheme} />
           <button
             className="icon-button"
             onClick={undo}
@@ -2125,6 +2146,20 @@ function PanelTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
       <p className="eyebrow">{eyebrow}</p>
       <h2>{title}</h2>
     </div>
+  );
+}
+
+function ThemeToggle({ theme, onToggle }: { theme: "light" | "dark"; onToggle: () => void }) {
+  return (
+    <button
+      className="theme-toggle secondary"
+      aria-label={theme === "dark" ? "Usa tema chiaro" : "Usa tema scuro"}
+      aria-pressed={theme === "dark"}
+      onClick={onToggle}
+    >
+      <span aria-hidden="true">{theme === "dark" ? "☀" : "◐"}</span>
+      <span>{theme === "dark" ? "Chiaro" : "Scuro"}</span>
+    </button>
   );
 }
 
