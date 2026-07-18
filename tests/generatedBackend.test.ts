@@ -65,6 +65,7 @@ describe("backend esportato", () => {
     };
     project.codeModules.push({ id: "clean", name: "Pulisci", description: "", inputType: "string", outputType: "string", operation: "trim", config: {}, tests: [] });
     project.flows.push({ id: "create", name: "Create", nodes: [{ id: "event", type: "event", label: "Click", position: { x: 0, y: 0 }, config: {} }, { id: "clean", type: "module", label: "Pulisci", position: { x: 1, y: 0 }, config: { moduleId: "clean" } }], edges: [{ id: "edge", source: "event", target: "clean", path: "success" }] });
+    project.pages[0].components[1].events.click = "create";
     const files = generateFiles(project);
     directory = await mkdtemp(join(tmpdir(), "frontend-editor-backend-"));
     for (const path of [

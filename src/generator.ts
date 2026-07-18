@@ -537,7 +537,9 @@ export function generateFiles(input: Project): Record<string, string> {
       ? `const endpoint = ${JSON.stringify(source.endpoint)}
 async function request(path = '', init?: RequestInit) { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
 async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ id: String(item.id ?? index), sourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
-async function insert(text: string) { await request('', { method: 'POST', body: JSON.stringify({ text }) }) }`
+async function insert(text: string) { await request('', { method: 'POST', body: JSON.stringify({ text }) }) }
+async function update(value: unknown) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'PUT', body: JSON.stringify(item) }) }
+async function remove(value: unknown) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'DELETE' }) }`
       : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
   const request = indexedDB.open('frontend-editor-export', 1)
   request.onupgradeneeded = () => request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId')
@@ -551,6 +553,14 @@ async function query(): Promise<Item[]> {
 async function insert(text: string) {
   const db = await openDb()
   return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
+}
+async function update(value: unknown) {
+  const db = await openDb(), item = value as Item
+  return new Promise<Item>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put(item); tx.oncomplete = () => resolve(item); tx.onerror = () => reject(tx.error) })
+}
+async function remove(value: unknown) {
+  const db = await openDb(), item = value as Item
+  return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(item.id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }`;
   const main = `import './style.css'
 ${moduleImports(project)}
@@ -570,11 +580,11 @@ async function refresh() {
 }
 function route() { const path = decodeURIComponent(location.hash.slice(1) || '/'); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = section.dataset.route !== path }) }
 addEventListener('hashchange', route); route()
-document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
+${button?.events.click ? generatedFlowRuntime(project) : `document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
   const input = document.getElementById('${inputComponent?.id ?? ""}') as HTMLInputElement | null
   if (!input?.value.trim()) { input?.setAttribute('aria-invalid', 'true'); status!.textContent = 'Il valore è obbligatorio'; return }
   const value = ${modulePipeline(project, "input.value.trim()")}; await insert(String(value)); input.value = ''; input.removeAttribute('aria-invalid'); await refresh()
-})
+})`}
 ${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource(${JSON.stringify(project.appConfig.realtime.url)}); updates.addEventListener('records', () => void refresh())` : ""}
 void refresh()
 `;
@@ -652,6 +662,44 @@ function moduleImports(project: Project) {
 
 function modulePipeline(project: Project, initial: string) {
   return referencedModules(project).reduce((value, _module, index) => `runExtension${index}(${value} as never)`, initial);
+}
+
+function generatedFlowRuntime(project: Project) {
+  const runners = referencedModules(project).map((module, index) => `${JSON.stringify(module.id)}: runExtension${index}`).join(",");
+  const bindings = project.pages.flatMap((page) => page.components.flatMap((component) => Object.entries(component.events).map(([event, flowId]) => ({ componentId: component.id, event, flowId }))));
+  return `type GraphNode = { id: string; type: string; label: string; position: { x: number; y: number }; config: Record<string, string> }
+type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: 'success' | 'error' }[] }
+const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
+const extensionRunners: Record<string, (value: never) => unknown> = { ${runners} }
+const graphField = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
+const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
+async function runGraph(flowId: string, input: unknown = '') {
+  const flow = graphFlows.find((item) => item.id === flowId); if (!flow) throw new Error('Flow non trovato')
+  const nodes = new Map(flow.nodes.map((node) => [node.id, node])); let node: GraphNode | undefined = flow.nodes.find((item) => item.type === 'event'), value = input, path: 'success' | 'error' = 'success'; const visited = new Set<string>()
+  while (node) { const current: GraphNode = node; if (visited.has(current.id)) throw new Error('Loop non controllato al nodo ' + current.label); visited.add(current.id)
+    try {
+      if (current.type === 'readInput') value = (document.getElementById(current.config.componentId) as HTMLInputElement | null)?.value ?? input
+      if (current.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(current.config.message || 'Il valore è obbligatorio')
+      const condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
+      if (current.type === 'insert') { await insert(String(value).trim()); value = { text: String(value).trim() } }
+      if (current.type === 'query') value = await query()
+      if (current.type === 'update') value = await update(value)
+      if (current.type === 'delete') { await remove(value); value = undefined }
+      if (current.type === 'filter') { if (!Array.isArray(value)) throw new Error('Il nodo filtro richiede un elenco'); const needle = (current.config.value || '').toLowerCase(); value = value.filter((item) => String(graphField(item, current.config.field) ?? '').toLowerCase().includes(needle)) }
+      if (current.type === 'sort') { if (!Array.isArray(value)) throw new Error('Il nodo ordinamento richiede un elenco'); value = [...value].sort((a, b) => String(graphField(a, current.config.field) ?? '').localeCompare(String(graphField(b, current.config.field) ?? '')) * (current.config.direction === 'desc' ? -1 : 1)) }
+      if (current.type === 'kpi') { if (!Array.isArray(value)) throw new Error('Il nodo KPI richiede un elenco'); const values = value.map((item) => Number(graphField(item, current.config.field))).filter(Number.isFinite); value = current.config.operation === 'sum' ? values.reduce((a, b) => a + b, 0) : current.config.operation === 'average' ? (values.reduce((a, b) => a + b, 0) / (values.length || 1)) : value.length }
+      if (current.type === 'module') { const runner = extensionRunners[current.config.moduleId]; if (!runner) throw new Error('Modulo non trovato'); value = runner(value as never) }
+      if (current.type === 'refresh') await refresh()
+      if (current.type === 'navigate') location.hash = current.config.path || '/'
+      if (current.type === 'openModal') document.getElementById(current.config.componentId)?.removeAttribute('hidden')
+      if (current.type === 'notify' && status) status.textContent = current.config.message || String(value)
+      if (current.type === 'log') console.debug(current.config.message || current.label, value)
+      path = condition ? 'success' : 'error'
+    } catch (error) { path = 'error'; if (status) status.textContent = 'Errore: ' + (error instanceof Error ? error.message : String(error)) }
+    const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
+  }
+}
+${bindings.map((binding) => `document.getElementById(${JSON.stringify(binding.componentId)})?.addEventListener(${JSON.stringify(binding.event)}, (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}) })`).join("\n")}`;
 }
 
 export async function downloadGeneratedApp(project: Project) {

@@ -15,7 +15,7 @@ La Definition of Done MVP e il verticale obbligatorio sono verificati. Frontend 
 | Dashboard con cinque record inseriti dalla preview, CRUD, ricerca, filtro, ordinamento, KPI, validazione e toast | `e2e/scenarios.spec.ts` | Superato |
 | Sito multipagina con form, dati, modal, ricerca e navigazione mobile | `e2e/rich-website.spec.ts` | Superato |
 | Canvas Canva-like, preview ed export indipendente | `e2e/canva-canvas.spec.ts` | 3 percorsi superati |
-| App generata autonoma con proprio IndexedDB | `npm run test:generated` | Superato |
+| App generata autonoma con flow derivato dal grafo, modulo tipizzato e proprio IndexedDB | `npm run test:generated` | Superato |
 | Backend esportato persistente con CRUD reale | `tests/generatedBackend.test.ts` | Superato |
 | Android guidato, APK e dispositivo | `e2e/android-build.spec.ts` e screenshot in `artifacts/` | Eseguito nel collaudo dedicato |
 

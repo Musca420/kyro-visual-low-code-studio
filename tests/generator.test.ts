@@ -54,9 +54,11 @@ describe("web generator", () => {
     project.pages.push({ id: "page", name: "Home", path: "/", components: [makeComponent("input"), makeComponent("button"), makeComponent("list")] });
     project.codeModules.push({ id: "clean", name: "Pulisci", description: "", inputType: "string", outputType: "string", operation: "trim", config: {}, tests: [] });
     project.flows.push({ id: "flow", name: "Create", nodes: [{ id: "start", type: "event", label: "Start", position: { x: 0, y: 0 }, config: {} }, { id: "module", type: "module", label: "Pulisci", position: { x: 1, y: 0 }, config: { moduleId: "clean" } }], edges: [{ id: "edge", source: "start", target: "module", path: "success" }] });
+    project.pages[0].components[1].events.click = "flow";
     const files = generateFiles(project);
     expect(files["src/extensions/module-clean.ts"]).toContain("export function run");
-    expect(files["src/main.ts"]).toContain("runExtension0(input.value.trim() as never)");
+    expect(files["src/main.ts"]).toContain("async function runGraph");
+    expect(files["src/main.ts"]).toContain("extensionRunners");
   });
 
   it("preserves nested containers in the exported markup", () => {

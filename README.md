@@ -6,6 +6,8 @@ Il Flow Editor permette di aggiungere liberamente nodi da una palette visuale, c
 
 Il confronto funzionale aggiornato con i visual builder e la roadmap verificabile sono in [BENCHMARK_ROADMAP.md](./BENCHMARK_ROADMAP.md). Il modello include anche l'intento semantico degli elementi; il pannello **Programma collegato** attraversa eventi, flow, dati e file generati e segnala le capability mancanti allo stesso Live Bridge usato da Codex. I file derivati dal componente, dal nodo o dalla sorgente selezionata sono pulsanti reali: si aprono in un inspector di sola lettura che mostra il contenuto effettivamente esportato e mantiene esplicita la provenienza dal grafo.
 
+Nel generatore web generico, eventi, nodi, rami success/error e moduli protetti vengono serializzati dal medesimo grafo ed eseguiti da un runtime TypeScript deterministico. `npm run export:sample`, build e `npm run test:generated` dimostrano separatamente il percorso evento → validazione → modulo → IndexedDB → refresh, senza un handler simulato nell’export.
+
 I plugin seguono l'[SDK dichiarativo](./PLUGIN_SDK.md): possono contribuire preset di componenti, nodi, provider REST e temi con permessi espliciti, senza eseguire codice di terzi nell'editor. Una volta applicato, ogni contributo diventa parte del formato aperto e continua a funzionare anche se il plugin viene disabilitato o nell'export standalone.
 
 Le cinque prove browser per persona visuale e i limiti della simulazione sono registrati in [PERSONA_TEST_REPORT.md](./PERSONA_TEST_REPORT.md).
