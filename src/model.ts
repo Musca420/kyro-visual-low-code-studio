@@ -208,6 +208,19 @@ export const componentSchema = z.object({
 
 export type EditorComponent = z.infer<typeof componentSchema>;
 
+export const reusableComponentSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  components: z.array(componentSchema).min(1),
+  exposedProperties: z.array(z.object({
+    componentId: z.string().min(1),
+    property: z.literal("label"),
+    label: z.string().min(1),
+  })).default([]),
+});
+
+export type ReusableComponent = z.infer<typeof reusableComponentSchema>;
+
 export const flowNodeTypes = [
   "event",
   "readInput",
@@ -342,6 +355,7 @@ export const projectSchema = z.object({
       components: z.array(componentSchema),
     }),
   ),
+  reusableComponents: z.array(reusableComponentSchema).default([]),
   flows: z.array(
     z.object({
       id: z.string(),
@@ -529,6 +543,7 @@ export function createProject(name: string): Project {
     createdAt: now,
     updatedAt: now,
     pages: [],
+    reusableComponents: [],
     flows: [],
     state: {},
     dataSources: [],
@@ -586,6 +601,7 @@ function migrateProject(input: unknown): unknown {
     ...legacy,
     formatVersion: 1,
     state: legacy.state ?? {},
+    reusableComponents: legacy.reusableComponents ?? [],
     dataSources: legacy.dataSources ?? [],
     theme: legacy.theme ?? { tokens: {} },
     animations: legacy.animations ?? [],
@@ -615,6 +631,17 @@ export function validateReferences(project: Project) {
   const flowIds = new Set(project.flows.map((flow) => flow.id));
   const sourceIds = new Set(project.dataSources.map((source) => source.id));
   const moduleIds = new Set(project.codeModules.map((module) => module.id));
+  for (const definition of project.reusableComponents) {
+    const definitionIds = new Set(definition.components.map((component) => component.id));
+    if (definitionIds.size !== definition.components.length)
+      throw new Error(`ID duplicato nel blocco riutilizzabile ${definition.name}`);
+    for (const component of definition.components)
+      if (component.parentId && !definitionIds.has(component.parentId))
+        throw new Error(`Contenitore mancante nel blocco riutilizzabile ${definition.name}`);
+    for (const exposed of definition.exposedProperties)
+      if (!definitionIds.has(exposed.componentId))
+        throw new Error(`Proprietà esposta senza componente nel blocco ${definition.name}`);
+  }
   for (const page of project.pages) {
     const pageIds = new Set(page.components.map((component) => component.id));
     if (pageIds.size !== page.components.length)

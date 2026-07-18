@@ -30,6 +30,14 @@ describe('project model', () => {
     expect(serializeProject(restored)).toBe(first)
     expect(restored.pages[0].components[0].id).toBe(component.id)
   })
+  it('valida e conserva i blocchi visuali riutilizzabili', () => {
+    const project = createProject('Blocchi')
+    const card = makeComponent('card')
+    project.reusableComponents.push({ id: 'feature', name: 'Feature', components: [card], exposedProperties: [{ componentId: card.id, property: 'label', label: 'Titolo' }] })
+    expect(parseProject(project).reusableComponents[0].name).toBe('Feature')
+    project.reusableComponents[0].exposedProperties[0].componentId = 'missing'
+    expect(() => parseProject(project)).toThrow('Proprietà esposta senza componente')
+  })
 
   it('rejects dangling references with a useful error', () => {
     const project = createProject('Invalid')

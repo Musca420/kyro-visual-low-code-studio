@@ -62,6 +62,7 @@ import { VisualProperties } from "./VisualProperties";
 import { visualGradients, visualPalettes } from "./visualPresets";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
+import { createReusableComponent, instantiateReusableComponent } from "./reusableComponents";
 import { createBackup, restoreBackup, serializeBackup } from "./backup";
 import {
   inspectComponentProgram,
@@ -592,6 +593,7 @@ function Editor({
   const [interactive, setInteractive] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [reusableName, setReusableName] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [history, setHistory] = useState<Project[]>([]);
@@ -1016,6 +1018,34 @@ function Editor({
     patchPage((components) => [...components, component]);
     setSelected([component.id]);
     setFeedback(`Componente plugin aggiunto: ${contribution.label}`);
+  };
+  const saveReusableComponent = () => {
+    if (!currentPage || !selected.length)
+      return setFeedback("Seleziona uno o più elementi da salvare come blocco");
+    const included = new Set<string>();
+    selected.forEach((id) => {
+      included.add(id);
+      descendantIds(currentPage.components, id).forEach((childId) => included.add(childId));
+    });
+    const name = reusableName.trim() || activeComponent?.name || "Blocco riutilizzabile";
+    const definition = createReusableComponent(
+      name,
+      currentPage.components.filter((component) => included.has(component.id)),
+    );
+    change({
+      ...project,
+      reusableComponents: [...project.reusableComponents, definition],
+    });
+    setReusableName("");
+    setFeedback(`${name} salvato nei tuoi blocchi`);
+  };
+  const addReusableComponent = (definitionId: string) => {
+    const definition = project.reusableComponents.find((item) => item.id === definitionId);
+    if (!definition || !currentPage) return;
+    const instance = instantiateReusableComponent(definition);
+    patchPage((components) => [...components, instance.wrapper, ...instance.components]);
+    setSelected([instance.wrapper.id]);
+    setFeedback(`${definition.name} aggiunto come gruppo completamente modificabile`);
   };
   const updateComponent = (
     update: (component: EditorComponent) => EditorComponent,
@@ -2141,6 +2171,40 @@ function Editor({
                 onChange={(event) => setPaletteQuery(event.target.value)}
               />
             </label>
+            <section className="reusable-library" aria-label="Blocchi riutilizzabili">
+              <strong>I tuoi blocchi</strong>
+              <small>Salva una selezione e riusala come gruppo modificabile.</small>
+              {selected.length > 0 && (
+                <div className="reusable-save">
+                  <input
+                    aria-label="Nome blocco riutilizzabile"
+                    placeholder={activeComponent?.name ?? "Nome blocco"}
+                    value={reusableName}
+                    onChange={(event) => setReusableName(event.target.value)}
+                  />
+                  <button type="button" onClick={saveReusableComponent}>Salva selezione</button>
+                </div>
+              )}
+              {project.reusableComponents.map((definition) => (
+                <div className="reusable-entry" key={definition.id}>
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(event) => event.dataTransfer.setData("application/frontend-reusable", definition.id)}
+                    onClick={() => addReusableComponent(definition.id)}
+                  >
+                    <span>◇</span>{definition.name}
+                    <small>{definition.components.length} elementi</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="reusable-remove"
+                    aria-label={`Rimuovi blocco ${definition.name}`}
+                    onClick={() => change({ ...project, reusableComponents: project.reusableComponents.filter((item) => item.id !== definition.id) })}
+                  >×</button>
+                </div>
+              ))}
+            </section>
             <div className="palette">
               {componentTypes
                 .filter((type) =>
@@ -2271,6 +2335,11 @@ function Editor({
                 onPointerDown={startMarquee}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
+                  const reusableId = event.dataTransfer.getData("application/frontend-reusable");
+                  if (reusableId) {
+                    addReusableComponent(reusableId);
+                    return;
+                  }
                   const type = event.dataTransfer.getData(
                     "application/frontend-component",
                   ) as EditorComponent["type"];
