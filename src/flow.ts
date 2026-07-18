@@ -2,7 +2,7 @@ import type { Flow } from './model'
 
 export type FlowLog = { nodeId: string; level: 'info' | 'error'; message: string; value?: unknown }
 export type FlowContext = {
-  input: string
+  input: unknown
   insert: (text: string, sourceId?: string) => Promise<unknown>
   query?: (sourceId?: string) => Promise<unknown[]>
   update?: (value: unknown, sourceId?: string) => Promise<unknown>
@@ -31,16 +31,31 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
   let value: unknown = context.input
   let path = 'success'
   const visited = new Map<string, number>()
+  const loops = new Map<string, { items: unknown[]; index: number }>()
+  let steps = 0
   while (node) {
+    if (++steps > 1000) throw new Error('Il flow ha superato il limite di 1000 passaggi')
     if (context.signal?.aborted) throw new DOMException('Flow annullato', 'AbortError')
     const count = (visited.get(node.id) ?? 0) + 1
     visited.set(node.id, count)
-    if (count > 1) throw new Error(`Loop non controllato al nodo ${node.label}`)
+    if (count > 1 && loops.size === 0) throw new Error(`Loop non controllato al nodo ${node.label}`)
     try {
       if (node.type === 'readInput') value = context.input
       if (node.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(node.config.message || 'Il valore è obbligatorio')
       const conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
       const switchPath = node.type === 'switch' ? switchCase(value, node.config.field, node.config.cases) : undefined
+      let loopPath: string | undefined
+      if (node.type === 'loop') {
+        let state = loops.get(node.id)
+        if (!state) {
+          if (!Array.isArray(value)) throw new Error('Il ciclo richiede un elenco')
+          const limit = Math.min(100, Math.max(1, Number(node.config.max) || 100))
+          if (value.length > limit) throw new Error(`Il ciclo supera il limite di ${limit} elementi`)
+          state = { items: value, index: 0 }; loops.set(node.id, state)
+        } else state.index += 1
+        if (state.index < state.items.length) { value = state.items[state.index]; loopPath = 'each' }
+        else { value = state.items; loops.delete(node.id); loopPath = 'done' }
+      }
       if (node.type === 'getState') value = required(context.getState, 'Stato non disponibile')(node.config.key || '')
       if (node.type === 'setState') required(context.setState, 'Stato non disponibile')(node.config.key || '', value)
       if (node.type === 'resetState') { required(context.resetState, 'Stato non disponibile')(node.config.key || ''); value = undefined }
@@ -61,7 +76,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
-      path = switchPath ?? (conditionResult === false ? 'error' : 'success')
+      path = loopPath ?? switchPath ?? (conditionResult === false ? 'error' : 'success')
       logs.push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value })
     } catch (error) {
       path = 'error'

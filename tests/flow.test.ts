@@ -147,7 +147,26 @@ describe('flow runtime', () => {
       { id: '3', source: 'switch', target: 'other', path: 'error' },
     ] }
     const notify = vi.fn()
-    await runFlow(choose, { input: { status: 'done' } as unknown as string, insert: async () => undefined, refresh: async () => undefined, notify })
+    await runFlow(choose, { input: { status: 'done' }, insert: async () => undefined, refresh: async () => undefined, notify })
     expect(notify).toHaveBeenCalledWith('Completato', 'case:done')
+  })
+
+  it('ripete un ramo per ogni elemento entro un limite esplicito', async () => {
+    const each: Flow = { id: 'loop', name: 'Each', nodes: [
+      { id: 'event', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'loop', type: 'loop', label: 'Each', position: { x: 1, y: 0 }, config: { max: '3' } },
+      { id: 'format', type: 'format', label: 'Format', position: { x: 2, y: 0 }, config: { template: 'Item {{value}}' } },
+      { id: 'done', type: 'notify', label: 'Done', position: { x: 3, y: 0 }, config: { message: 'Fine' } },
+    ], edges: [
+      { id: '1', source: 'event', target: 'loop', path: 'success' },
+      { id: '2', source: 'loop', target: 'format', path: 'each' },
+      { id: '3', source: 'format', target: 'loop', path: 'success' },
+      { id: '4', source: 'loop', target: 'done', path: 'done' },
+    ] }
+    const notify = vi.fn(), logs = await runFlow(each, { input: ['A', 'B'], insert: async () => undefined, refresh: async () => undefined, notify })
+    expect(logs.filter((entry) => entry.nodeId === 'format').map((entry) => entry.value)).toEqual(['Item A', 'Item B'])
+    expect(notify).toHaveBeenCalledOnce()
+    const tooMany = structuredClone(each); tooMany.nodes.find((node) => node.type === 'loop')!.config.max = '1'
+    expect((await runFlow(tooMany, { input: ['A', 'B'], insert: async () => undefined, refresh: async () => undefined })).some((entry) => entry.message.includes('limite di 1'))).toBe(true)
   })
 })

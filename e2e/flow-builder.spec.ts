@@ -85,8 +85,17 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await expect(switchNode.locator('[title="in corso"]')).toBeVisible();
   await nodePalette.getByRole("button", { name: "Mostra notifica" }).click();
   await page.getByLabel("Nome nodo").fill("Caso in corso");
-  await switchNode.locator('[title="in corso"]').dragTo(page.locator(".react-flow__node").filter({ hasText: "Caso in corso" }).locator(".react-flow__handle.target"));
-  await expect(page.locator(".react-flow__edge-text").filter({ hasText: "case:in corso" })).toBeVisible();
+  const caseEdge = page.locator(".react-flow__edge-text").filter({ hasText: "case:in corso" });
+  for (let attempt = 0; attempt < 3 && await caseEdge.count() === 0; attempt += 1) {
+    await switchNode.locator('[title="in corso"]').dragTo(page.locator(".react-flow__node").filter({ hasText: "Caso in corso" }).locator(".react-flow__handle.target"));
+    await page.waitForTimeout(150);
+  }
+  await expect(caseEdge).toBeVisible();
+  await nodePalette.getByRole("button", { name: "Per ogni elemento" }).click();
+  await page.getByLabel("Limite ciclo").fill("25");
+  const loopNode = page.locator(".react-flow__node").filter({ hasText: "Per ogni elemento" });
+  await expect(loopNode.locator('[title="Ogni elemento"]')).toBeVisible();
+  await expect(loopNode.locator('[title="Completato"]')).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Salva stato" })).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Componi testo" })).toContainText("unknown → string");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-state.png", fullPage: true });

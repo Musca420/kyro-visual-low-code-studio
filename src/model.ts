@@ -214,6 +214,7 @@ export const flowNodeTypes = [
   "validate",
   "condition",
   "switch",
+  "loop",
   "getState",
   "setState",
   "resetState",
