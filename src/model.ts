@@ -213,6 +213,7 @@ export const flowNodeTypes = [
   "readInput",
   "validate",
   "condition",
+  "switch",
   "getState",
   "setState",
   "resetState",
@@ -249,7 +250,7 @@ const edgeSchema = z.object({
   id: z.string(),
   source: z.string(),
   target: z.string(),
-  path: z.enum(["success", "error"]).default("success"),
+  path: z.string().min(1).default("success"),
 });
 
 export const pluginContributionSchema = z.discriminatedUnion("kind", [

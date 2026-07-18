@@ -29,7 +29,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
   if (!event) throw new Error('Il flow non contiene un evento iniziale')
   let node = event
   let value: unknown = context.input
-  let path: 'success' | 'error' = 'success'
+  let path = 'success'
   const visited = new Map<string, number>()
   while (node) {
     if (context.signal?.aborted) throw new DOMException('Flow annullato', 'AbortError')
@@ -40,6 +40,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'readInput') value = context.input
       if (node.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(node.config.message || 'Il valore è obbligatorio')
       const conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
+      const switchPath = node.type === 'switch' ? switchCase(value, node.config.field, node.config.cases) : undefined
       if (node.type === 'getState') value = required(context.getState, 'Stato non disponibile')(node.config.key || '')
       if (node.type === 'setState') required(context.setState, 'Stato non disponibile')(node.config.key || '', value)
       if (node.type === 'resetState') { required(context.resetState, 'Stato non disponibile')(node.config.key || ''); value = undefined }
@@ -60,7 +61,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
-      path = conditionResult === false ? 'error' : 'success'
+      path = switchPath ?? (conditionResult === false ? 'error' : 'success')
       logs.push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value })
     } catch (error) {
       path = 'error'
@@ -125,6 +126,12 @@ const matches = (value: unknown, key = '', operator = 'equals', expected = '') =
   if (operator === 'greater') return Number(actual) > Number(expected)
   if (operator === 'less') return Number(actual) < Number(expected)
   throw new Error(`Operatore condizione non supportato: ${operator}`)
+}
+
+const switchCase = (value: unknown, key = '', cases = '') => {
+  const actual = String(key ? field(value, key) ?? '' : value ?? '')
+  const match = cases.split(',').map((item) => item.trim()).filter(Boolean).find((item) => item === actual)
+  return match ? `case:${match}` : 'error'
 }
 
 function guarded<T>(operation: Promise<T>, context: FlowContext): Promise<T> {

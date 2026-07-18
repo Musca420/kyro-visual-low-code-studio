@@ -668,7 +668,7 @@ function generatedFlowRuntime(project: Project) {
   const runners = referencedModules(project).map((module, index) => `${JSON.stringify(module.id)}: runExtension${index}`).join(",");
   const bindings = project.pages.flatMap((page) => page.components.flatMap((component) => Object.entries(component.events).map(([event, flowId]) => ({ componentId: component.id, event, flowId }))));
   return `type GraphNode = { id: string; type: string; label: string; position: { x: number; y: number }; config: Record<string, string> }
-type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: 'success' | 'error' }[] }
+type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: string }[] }
 const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
 const graphState: Record<string, unknown> = ${JSON.stringify(project.state)}
 const graphDebounce = new Map<string, number>()
@@ -677,12 +677,13 @@ const graphField = (value: unknown, key = '') => value && typeof value === 'obje
 const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
 async function runGraph(flowId: string, input: unknown = '') {
   const flow = graphFlows.find((item) => item.id === flowId); if (!flow) throw new Error('Flow non trovato')
-  const nodes = new Map(flow.nodes.map((node) => [node.id, node])); let node: GraphNode | undefined = flow.nodes.find((item) => item.type === 'event'), value = input, path: 'success' | 'error' = 'success'; const visited = new Set<string>()
+  const nodes = new Map(flow.nodes.map((node) => [node.id, node])); let node: GraphNode | undefined = flow.nodes.find((item) => item.type === 'event'), value = input, path = 'success'; const visited = new Set<string>()
   while (node) { const current: GraphNode = node; if (visited.has(current.id)) throw new Error('Loop non controllato al nodo ' + current.label); visited.add(current.id)
     try {
       if (current.type === 'readInput') value = (document.getElementById(current.config.componentId) as HTMLInputElement | null)?.value ?? input
       if (current.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(current.config.message || 'Il valore è obbligatorio')
       const condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
+      const switchValue = current.type === 'switch' ? String(current.config.field ? graphField(value, current.config.field) ?? '' : value ?? '') : '', switchMatch = current.type === 'switch' ? (current.config.cases || '').split(',').map((item) => item.trim()).filter(Boolean).find((item) => item === switchValue) : undefined
       if (current.type === 'getState') value = graphState[current.config.key || '']
       if (current.type === 'setState') graphState[current.config.key || ''] = value
       if (current.type === 'resetState') { delete graphState[current.config.key || '']; value = undefined }
@@ -704,7 +705,7 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'openModal') document.getElementById(current.config.componentId)?.removeAttribute('hidden')
       if (current.type === 'notify' && status) status.textContent = current.config.message || String(value)
       if (current.type === 'log') console.debug(current.config.message || current.label, value)
-      path = condition ? 'success' : 'error'
+      path = current.type === 'switch' ? (switchMatch ? 'case:' + switchMatch : 'error') : condition ? 'success' : 'error'
     } catch (error) { path = 'error'; if (status) status.textContent = 'Errore: ' + (error instanceof Error ? error.message : String(error)) }
     const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
   }

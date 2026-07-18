@@ -79,6 +79,14 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByLabel("Formato trasformazione").fill("Progetto: {{value}}");
   await nodePalette.getByRole("button", { name: "Limita input rapidi" }).click();
   await page.getByLabel("Durata debounce").fill("350");
+  await nodePalette.getByRole("button", { name: "Scegli percorso" }).click();
+  await page.getByLabel("Casi scelta").fill("nuovo,in corso,completato");
+  const switchNode = page.locator(".react-flow__node").filter({ hasText: "Scegli percorso" });
+  await expect(switchNode.locator('[title="in corso"]')).toBeVisible();
+  await nodePalette.getByRole("button", { name: "Mostra notifica" }).click();
+  await page.getByLabel("Nome nodo").fill("Caso in corso");
+  await switchNode.locator('[title="in corso"]').dragTo(page.locator(".react-flow__node").filter({ hasText: "Caso in corso" }).locator(".react-flow__handle.target"));
+  await expect(page.locator(".react-flow__edge-text").filter({ hasText: "case:in corso" })).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Salva stato" })).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Componi testo" })).toContainText("unknown → string");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-state.png", fullPage: true });

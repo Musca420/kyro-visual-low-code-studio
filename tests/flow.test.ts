@@ -134,4 +134,20 @@ describe('flow runtime', () => {
     expect(notify).toHaveBeenCalledOnce()
     expect(latest.find((entry) => entry.nodeId === 'map')?.value).toEqual(['Progetto: Aurora'])
   })
+
+  it('segue una porta distinta per ogni caso dello switch', async () => {
+    const choose: Flow = { id: 'switch', name: 'Choose', nodes: [
+      { id: 'event', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'switch', type: 'switch', label: 'Status', position: { x: 1, y: 0 }, config: { field: 'status', cases: 'todo,done' } },
+      { id: 'done', type: 'notify', label: 'Done', position: { x: 2, y: 0 }, config: { message: 'Completato' } },
+      { id: 'other', type: 'notify', label: 'Other', position: { x: 2, y: 1 }, config: { message: 'Altro' } },
+    ], edges: [
+      { id: '1', source: 'event', target: 'switch', path: 'success' },
+      { id: '2', source: 'switch', target: 'done', path: 'case:done' },
+      { id: '3', source: 'switch', target: 'other', path: 'error' },
+    ] }
+    const notify = vi.fn()
+    await runFlow(choose, { input: { status: 'done' } as unknown as string, insert: async () => undefined, refresh: async () => undefined, notify })
+    expect(notify).toHaveBeenCalledWith('Completato', 'case:done')
+  })
 })
