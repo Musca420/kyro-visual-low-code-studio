@@ -462,6 +462,7 @@ function Dashboard({
           className="visually-hidden"
           type="file"
           multiple
+          aria-label="Cartella progetto da importare"
           onChange={(event) => void importFolder(event.target.files)}
         />
         <button

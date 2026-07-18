@@ -12,6 +12,8 @@ La policy e il formato del canale desktop firmato sono descritti in [UPDATE_SECU
 
 Ogni autosalvataggio conserva una revisione ripristinabile (massimo 40 per progetto). Gli ultimi 10 export JSON/ZIP restano nello storico locale e possono essere riscaricati dopo un riavvio; versioni ed export sono inclusi nel backup completo. `e2e/persistence-history.spec.ts` verifica modifica, restore, export, reload, nuovo download e contenuto del backup.
 
+`.github/workflows/desktop-build.yml` prepara artefatti non firmati su Windows, macOS e Linux; la promozione a release resta separata e richiede firma del sistema operativo. `e2e/accessibility-primary.spec.ts` verifica nomi dei controlli, focus visibile, tastiera e assenza di overflow; `e2e/design-system.spec.ts` copre contrasto, temi e layout mobile.
+
 Il refactoring UI e la trasformazione in prodotto desktop installabile fanno parte della Definition of Done in [DESKTOP_PRODUCT_ROADMAP.md](./DESKTOP_PRODUCT_ROADMAP.md). La shell scelta è Electron perché riusa i servizi Node locali già necessari a Live Bridge, Codex, terminale, import ed export; formato ed applicazioni esportate restano aperti e indipendenti.
 
 Per chi arriva da Canva, il pannello proprietà parte in modalità **Essenziale**: palette, colori, gradienti, immagini di sfondo, font, allineamento, angoli, spaziatura, ombre e animazioni aggiornano subito canvas e preview. Senza selezione, lo stesso pannello modifica lo sfondo globale di pagina. **Avanzata** espone tutti i valori precisi senza cambiare modello.
