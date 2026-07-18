@@ -101,6 +101,15 @@ function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
   return `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`;
 }
 
+function preservedSourceFiles(project: Project) {
+  return Object.fromEntries(
+    (project.importedSource?.files ?? []).map((file) => [
+      `original-project/${file.path}`,
+      file.content,
+    ]),
+  );
+}
+
 function commonExportFiles(project: Project) {
   return {
     "package.json": JSON.stringify(
@@ -148,6 +157,7 @@ function commonExportFiles(project: Project) {
             .join("\n\n"),
         }
       : {}),
+    ...preservedSourceFiles(project),
     "README.md": `# ${project.name}\n\n\`npm install\`, poi \`npm run dev\`. Build: \`npm run build\`. Per Android installare @capacitor/cli e @capacitor/android, quindi \`npx cap add android\` e \`npx cap sync\`. Nessun segreto è incluso.`,
   };
 }
@@ -586,6 +596,7 @@ void refresh()
     files[".env.example"] = project.appConfig.environmentVariables
       .map((item) => `# ${item.description}\n${item.name}=`)
       .join("\n\n");
+  Object.assign(files, preservedSourceFiles(project));
   return withGeneratedBackend(project, files);
 }
 

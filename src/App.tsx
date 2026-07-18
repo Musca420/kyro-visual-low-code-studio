@@ -49,6 +49,7 @@ import {
   type ComponentBranch,
 } from "./hierarchy";
 import { VisualProperties } from "./VisualProperties";
+import { importExistingFolder, readFolderFiles } from "./folderImport";
 
 type WorkspaceTab =
   "design" | "flow" | "data" | "preview" | "plugins" | "settings";
@@ -108,7 +109,9 @@ function Dashboard({
   const [target, setTarget] = useState<"web" | "pwa" | "android">("web");
   const [themeColor, setThemeColor] = useState("#6d5dfc");
   const [templateQuery, setTemplateQuery] = useState("");
+  const [importResult, setImportResult] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
   const create = async (template: "blank" | "todo" | TemplateId = "blank") => {
     if (!name.trim()) return setError("Inserisci un nome per il progetto");
     let project =
@@ -162,6 +165,30 @@ function Dashboard({
       setError(
         `Import non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`,
       );
+    }
+  };
+  const importFolder = async (input?: FileList | null) => {
+    if (!input?.length) return;
+    try {
+      setError("");
+      setImportResult("Analizzo pagine, componenti e configurazione…");
+      const originName =
+        input[0].webkitRelativePath.split("/")[0] || "Progetto importato";
+      const files = await readFolderFiles(input);
+      const project = importExistingFolder(originName, files);
+      await saveProject(project);
+      await onRefresh();
+      setImportResult(
+        `${project.importedSource?.detected}: ${project.pages.length} pagine e ${project.pages.reduce((sum, page) => sum + page.components.length, 0)} componenti pronti. ${project.importedSource?.exactModel ? "Modello visuale ripristinato integralmente." : "I file originali sono preservati nell’export."}`,
+      );
+      onOpen(project.id);
+    } catch (problem) {
+      setImportResult("");
+      setError(
+        `Import cartella non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`,
+      );
+    } finally {
+      if (folderRef.current) folderRef.current.value = "";
     }
   };
   const duplicate = async (project: Project) => {
@@ -316,6 +343,31 @@ function Dashboard({
         >
           Importa un progetto JSON
         </button>
+        <input
+          ref={(node) => {
+            folderRef.current = node;
+            node?.setAttribute("webkitdirectory", "");
+          }}
+          className="visually-hidden"
+          type="file"
+          multiple
+          onChange={(event) => void importFolder(event.target.files)}
+        />
+        <button
+          className="folder-import-button"
+          onClick={() => folderRef.current?.click()}
+        >
+          <strong>Importa una cartella Web o app</strong>
+          <span>
+            Riprendi HTML/CSS, React, Vue, Svelte o Capacitor. Dipendenze e
+            build generate vengono ignorate automaticamente.
+          </span>
+        </button>
+        {importResult && (
+          <p className="import-result" role="status">
+            {importResult}
+          </p>
+        )}
       </section>
       <section className="recent" aria-labelledby="recent-title">
         <div className="section-heading">
@@ -1027,7 +1079,10 @@ function Editor({
   }, [project.dataSources]);
   const addRecord = useCallback(
     async (input: string) => {
-      const activeFlow = project.flows[0];
+      const activeFlow =
+        project.flows.find((flow) =>
+          flow.nodes.some((node) => node.type === "insert"),
+        ) ?? project.flows[0];
       const source = project.dataSources[0];
       if (!activeFlow || !source)
         throw new Error("Configura prima sorgente e flow");
@@ -1315,6 +1370,22 @@ function Editor({
         ))}
       </nav>
       <GuideBar project={project} tab={tab} onOpen={setTab} />
+      {project.importedSource && (
+        <details className="import-source-banner">
+          <summary>
+            Sorgente importata · {project.importedSource.detected} ·{" "}
+            {project.importedSource.files.length} file preservati
+          </summary>
+          <p>
+            {project.importedSource.exactModel
+              ? "Il modello Frontend Editor è stato ripristinato integralmente: puoi continuare da canvas, flow, dati e pubblicazione."
+              : "Gli elementi riconosciuti sono modificabili sul canvas. Il codice non ancora convertito resta nella cartella original-project dell’export."}
+          </p>
+          {project.importedSource.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+        </details>
+      )}
       {feedback && (
         <div className="global-feedback" role="status">
           {feedback}

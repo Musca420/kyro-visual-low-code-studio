@@ -315,6 +315,23 @@ export const projectSchema = z.object({
       offline: false,
       environmentVariables: [],
     }),
+  importedSource: z
+    .object({
+      originName: z.string().min(1),
+      detected: z.string().min(1),
+      importedAt: z.string().datetime(),
+      exactModel: z.boolean(),
+      warnings: z.array(z.string()),
+      files: z
+        .array(
+          z.object({
+            path: z.string().regex(/^(?![\\/])(?!.*\.\.)(?!.*[<>:|?*]).+$/),
+            content: z.string(),
+          }),
+        )
+        .max(250),
+    })
+    .optional(),
   plugins: z.array(
     z.object({ id: z.string(), version: z.string(), enabled: z.boolean() }),
   ),

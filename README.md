@@ -4,6 +4,8 @@ Editor visuale low-code locale per creare UI responsive, collegare flow determin
 
 I requisiti di prodotto e la Definition of Done complessiva sono definiti da `PROJECT_SPEC.md`, `versione 2.md` e `aggiunta.md`. In particolare, i flussi principali devono restare completabili da utenti non tecnici senza codice o terminale.
 
+La dashboard può anche importare una cartella Web, PWA o Capacitor esistente. Se trova `project.frontend-editor.json` ripristina integralmente canvas, flow, dati e configurazione; altrimenti converte l'HTML semantico in componenti visuali e conserva CSS/JavaScript non ancora convertiti. Dipendenze e cartelle di build vengono ignorate, il codice importato non viene eseguito durante l'analisi e l'export mantiene i file originali sotto `original-project/`.
+
 ## Avvio
 
 Richiede Node.js 20 o successivo.

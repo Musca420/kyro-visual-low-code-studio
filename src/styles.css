@@ -1836,6 +1836,43 @@ label {
 .environment-help code {
   color: #5547d9;
 }
+.folder-import-button {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 18px;
+  text-align: left;
+  color: #29235f;
+  background: linear-gradient(135deg, #f0edff, #eef7ff);
+  border: 1px dashed #8f84dc;
+}
+.folder-import-button span,
+.import-result,
+.import-source-banner p,
+.import-source-banner span {
+  color: var(--muted);
+}
+.import-result {
+  margin: 8px 0 0;
+}
+.import-source-banner {
+  margin: 10px 18px 0;
+  padding: 10px 14px;
+  border: 1px solid #cdc7f7;
+  border-radius: 12px;
+  background: #f7f5ff;
+}
+.import-source-banner summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+.import-source-banner p,
+.import-source-banner span {
+  display: block;
+  margin: 7px 0 0;
+  font-size: 12px;
+}
 @media (max-width: 760px) {
   .application-capabilities {
     grid-template-columns: 1fr;
