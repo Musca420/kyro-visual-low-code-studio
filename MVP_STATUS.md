@@ -13,6 +13,7 @@
 - onboarding guidato Web/PWA/Android e pannello Pubblica con configurazione visuale;
 - export PWA con manifest e service worker; export Android con Capacitor 8;
 - preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
+- catalogo ricercabile con nove template completi, ricerca componenti con sinonimi e command palette `Ctrl+K`;
 - skill `frontend-editor-live` validata con script reali.
 
 Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-details.png`, `artifacts/live-canvas-capture.png`, `artifacts/live-preview-capture.png`.
