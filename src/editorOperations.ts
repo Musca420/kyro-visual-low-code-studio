@@ -55,15 +55,22 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     nextComponent = { ...component, styles: { ...component.styles, [breakpoint]: { ...component.styles[breakpoint], [String(args.property)]: String(args.value) } } }
   } else if (operation.type === 'move_component') {
     let parentId = component.parentId
+    let reparenting = false
     if ('parentId' in args) {
       parentId = typeof args.parentId === 'string' ? args.parentId : undefined
+      reparenting = parentId !== component.parentId
       if (parentId) {
         const parent = componentIn(project, pageId, parentId).component
         if (parent.id === component.id || descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id).has(parent.id)) throw new Error('Spostamento non valido: creerebbe un ciclo')
         if (!canContain(parent)) throw new Error(`${parent.name} non può contenere altri elementi`)
       }
     }
-    nextComponent = { ...component, parentId, styles: { ...component.styles, desktop: { ...component.styles.desktop, marginLeft: String(args.x ?? component.styles.desktop.marginLeft), marginTop: String(args.y ?? component.styles.desktop.marginTop) } } }
+    const resetPlacement = (style: EditorComponent['styles']['desktop']) => ({ ...style, position: 'relative' as const, left: '0px', top: '0px', marginLeft: '0px', marginTop: '0px' })
+    nextComponent = { ...component, parentId, styles: reparenting && !('x' in args) && !('y' in args) ? {
+      desktop: resetPlacement(component.styles.desktop),
+      tablet: resetPlacement({ ...component.styles.desktop, ...component.styles.tablet }),
+      mobile: resetPlacement({ ...component.styles.desktop, ...component.styles.mobile }),
+    } : { ...component.styles, desktop: { ...component.styles.desktop, marginLeft: String(args.x ?? component.styles.desktop.marginLeft), marginTop: String(args.y ?? component.styles.desktop.marginTop) } } }
   } else if (operation.type === 'resize_component') {
     nextComponent = { ...component, styles: { ...component.styles, desktop: { ...component.styles.desktop, width: String(args.width ?? component.styles.desktop.width), minHeight: String(args.height ?? component.styles.desktop.minHeight) } } }
   } else if (operation.type === 'bind_component_data') {

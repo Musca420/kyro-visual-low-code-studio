@@ -74,7 +74,7 @@ test('real user scenarios: refined landing and project dashboard CRUD', async ({
   await expect(page.getByText('Flow CRUD, caricamento, ricerca, filtro, ordinamento e KPI collegati')).toBeVisible()
   await expect(page.getByLabel('Flow attivo').locator('option')).toHaveCount(7)
   await page.getByLabel('Flow attivo').selectOption({ label: 'Crea progetto' })
-  await expect(page.getByText('Valida campi')).toBeVisible()
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'Valida campi' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Preview' }).click()
   const dashboard = page.frameLocator('iframe[title="Preview isolata"]')

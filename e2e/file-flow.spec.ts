@@ -17,12 +17,13 @@ test("un utente salva un file locale con un flow costruito visualmente", async (
   await page.getByRole("button", { name: /^Flow/ }).click();
   await page.getByRole("button", { name: "Crea flow dati" }).click();
 
-  const eventNode = page.locator(".react-flow__node").filter({ hasText: "Click pulsante" });
-  await eventNode.click();
+  const flowNodes = page.getByRole("navigation", { name: "Nodi del flow" });
+  await flowNodes.getByRole("button", { name: "Click pulsante", exact: true }).click();
   await page.getByLabel("Tipo evento").selectOption("change");
   await page.getByLabel("Elemento collegato").selectOption({ label: "Upload · upload" });
   for (const label of ["Leggi input", "Non vuoto"]) {
-    await page.locator(".react-flow__node").filter({ hasText: label }).click({ force: true });
+    await flowNodes.getByRole("button", { name: label, exact: true }).click();
+    await expect(page.getByRole("button", { name: "Elimina nodo" })).toBeVisible();
     await page.getByRole("button", { name: "Elimina nodo" }).click();
   }
 
@@ -31,10 +32,9 @@ test("un utente salva un file locale con un flow costruito visualmente", async (
   await nodePalette.getByRole("button", { name: "Prepara file", exact: true }).click();
   await page.getByLabel("Dimensione massima file").fill("1");
   await page.getByLabel("Tipi file accettati").fill("image/*");
-  const fileNode = page.locator(".react-flow__node").filter({ hasText: "Prepara file" });
-  await eventNode.click();
+  await flowNodes.getByRole("button", { name: "Click pulsante", exact: true }).click();
   await page.getByLabel("Passo successivo").selectOption({ label: "Prepara file" });
-  await fileNode.click();
+  await flowNodes.getByRole("button", { name: "Prepara file", exact: true }).click();
   await page.getByLabel("Passo successivo").selectOption({ label: "Inserisci record" });
 
   await page.getByRole("button", { name: "Preview", exact: true }).click();

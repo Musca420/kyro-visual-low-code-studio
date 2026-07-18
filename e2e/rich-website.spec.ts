@@ -33,8 +33,8 @@ test("Test A: sito professionale multipagina con dati e flow creati dalla UI", a
   await page
     .getByLabel("Flow attivo")
     .selectOption({ label: "Invia richiesta contatto" });
-  await expect(page.getByText("Salva richiesta")).toBeVisible();
-  await expect(page.getByText("Valida richiesta")).toBeVisible();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Salva richiesta" })).toBeVisible();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Valida richiesta" })).toBeVisible();
 
   await page.getByRole("button", { name: "Preview" }).click();
   const site = page.frameLocator('iframe[title="Preview isolata"]');

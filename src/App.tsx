@@ -593,6 +593,7 @@ function Editor({
   const [breakpoint, setBreakpoint] = useState<Breakpoint>("desktop");
   const [interactive, setInteractive] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [canvasDropActive, setCanvasDropActive] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [reusableName, setReusableName] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -1904,13 +1905,23 @@ function Editor({
         }),
       );
   };
-  const reparent = (componentId: string, parentId?: string) =>
+  const reparent = (componentId: string, parentId?: string) => {
+    if (!currentPage) return;
+    const component = currentPage.components.find((item) => item.id === componentId);
+    if (!component) return;
+    if (parentId && (parentId === componentId || descendantIds(currentPage.components, componentId).has(parentId))) {
+      setFeedback("Non puoi spostare un contenitore dentro se stesso");
+      return;
+    }
     change((value) =>
       applyEditorOperation(value, pageId, {
         type: "move_component",
         args: { componentId, parentId: parentId || null },
       }),
     );
+    setSelected([componentId]);
+    setFeedback(parentId ? "Elemento spostato nel contenitore" : "Elemento riportato sulla pagina");
+  };
   const wrap = (componentId: string) =>
     change((value) =>
       applyEditorOperation(value, pageId, {
@@ -2400,7 +2411,7 @@ function Editor({
             </div>
             <div className="canvas-scroll">
               <div
-                className={`design-canvas canvas-${breakpoint}`}
+                className={`design-canvas canvas-${breakpoint} ${canvasDropActive ? "drop-target" : ""}`}
                 style={{
                   transform: `scale(${zoom})`,
                   background: project.theme.tokens.pageBackground ?? "#ffffff",
@@ -2409,8 +2420,20 @@ function Editor({
                   backgroundPosition: "center",
                 }}
                 onPointerDown={startMarquee}
-                onDragOver={(event) => event.preventDefault()}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (event.target === event.currentTarget) setCanvasDropActive(true);
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setCanvasDropActive(false);
+                }}
                 onDrop={(event) => {
+                  setCanvasDropActive(false);
+                  const existingId = event.dataTransfer.getData("application/frontend-existing");
+                  if (existingId) {
+                    reparent(existingId);
+                    return;
+                  }
                   const reusableId = event.dataTransfer.getData("application/frontend-reusable");
                   if (reusableId) {
                     addReusableComponent(reusableId);
@@ -2456,6 +2479,7 @@ function Editor({
                         setContextMenu({ component, bounds, ...point });
                       }}
                       onMove={reorder}
+                      onReparent={reparent}
                       onAdd={addComponent}
                       zoom={zoom}
                       onDirectStyle={applyDirectStyle}
@@ -2562,6 +2586,7 @@ function Editor({
                   level={1}
                   selected={selected}
                   onSelect={(id) => setSelected([id])}
+                  onReparent={reparent}
                 />
               ))}
             </ol>
@@ -3538,6 +3563,7 @@ function DesignBranch({
   selected,
   onSelect,
   onMove,
+  onReparent,
   onContextMenu,
   onAdd,
   zoom,
@@ -3548,6 +3574,7 @@ function DesignBranch({
   selected: string[];
   onSelect: (id: string, multi: boolean) => void;
   onMove: (component: EditorComponent, direction: number) => void;
+  onReparent: (componentId: string, parentId?: string) => void;
   onContextMenu: (
     component: EditorComponent,
     bounds: CodexContext["bounds"],
@@ -3570,7 +3597,9 @@ function DesignBranch({
       onMove={(direction) => onMove(component, direction)}
       onContextMenu={(bounds, point) => onContextMenu(component, bounds, point)}
       onDrop={
-        canContain(component) ? (type) => onAdd(type, component.id) : undefined
+        canContain(component)
+          ? (type, existingId) => existingId ? onReparent(existingId, component.id) : type && onAdd(type, component.id)
+          : undefined
       }
       zoom={zoom}
       onDirectStyle={(values) => onDirectStyle(component.id, values)}
@@ -3584,6 +3613,7 @@ function DesignBranch({
               selected={selected}
               onSelect={onSelect}
               onMove={onMove}
+              onReparent={onReparent}
               onContextMenu={onContextMenu}
               onAdd={onAdd}
               zoom={zoom}
@@ -3600,12 +3630,16 @@ function LayerBranch({
   level,
   selected,
   onSelect,
+  onReparent,
 }: {
   branch: ComponentBranch;
   level: number;
   selected: string[];
   onSelect: (id: string) => void;
+  onReparent: (componentId: string, parentId?: string) => void;
 }) {
+  const [dropActive, setDropActive] = useState(false);
+  const acceptsChildren = canContain(branch.component);
   return (
     <li
       role="treeitem"
@@ -3613,9 +3647,23 @@ function LayerBranch({
       aria-expanded={branch.children.length ? true : undefined}
     >
       <button
+        draggable
         style={{ paddingLeft: `${8 + (level - 1) * 16}px` }}
-        className={selected.includes(branch.component.id) ? "active" : ""}
+        className={`${selected.includes(branch.component.id) ? "active" : ""} ${dropActive ? "drop-target" : ""}`}
         onClick={() => onSelect(branch.component.id)}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("application/frontend-existing", branch.component.id);
+        }}
+        onDragOver={acceptsChildren ? (event) => { event.preventDefault(); event.stopPropagation(); setDropActive(true); } : undefined}
+        onDragLeave={() => setDropActive(false)}
+        onDrop={acceptsChildren ? (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setDropActive(false);
+          const existingId = event.dataTransfer.getData("application/frontend-existing");
+          if (existingId) onReparent(existingId, branch.component.id);
+        } : undefined}
       >
         <span>{icon(branch.component.type)}</span>
         {branch.component.name}
@@ -3629,6 +3677,7 @@ function LayerBranch({
               level={level + 1}
               selected={selected}
               onSelect={onSelect}
+              onReparent={onReparent}
             />
           ))}
         </ol>
@@ -3734,7 +3783,7 @@ function DesignComponent({
     bounds: CodexContext["bounds"],
     point: { x: number; y: number },
   ) => void;
-  onDrop?: (type: EditorComponent["type"]) => void;
+  onDrop?: (type?: EditorComponent["type"], existingId?: string) => void;
   zoom: number;
   onDirectStyle: (values: Partial<EditorComponent["styles"]["desktop"]>) => void;
   children?: React.ReactNode;
@@ -3746,6 +3795,7 @@ function DesignComponent({
     x?: number;
     y?: number;
   }>({});
+  const [dropActive, setDropActive] = useState(false);
   const directManipulation = useRef(false);
   const style = {
     ...component.styles.desktop,
@@ -3942,7 +3992,7 @@ function DesignComponent({
     });
   return (
     <article
-      className={`canvas-component ${selected ? "selected" : ""}`}
+      className={`canvas-component ${selected ? "selected" : ""} ${dropActive ? "drop-target" : ""}`}
       data-component-id={component.id}
       title={String(component.props.tooltip || "") || undefined}
       aria-disabled={component.props.disabled === true || undefined}
@@ -3973,6 +4023,14 @@ function DesignComponent({
           ? (event) => {
               event.preventDefault();
               event.stopPropagation();
+              setDropActive(true);
+            }
+          : undefined
+      }
+      onDragLeave={
+        onDrop
+          ? (event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false);
             }
           : undefined
       }
@@ -3981,6 +4039,12 @@ function DesignComponent({
           ? (event) => {
               event.preventDefault();
               event.stopPropagation();
+              setDropActive(false);
+              const existingId = event.dataTransfer.getData("application/frontend-existing");
+              if (existingId) {
+                onDrop(undefined, existingId);
+                return;
+              }
               const type = event.dataTransfer.getData(
                 "application/frontend-component",
               ) as EditorComponent["type"];

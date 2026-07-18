@@ -31,6 +31,11 @@ describe('structured editor operations', () => {
     const stack = wrapped.pages[0].components.find((item) => item.type === 'stack')!
     expect(wrapped.pages[0].components.find((item) => item.id === button.id)?.parentId).toBe(stack.id)
     expect(() => applyEditorOperation(wrapped, 'page', { type: 'move_component', args: { componentId: stack.id, parentId: button.id } })).toThrow('creerebbe un ciclo')
+    const nestedButton = wrapped.pages[0].components.find((item) => item.id === button.id)!
+    nestedButton.styles.desktop.position = 'absolute'
+    nestedButton.styles.desktop.left = '96px'
+    const movedOut = applyEditorOperation(wrapped, 'page', { type: 'move_component', args: { componentId: button.id, parentId: null } })
+    expect(movedOut.pages[0].components.find((item) => item.id === button.id)?.styles.desktop).toMatchObject({ position: 'relative', left: '0px', top: '0px' })
     const removed = applyEditorOperation(wrapped, 'page', { type: 'remove_component', args: { componentId: stack.id, confirmed: true } })
     expect(removed.pages[0].components).toHaveLength(0)
   })
