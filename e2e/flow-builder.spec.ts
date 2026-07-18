@@ -15,7 +15,12 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: "Crea flow dati" }).click();
 
   const nodePalette = page.getByRole("complementary", { name: "Aggiungi nodi al flow" });
-  await nodePalette.getByRole("button", { name: "Carica dati" }).click();
+  const addNode = async (name: string) => {
+    await nodePalette.getByLabel("Cerca azione").fill(name);
+    await nodePalette.getByRole("button", { name, exact: true }).click();
+    await nodePalette.getByLabel("Cerca azione").fill("");
+  };
+  await addNode("Carica dati");
   await expect(page.getByRole("complementary", { name: "Configura nodo selezionato" })).toContainText("Carica dati");
   await page.getByLabel("Nome nodo").fill("Carica attività recenti");
   await page.getByLabel("Sorgente collegata").selectOption({ label: "Attività locali" });
@@ -44,12 +49,12 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: /^Flow/ }).click();
   await page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" }).click();
   await expect(page.getByLabel("Sorgente collegata")).toHaveValue(/.+/);
-  await page.getByRole("complementary", { name: "Aggiungi nodi al flow" }).getByRole("button", { name: "Condizione" }).click();
+  await addNode("Condizione");
   await page.getByLabel("Operatore condizione").selectOption("contains");
   await page.getByLabel("Valore condizione").fill("flow");
   await expect(page.locator(".react-flow__node").filter({ hasText: "Condizione" })).toBeVisible();
 
-  await nodePalette.getByRole("button", { name: "Funzione avanzata" }).click();
+  await addNode("Funzione avanzata");
   await page.getByRole("button", { name: "Nuovo modulo protetto" }).click();
   await page.getByLabel("Operazione modulo").selectOption("uppercase");
   await page.getByLabel("Input test modulo").fill("canva");
@@ -71,27 +76,27 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await expect(page.getByRole("alert")).toContainText("produce list");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-builder.png", fullPage: true });
 
-  await nodePalette.getByRole("button", { name: "Salva stato" }).click();
+  await addNode("Salva stato");
   await page.getByLabel("Nome stato").fill("ricerca");
-  await nodePalette.getByRole("button", { name: "Componi testo" }).click();
+  await addNode("Componi testo");
   await page.getByLabel("Formato testo").fill("Risultato: {{value}}");
-  await nodePalette.getByRole("button", { name: "Attendi" }).click();
+  await addNode("Attendi");
   await page.getByLabel("Durata attesa").fill("250");
-  await nodePalette.getByRole("button", { name: "Chiama API" }).click();
+  await addNode("Chiama API");
   await page.getByLabel("Indirizzo API").fill("https://api.example.test/items");
   await page.getByLabel("Metodo API").selectOption("POST");
   await page.getByLabel("Corpo richiesta API").fill('{"name":"{{value}}"}');
   await expect(page.getByText("Nessuna password viene salvata qui")).toBeVisible();
-  await nodePalette.getByRole("button", { name: "Trasforma elenco" }).click();
+  await addNode("Trasforma elenco");
   await page.getByLabel("Campo trasformazione").fill("name");
   await page.getByLabel("Formato trasformazione").fill("Progetto: {{value}}");
-  await nodePalette.getByRole("button", { name: "Limita input rapidi" }).click();
+  await addNode("Limita input rapidi");
   await page.getByLabel("Durata debounce").fill("350");
-  await nodePalette.getByRole("button", { name: "Scegli percorso" }).click();
+  await addNode("Scegli percorso");
   await page.getByLabel("Casi scelta").fill("nuovo,in corso,completato");
   const switchNode = page.locator(".react-flow__node").filter({ hasText: "Scegli percorso" });
   await expect(switchNode.locator('[title="in corso"]')).toBeVisible();
-  await nodePalette.getByRole("button", { name: "Mostra notifica" }).click();
+  await addNode("Mostra notifica");
   await page.getByLabel("Nome nodo").fill("Caso in corso");
   const caseEdge = page.locator(".react-flow__edge-text").filter({ hasText: "case:in corso" });
   for (let attempt = 0; attempt < 3 && await caseEdge.count() === 0; attempt += 1) {
@@ -99,7 +104,7 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
     await page.waitForTimeout(150);
   }
   await expect(caseEdge).toBeVisible();
-  await nodePalette.getByRole("button", { name: "Per ogni elemento" }).click();
+  await addNode("Per ogni elemento");
   await page.getByLabel("Limite ciclo").fill("25");
   const loopNode = page.locator(".react-flow__node").filter({ hasText: "Per ogni elemento" });
   await expect(loopNode.locator('[title="Ogni elemento"]')).toBeVisible();

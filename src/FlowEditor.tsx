@@ -28,6 +28,7 @@ const nodeTypes = { editor: FlowNode }
 
 export default function FlowEditor({ flow, components, sources, modules, selectedNodeId, onChange, onModulesChange, onCreateModule, onNodeSelect }: { flow?: Flow; components: EditorComponent[]; sources: Project['dataSources']; modules: Project['codeModules']; selectedNodeId?: string; onChange: (flow: Flow) => void; onModulesChange: (modules: Project['codeModules']) => void; onCreateModule: (module: Project['codeModules'][number], nodeId: string) => void; onNodeSelect?: (nodeId: string) => void }) {
   const [connectionError, setConnectionError] = useState('')
+  const [paletteQuery, setPaletteQuery] = useState('')
   const portFor = (node: FlowNode) => node.type === 'module' ? (() => {
     const module = modules.find((item) => item.id === node.config.moduleId)
     return module ? { input: module.inputType, output: module.outputType } : ports.module
@@ -60,11 +61,19 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
     onChange({ ...flow, edges: updated.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, path: edge.sourceHandle || 'success' })) })
   }
   if (!flow) return <div className="empty-panel"><strong>Nessun flow</strong><span>Crea il flow dati dopo aver aggiunto input, pulsante, lista e sorgente locale.</span></div>
+  const matchingTypes = flowNodeTypes.filter((type) => `${labels[type]} ${type}`.toLowerCase().includes(paletteQuery.trim().toLowerCase()))
+  const groups: { label: string; types: FlowNode['type'][]; open?: boolean }[] = [
+    { label: 'Interazioni', open: true, types: ['event', 'readInput', 'validate', 'condition', 'switch', 'delay', 'format', 'navigate', 'openModal', 'notify'] },
+    { label: 'Dati e API', types: ['insert', 'query', 'update', 'delete', 'filter', 'sort', 'map', 'kpi', 'http'] },
+    { label: 'Avanzato', types: ['getState', 'setState', 'resetState', 'loop', 'debounce', 'refresh', 'module', 'log'] },
+  ]
+  const nodeButtons = (types: readonly FlowNode['type'][]) => <div>{types.map((type) => <button type="button" className="secondary" key={type} onClick={() => addNode(type)}><i style={{ background: colors[type] }} />{labels[type]}</button>)}</div>
   return <div className="flow-builder">
     <aside className="flow-palette" aria-label="Aggiungi nodi al flow">
       <strong>Aggiungi nodo</strong>
       <span>Scegli cosa deve accadere, poi collega i pallini.</span>
-      <div>{flowNodeTypes.map((type) => <button type="button" className="secondary" key={type} onClick={() => addNode(type)}><i style={{ background: colors[type] }} />{labels[type]}</button>)}</div>
+      <input type="search" aria-label="Cerca azione" placeholder="Cerca: notifica, dati, API…" value={paletteQuery} onChange={(event) => setPaletteQuery(event.target.value)} />
+      {paletteQuery.trim() ? nodeButtons(matchingTypes) : <div className="flow-groups">{groups.map((group) => <details key={group.label} open={group.open}><summary>{group.label}<span>{group.types.length}</span></summary>{nodeButtons(group.types)}</details>)}</div>}
     </aside>
     <div className="flow-canvas" aria-label="Editor grafico del flow">
     <ReactFlow

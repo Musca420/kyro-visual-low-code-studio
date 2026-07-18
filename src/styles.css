@@ -1251,6 +1251,10 @@ label {
 .flow-palette > span,
 .flow-inspector p { color: var(--muted); font-size: 12px; }
 .flow-palette > div { display: grid; gap: 6px; max-height: 430px; overflow: auto; }
+.flow-groups details { border-bottom: 1px solid var(--line); }
+.flow-groups summary { display: flex; justify-content: space-between; padding: 8px 2px; cursor: pointer; color: var(--ink); font-size: 12px; font-weight: 800; }
+.flow-groups summary span { color: var(--muted); font-weight: 600; }
+.flow-groups details > div { display: grid; gap: 6px; padding-bottom: 8px; }
 .flow-palette button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left; }
 .flow-palette i { width: 9px; height: 9px; border-radius: 50%; }
 .flow-node .port-types { display: block; margin-top: 4px; color: #7b8495; font-size: 8px; }
