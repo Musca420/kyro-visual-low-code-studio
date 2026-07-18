@@ -69,6 +69,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'format') value = (node.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
       if (node.type === 'map') value = mapItems(value, node.config.field, node.config.template)
       if (node.type === 'http') value = await guarded(required(context.request, 'Richieste API non disponibili')(safeHttpUrl(node.config.url), node.config.method || 'GET', ['GET', 'DELETE'].includes(node.config.method || 'GET') ? undefined : (node.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value))), context)
+      if (node.type === 'file') value = await guarded(prepareFile(value, Number(node.config.maxMb) || 2, node.config.accept), context)
       if (node.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; value = await guarded(node.config.sourceId ? context.insert(next, node.config.sourceId) : context.insert(next), context) }
       if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
@@ -167,6 +168,16 @@ const switchCase = (value: unknown, key = '', cases = '') => {
 }
 
 const breakpointMatches = (value: unknown, when = 'always', expected = '') => when === 'always' || (when === 'equals' ? String(value) === expected : when === 'contains' ? String(value).toLowerCase().includes(expected.toLowerCase()) : false)
+
+async function prepareFile(value: unknown, maxMb: number, accept = '') {
+  if (!(value instanceof File)) throw new Error('Scegli un file prima di continuare')
+  const limit = Math.min(10, Math.max(1, maxMb)) * 1024 * 1024
+  if (value.size > limit) throw new Error(`Il file supera il limite di ${Math.min(10, Math.max(1, maxMb))} MB`)
+  const accepted = accept.split(',').map((item) => item.trim()).filter(Boolean)
+  if (accepted.length && !accepted.some((item) => item.endsWith('/*') ? value.type.startsWith(item.slice(0, -1)) : value.type === item || value.name.toLowerCase().endsWith(item.toLowerCase()))) throw new Error('Il tipo di file non è accettato')
+  const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(value) })
+  return { name: value.name, type: value.type || 'application/octet-stream', size: value.size, dataUrl }
+}
 
 function guarded<T>(operation: Promise<T>, context: FlowContext): Promise<T> {
   return new Promise((resolve, reject) => {

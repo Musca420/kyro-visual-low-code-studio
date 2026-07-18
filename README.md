@@ -139,6 +139,8 @@ La scheda Pubblica configura con controlli guidati accesso, ruoli, modalità off
 
 Nella stessa scheda, Asset consente di caricare immagini, audio e video fino a 2 MB. I file vengono salvati nel progetto e possono essere assegnati ai relativi componenti dal campo **File del progetto** nell'ispettore; `e2e/assets.spec.ts` verifica upload, preview, salvataggio e riapertura.
 
+Il componente **Upload** può inoltre avviare un flow al cambio del file. Il nodo visuale **Prepara file** controlla dimensione e formati ammessi, legge il contenuto senza eseguire nulla e produce un record con nome, MIME type, dimensione e data URL. Il record può essere collegato a **Crea record** e persiste nella sorgente locale; preview ed export usano lo stesso percorso. `e2e/file-flow.spec.ts` copre costruzione senza codice, caricamento reale, persistenza e riapertura.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.

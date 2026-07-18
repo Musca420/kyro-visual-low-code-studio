@@ -19,11 +19,12 @@ La Definition of Done MVP e il verticale obbligatorio sono verificati. Frontend 
 | Backend esportato persistente con CRUD reale | `tests/generatedBackend.test.ts` | Superato |
 | Android guidato, APK e dispositivo | `e2e/android-build.spec.ts` e screenshot in `artifacts/` | Eseguito nel collaudo dedicato |
 
-Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts/frontend-editor-canva-multiselect.png`, `artifacts/frontend-editor-canva-smart-guides.png`, `artifacts/frontend-editor-flow-breakpoint.png`, `artifacts/frontend-editor-flow-ui-action.png`, `artifacts/frontend-editor-structured-form.png`, `artifacts/frontend-editor-visual-schema.png`, `artifacts/frontend-editor-react-import.png`, `artifacts/frontend-editor-protected-module.png`, `artifacts/frontend-editor-generated-file.png`, `artifacts/generated-app-flow-module.png`, `artifacts/simple-landing-desktop.png`, `artifacts/simple-landing-mobile.png`, `artifacts/project-dashboard-desktop.png`, `artifacts/project-dashboard-mobile.png`, `artifacts/frontend-editor-codex-timeline.png`, `artifacts/android-device-final.png`.
+Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts/frontend-editor-canva-multiselect.png`, `artifacts/frontend-editor-canva-smart-guides.png`, `artifacts/frontend-editor-flow-breakpoint.png`, `artifacts/frontend-editor-flow-ui-action.png`, `artifacts/frontend-editor-structured-form.png`, `artifacts/frontend-editor-visual-schema.png`, `artifacts/frontend-editor-file-storage.png`, `artifacts/frontend-editor-react-import.png`, `artifacts/frontend-editor-protected-module.png`, `artifacts/frontend-editor-generated-file.png`, `artifacts/generated-app-flow-module.png`, `artifacts/simple-landing-desktop.png`, `artifacts/simple-landing-mobile.png`, `artifacts/project-dashboard-desktop.png`, `artifacts/project-dashboard-mobile.png`, `artifacts/frontend-editor-codex-timeline.png`, `artifacts/android-device-final.png`.
 
 ## Controlli finali riproducibili
 
-- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 52 test superati, build Vite riuscita.
+- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 54 test superati, build Vite riuscita.
+- `npx playwright test e2e/file-flow.spec.ts --workers=1`: 1 test browser superato; upload configurato interamente nell'editor, record persistito e ritrovato alla riapertura.
 - `npx playwright test`: 32 test browser superati; 3 test dedicati saltati per variabili d'ambiente o artefatti opzionali intenzionali.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
 - `npm run desktop:test`: 2/2, renderer di produzione e apertura cartella nella shell Electron.

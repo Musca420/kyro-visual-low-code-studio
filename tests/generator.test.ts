@@ -82,6 +82,22 @@ describe("web generator", () => {
     expect(source).toContain("current.config.rule || 'required'");
   });
 
+  it("esporta la scelta e la preparazione sicura dei file", () => {
+    const project = createProject("File export");
+    const upload = makeComponent("upload");
+    upload.id = "asset";
+    upload.events.change = "upload-flow";
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [upload] });
+    project.flows.push({ id: "upload-flow", name: "Carica", nodes: [
+      { id: "event", type: "event", label: "File scelto", position: { x: 0, y: 0 }, config: { trigger: "change", componentId: "asset" } },
+      { id: "file", type: "file", label: "Prepara file", position: { x: 1, y: 0 }, config: { maxMb: "2", accept: "image/*" } },
+    ], edges: [{ id: "edge", source: "event", target: "file", path: "success" }] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain("const graphPrepareFile");
+    expect(source).toContain("target.files?.[0]");
+    expect(source).toContain("current.type === 'file'");
+  });
+
   it("preserves nested containers in the exported markup", () => {
     const project = createProject("Nested Export");
     const stack = makeComponent("stack"),

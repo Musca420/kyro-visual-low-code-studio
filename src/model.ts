@@ -223,6 +223,7 @@ export const flowNodeTypes = [
   "format",
   "map",
   "http",
+  "file",
   "insert",
   "query",
   "update",

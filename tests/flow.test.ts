@@ -219,4 +219,20 @@ describe('flow runtime', () => {
     await runFlow(validated, { input: { email: 'ok@example.com' }, insert, refresh: async () => undefined })
     expect(insert).toHaveBeenCalledOnce()
   })
+
+  it('prepara e salva un file scelto dall’interfaccia senza perdere i metadati', async () => {
+    const upload: Flow = { id: 'upload', name: 'Upload', nodes: [
+      { id: 'event', type: 'event', label: 'File scelto', position: { x: 0, y: 0 }, config: { trigger: 'change' } },
+      { id: 'file', type: 'file', label: 'Prepara file', position: { x: 1, y: 0 }, config: { maxMb: '1', accept: 'image/*' } },
+      { id: 'insert', type: 'insert', label: 'Salva', position: { x: 2, y: 0 }, config: { sourceId: 'assets' } },
+    ], edges: [{ id: '1', source: 'event', target: 'file', path: 'success' }, { id: '2', source: 'file', target: 'insert', path: 'success' }] }
+    const insert = vi.fn(async (value: unknown) => value)
+    const selected = new File(['pixel'], 'pixel.png', { type: 'image/png' })
+    await runFlow(upload, { input: selected, insert, refresh: async () => undefined })
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ name: 'pixel.png', type: 'image/png', size: 5, dataUrl: expect.stringMatching(/^data:image\/png;base64,/) }), 'assets')
+    insert.mockClear()
+    const rejected = await runFlow(upload, { input: new File(['testo'], 'note.txt', { type: 'text/plain' }), insert, refresh: async () => undefined })
+    expect(insert).not.toHaveBeenCalled()
+    expect(rejected.some((entry) => entry.message === 'Il tipo di file non è accettato')).toBe(true)
+  })
 })
