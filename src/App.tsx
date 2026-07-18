@@ -1986,6 +1986,82 @@ function LayerBranch({
   );
 }
 
+function designContent(component: EditorComponent) {
+  const label = String(component.props.label || component.name);
+  if (component.type === "input")
+    return (
+      <input tabIndex={-1} placeholder={String(component.props.placeholder)} />
+    );
+  if (component.type === "button")
+    return (
+      <button tabIndex={-1} disabled={component.props.disabled === true}>
+        {label}
+      </button>
+    );
+  if (component.type === "list")
+    return (
+      <ul>
+        <li>Elemento dinamico</li>
+        <li>Stato vuoto e loading collegati</li>
+      </ul>
+    );
+  if (component.type === "title") return <h2>{label}</h2>;
+  if (component.type === "image")
+    return (
+      <div role="img" aria-label={component.accessibility.label}>
+        ▧ {label}
+      </div>
+    );
+  if (component.type === "table")
+    return (
+      <table>
+        <caption>{label}</caption>
+        <tbody>
+          <tr>
+            <td>Elemento</td>
+            <td>Attivo</td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  if (component.type === "chart")
+    return (
+      <figure>
+        <svg viewBox="0 0 180 70" aria-label="Grafico">
+          <rect x="8" y="34" width="28" height="30" />
+          <rect x="48" y="18" width="28" height="46" />
+          <rect x="88" y="27" width="28" height="37" />
+          <rect x="128" y="8" width="28" height="56" />
+        </svg>
+        <figcaption>{label}</figcaption>
+      </figure>
+    );
+  if (component.type === "progress")
+    return <progress max="100" value={Number(component.props.value || 60)} />;
+  if (component.type === "calendar") return <input tabIndex={-1} type="date" />;
+  if (component.type === "upload") return <input tabIndex={-1} type="file" />;
+  if (component.type === "avatar")
+    return <span className="avatar">{label.slice(0, 2).toUpperCase()}</span>;
+  if (component.type === "badge") return <span className="chip">{label}</span>;
+  if (component.type === "accordion")
+    return (
+      <details open>
+        <summary>{label}</summary>
+        <p>{String(component.props.description || "Contenuto espandibile")}</p>
+      </details>
+    );
+  if (canContain(component))
+    return (
+      <>
+        <strong>{label}</strong>
+        {component.props.description && (
+          <p>{String(component.props.description)}</p>
+        )}
+      </>
+    );
+  return <div>{label}</div>;
+}
+
 function DesignComponent({
   component,
   breakpoint,
@@ -2012,23 +2088,7 @@ function DesignComponent({
     ...component.styles.desktop,
     ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
   };
-  const content =
-    component.type === "input" ? (
-      <input tabIndex={-1} placeholder={String(component.props.placeholder)} />
-    ) : component.type === "button" ? (
-      <button tabIndex={-1} disabled={component.props.disabled === true}>
-        {String(component.props.label)}
-      </button>
-    ) : component.type === "list" ? (
-      <ul>
-        <li>Elemento dinamico</li>
-        <li>Stato vuoto e loading collegati</li>
-      </ul>
-    ) : component.type === "title" ? (
-      <h2>{String(component.props.label)}</h2>
-    ) : canContain(component) ? null : (
-      <div>{String(component.props.label || component.type)}</div>
-    );
+  const content = designContent(component);
   return (
     <article
       className={`canvas-component ${selected ? "selected" : ""}`}
