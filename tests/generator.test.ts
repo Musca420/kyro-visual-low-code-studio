@@ -112,6 +112,19 @@ describe("web generator", () => {
     expect(source).toContain("sessionStorage.removeItem('frontend-editor-session')");
   });
 
+  it("esporta pagina, indietro e URL sicuro dal nodo navigazione", () => {
+    const project = createProject("Navigation export");
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [] });
+    project.flows.push({ id: "navigation", name: "Naviga", nodes: [
+      { id: "event", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } },
+      { id: "navigate", type: "navigate", label: "Indietro", position: { x: 1, y: 0 }, config: { mode: "back" } },
+    ], edges: [{ id: "edge", source: "event", target: "navigate", path: "success" }] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain("const graphNavigate");
+    expect(source).toContain("history.back()");
+    expect(source).toContain("location.assign(url.toString())");
+  });
+
   it("preserves nested containers in the exported markup", () => {
     const project = createProject("Nested Export");
     const stack = makeComponent("stack"),

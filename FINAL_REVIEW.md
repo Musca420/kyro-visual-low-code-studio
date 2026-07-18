@@ -23,7 +23,8 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 
 ## Controlli finali riproducibili
 
-- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 58 test superati, build Vite riuscita.
+- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 60 test superati, build Vite riuscita.
+- `npx playwright test e2e/navigation-flow.spec.ts --workers=1`: pagina, indietro e URL esterno configurati visualmente; cambio hash reale verificato nella preview.
 - `npx playwright test e2e/file-flow.spec.ts --workers=1`: 1 test browser superato; upload configurato interamente nell'editor, record persistito e ritrovato alla riapertura.
 - `npx playwright test e2e/data-evolution.spec.ts --workers=1`: 1 test browser superato; due entità create, relazione configurata, schema migrato a v2 e riaperto senza perdita.
 - `npx playwright test e2e/auth-flow.spec.ts --workers=1`: 1 test browser superato; ruolo lettore bloccato e ruolo editor autorizzato dallo stesso flow.

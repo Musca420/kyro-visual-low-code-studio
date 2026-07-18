@@ -8,7 +8,7 @@ export type FlowContext = {
   update?: (value: unknown, sourceId?: string) => Promise<unknown>
   delete?: (value: unknown, sourceId?: string) => Promise<unknown>
   refresh: (componentId?: string) => Promise<void>
-  navigate?: (path: string) => Promise<void> | void
+  navigate?: (path: string, mode: "page" | "back" | "url") => Promise<void> | void
   openModal?: (componentId: string) => Promise<void> | void
   updateUI?: (componentId: string, operation: string, value: string) => Promise<void> | void
   notify?: (message: string, level: string) => Promise<void> | void
@@ -82,7 +82,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'sort') value = sort(value, node.config.field, node.config.direction === 'desc')
       if (node.type === 'kpi') value = aggregate(value, node.config.operation, node.config.field)
       if (node.type === 'refresh') await guarded(context.refresh(node.config.componentId), context)
-      if (node.type === 'navigate') await context.navigate?.(node.config.path || '/')
+      if (node.type === 'navigate') { const mode = node.config.mode === 'back' || node.config.mode === 'url' ? node.config.mode : 'page'; if (mode === 'url') safeHttpUrl(node.config.path); await context.navigate?.(node.config.path || '/', mode) }
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
       if (node.type === 'updateUI') await required(context.updateUI, 'Aggiornamento interfaccia non disponibile')(node.config.componentId || '', node.config.operation || 'show', node.config.value || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)

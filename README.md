@@ -149,6 +149,8 @@ La preview inoltra automaticamente log, avvisi, errori JavaScript e promise non 
 
 Anche gli export rifiniti **Landing** e **Dashboard** caricano ora il runtime del grafo unificato. Il template continua a fornire navigazione, modal, ricerca e CRUD pronti, ma eventi e nodi aggiunti dall’utente vengono risolti tramite l’identità stabile `data-component`, senza sostituire gli ID interni usati dai widget specializzati. `npm run export:specialized` materializza entrambi gli export e `npm run test:specialized` li avvia su porte separate e attraversa un flow personalizzato reale.
 
+Il nodo **Vai alla pagina** offre tre scelte visuali: una pagina del progetto, torna indietro o un sito esterno. Preview ed export condividono il comportamento; gli indirizzi esterni accettano soltanto HTTP/HTTPS. `e2e/navigation-flow.spec.ts` verifica la configurazione senza codice e la navigazione effettiva nella preview.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.

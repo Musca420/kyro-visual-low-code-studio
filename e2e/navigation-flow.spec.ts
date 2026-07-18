@@ -1,0 +1,33 @@
+import { expect, test } from "@playwright/test";
+
+test("un utente configura pagina, indietro e sito esterno dal flow", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Nome progetto").fill(`Navigazione visuale ${Date.now()}`);
+  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
+  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  const palette = page.locator(".palette");
+  for (const type of ["input", "button", "list"]) await palette.locator("button").filter({ hasText: type }).click();
+  await page.getByRole("button", { name: "Dati", exact: true }).click();
+  await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
+  await page.getByRole("button", { name: /^Flow/ }).click();
+  await page.getByRole("button", { name: "Crea flow dati" }).click();
+  const nodePalette = page.getByRole("complementary", { name: "Aggiungi nodi al flow" });
+  await nodePalette.getByLabel("Cerca azione").fill("Vai alla pagina");
+  await nodePalette.getByRole("button", { name: "Vai alla pagina", exact: true }).click();
+  await page.getByLabel("Tipo navigazione").selectOption("page");
+  await page.getByLabel("Percorso navigazione").fill("/destinazione");
+  const eventNode = page.locator(".react-flow__node").filter({ hasText: "Click pulsante" });
+  await eventNode.click({ force: true });
+  await page.getByLabel("Passo successivo").selectOption({ label: "Vai alla pagina" });
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const preview = page.frameLocator('iframe[title="Preview isolata"]');
+  await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await expect.poll(() => preview.locator("body").evaluate(() => location.hash)).toBe("#/destinazione");
+  await page.getByRole("button", { name: /^Flow/ }).click();
+  await page.locator(".react-flow__node").filter({ hasText: "Vai alla pagina" }).click({ force: true });
+  await page.getByLabel("Tipo navigazione").selectOption("back");
+  await expect(page.getByLabel("Percorso navigazione")).toHaveCount(0);
+  await page.getByLabel("Tipo navigazione").selectOption("url");
+  await page.getByLabel("Percorso navigazione").fill("https://example.com");
+  await page.screenshot({ path: "artifacts/frontend-editor-navigation-flow.png", fullPage: true });
+});

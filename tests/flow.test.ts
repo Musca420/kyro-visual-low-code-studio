@@ -250,4 +250,19 @@ describe('flow runtime', () => {
     expect(signOut).toHaveBeenCalledOnce()
     expect(notify).toHaveBeenCalledWith('Permesso mancante', 'error')
   })
+
+  it('naviga a pagina, indietro o URL senza accettare protocolli pericolosi', async () => {
+    const navigation: Flow = { id: 'navigation', name: 'Naviga', nodes: [
+      { id: 'event', type: 'event', label: 'Click', position: { x: 0, y: 0 }, config: {} },
+      { id: 'navigate', type: 'navigate', label: 'Vai', position: { x: 1, y: 0 }, config: { mode: 'page', path: '/dettaglio' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'navigate', path: 'success' }] }
+    const navigate = vi.fn()
+    await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })
+    expect(navigate).toHaveBeenCalledWith('/dettaglio', 'page')
+    navigation.nodes[1].config = { mode: 'back' }
+    await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })
+    expect(navigate).toHaveBeenLastCalledWith('/', 'back')
+    navigation.nodes[1].config = { mode: 'url', path: 'javascript:alert(1)' }
+    expect((await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })).some((entry) => entry.message === 'Usa un indirizzo API HTTP o HTTPS')).toBe(true)
+  })
 })

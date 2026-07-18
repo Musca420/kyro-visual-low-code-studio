@@ -1697,7 +1697,7 @@ function Editor({
     const activeFlow = project.flows.find((item) => item.id === flowId);
     const source = project.dataSources[0];
     if (!activeFlow) throw new Error("Flow non trovato");
-    let notification: string | undefined, level: string | undefined, navigate: string | undefined, modalId: string | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
+    let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modalId: string | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
     setLogs([]);
     const result = await runFlow(activeFlow, {
       input,
@@ -1713,7 +1713,7 @@ function Editor({
         await deleteProjectRecord(sourceId || source?.id || "", id);
       },
       refresh: async () => { if (source) await refreshRecords(); },
-      navigate: (path) => { navigate = path; },
+      navigate: (path, mode) => { navigate = { path, mode }; },
       openModal: (componentId) => { modalId = componentId; },
       updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
       notify: (message, kind) => { notification = message; level = kind; },
