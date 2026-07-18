@@ -13,6 +13,7 @@
 - onboarding guidato Web/PWA/Android e pannello Pubblica con configurazione visuale;
 - export PWA con manifest e service worker; export Android con Capacitor 8;
 - preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
+- installazione su dispositivo Android reale con verifica di avvio, tastiera, safe area, orientamento, tasto Indietro e persistenza;
 - catalogo ricercabile con nove template completi, ricerca componenti con sinonimi e command palette `Ctrl+K`;
 - procedura dati guidata per IndexedDB, API REST o backend Node generato; CRUD del backend verificato in esecuzione;
 - configurazione visuale di autenticazione, ruoli, offline, SSE e variabili d'ambiente; export autenticato compilato e verificato end-to-end;
@@ -41,7 +42,7 @@ Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperat
 | Import/export progetto | JSON validato e deterministico | unit test modello + controlli dashboard |
 | App indipendente | ZIP Vite/TS, install/build/start e CRUD | `npm run export:sample`, build e `npm run test:generated` |
 | Plugin manager | install/enable/disable/remove, collisioni e manifest Zod | secondo test Playwright |
-| Web/PWA/Android | target guidati, manifest/service worker, Capacitor 8, rilevamento toolchain e build APK | `e2e/onboarding-targets.spec.ts`, `e2e/android-build.spec.ts`, test generatore |
+| Web/PWA/Android | target guidati, manifest/service worker, Capacitor 8, configurazione nativa, build APK e collaudo fisico | `e2e/onboarding-targets.spec.ts`, `e2e/android-build.spec.ts`, test generatore, screenshot `artifacts/android-*.png` |
 | Sicurezza/a11y | niente segreti, iframe sandbox, DOM textContent, focus/label/semantic HTML | review sorgenti + E2E controlli accessibili |
 
 ## Vertical slice obbligatorio

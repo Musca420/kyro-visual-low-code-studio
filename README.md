@@ -84,7 +84,7 @@ Nella stessa scheda, Asset consente di caricare immagini, audio e video fino a 2
 
 ## Android / Capacitor
 
-Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, sincronizza la cartella nativa e compila l'APK quando la toolchain è disponibile.
+Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.
 
 Ogni export Android include `capacitor.config.ts`. Il percorso manuale equivalente è:
 
@@ -94,7 +94,7 @@ npx cap add android
 npx cap sync
 ```
 
-In questo ambiente il rilevamento automatico trova Android SDK e il JBR di Android Studio anche se non sono nel `PATH`. Il test UI-only `RUN_ANDROID_E2E=1 npx playwright test e2e/android-build.spec.ts --workers=1` ha generato e compilato realmente `app-debug.apk`. L'installazione su emulatore o dispositivo resta condizionata alla presenza di un target ADB disponibile.
+In questo ambiente il rilevamento automatico trova Android SDK e il JBR di Android Studio anche se non sono nel `PATH`. Il test UI-only `RUN_ANDROID_E2E=1 npx playwright test e2e/android-build.spec.ts --workers=1` ha generato e compilato realmente `app-debug.apk`; l'APK è stato inoltre installato e avviato su un dispositivo fisico, verificando safe area, tastiera, orientamento verticale, tasto Indietro e persistenza IndexedDB dopo il riavvio.
 
 ## Limiti dichiarati
 

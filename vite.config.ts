@@ -150,6 +150,7 @@ function liveBridge() {
                 await step(npmCommand, [...npmPrefix, 'install', '--no-audit', '--no-fund'], 'Scarico le dipendenze dichiarate…', 300_000)
                 await step(npmCommand, [...npmPrefix, 'run', 'build'], 'Compilo la web app…', 180_000)
                 await step(npxCommand, [...npxPrefix, 'cap', 'add', 'android'], 'Creo la cartella Android nativa…', 180_000)
+                await step(npmCommand, [...npmPrefix, 'run', 'android:configure'], 'Applico identità, permessi e comportamento nativo…', 60_000)
                 await step(npxCommand, [...npxPrefix, 'cap', 'sync', 'android'], 'Sincronizzo interfaccia e configurazione…', 180_000)
                 const sdkPath = (await Promise.all(sdkCandidates().map(async (path) => await exists(path) ? path : ''))).find(Boolean), javaPath = (await Promise.all(javaCandidates().slice(1).map(async (path) => await exists(path) ? path : ''))).find(Boolean), gradle = resolve(directory, 'android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'), gradleJar = resolve(directory, 'android/gradle/wrapper/gradle-wrapper.jar')
                 if (sdkPath && await exists(sdkPath) && await exists(gradle) && (process.platform !== 'win32' || Boolean(javaPath && await exists(gradleJar)))) {

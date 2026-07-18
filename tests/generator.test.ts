@@ -151,8 +151,11 @@ describe("web generator", () => {
     expect(pkg.dependencies).toMatchObject({
       "@capacitor/core": "^8.0.0",
       "@capacitor/android": "^8.0.0",
+      "@capacitor/app": "^8.0.0",
+      "@capacitor/status-bar": "^8.0.0",
     });
     expect(pkg.scripts["android:sync"]).toContain("cap sync android");
+    expect(pkg.scripts["android:configure"]).toContain("configure-android.mjs");
     expect(files["capacitor.config.ts"]).toContain(
       'appId: "com.example.fieldapp"',
     );
@@ -160,6 +163,18 @@ describe("web generator", () => {
       orientation: "portrait",
       permissions: ["camera"],
     });
+    expect(files["scripts/configure-android.mjs"]).toContain(
+      "android:screenOrientation",
+    );
+    expect(files["scripts/configure-android.mjs"]).toContain("portrait");
+    expect(files["scripts/configure-android.mjs"]).toContain(
+      "android.permission.CAMERA",
+    );
+    expect(files["src/main.ts"]).toContain("NativeApp.addListener");
+    expect(files["src/main.ts"]).toContain("StatusBar.setStyle");
+    expect(files["src/main.ts"]).toContain("StatusBarStyle.Light");
+    expect(files["src/style.css"]).toContain("safe-area-inset-top");
+    expect(files["index.html"]).toContain("viewport-fit=cover");
   });
 
   it("generates a persistent REST backend and keeps secrets in the environment", () => {

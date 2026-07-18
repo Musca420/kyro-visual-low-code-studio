@@ -220,18 +220,73 @@ function platformFiles(
     ...pkg.dependencies,
     "@capacitor/core": "^8.0.0",
     "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
   };
   pkg.devDependencies = { ...pkg.devDependencies, "@capacitor/cli": "^8.0.0" };
   pkg.scripts = {
     ...pkg.scripts,
-    "android:add": "npx cap add android",
-    "android:sync": "npm run build && npx cap sync android",
+    "android:add": "npx cap add android && npm run android:configure",
+    "android:configure": "node scripts/configure-android.mjs",
+    "android:sync":
+      "npm run android:configure && npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:run": "npm run build && npx cap run android",
   };
   files["package.json"] = JSON.stringify(pkg, null, 2);
   files["capacitor.config.ts"] =
-    `import type { CapacitorConfig } from '@capacitor/cli'\nconst config: CapacitorConfig = { appId: ${JSON.stringify(android.packageId)}, appName: ${JSON.stringify(android.appName)}, webDir: 'dist', backgroundColor: ${JSON.stringify(themeColor)}, android: { backgroundColor: ${JSON.stringify(themeColor)}, allowMixedContent: false, captureInput: true } }\nexport default config\n`;
+    `import type { CapacitorConfig } from '@capacitor/cli'\nconst config: CapacitorConfig = { appId: ${JSON.stringify(android.packageId)}, appName: ${JSON.stringify(android.appName)}, webDir: 'dist', backgroundColor: ${JSON.stringify(themeColor)}, android: { backgroundColor: ${JSON.stringify(themeColor)}, allowMixedContent: false, captureInput: true }, plugins: { App: { disableBackButtonHandler: ${!android.backButton} } } }\nexport default config\n`;
+  const permissions = android.permissions
+    .map(
+      (permission) =>
+        ({
+          camera: "android.permission.CAMERA",
+          geolocation: "android.permission.ACCESS_FINE_LOCATION",
+          notifications: "android.permission.POST_NOTIFICATIONS",
+          microphone: "android.permission.RECORD_AUDIO",
+        })[permission],
+    )
+    .filter(Boolean);
+  files["scripts/configure-android.mjs"] =
+    `import { readFile, writeFile } from 'node:fs/promises'
+const manifestPath = 'android/app/src/main/AndroidManifest.xml'
+let manifest = await readFile(manifestPath, 'utf8')
+const activityAttributes = ${JSON.stringify(
+      [
+        android.orientation === "any"
+          ? ""
+          : `android:screenOrientation="${android.orientation}"`,
+        android.keyboardResize
+          ? 'android:windowSoftInputMode="adjustResize"'
+          : "",
+      ].filter(Boolean),
+    )}
+for (const attribute of activityAttributes) if (!manifest.includes(attribute)) manifest = manifest.replace('<activity', '<activity\\n            ' + attribute)
+for (const permission of ${JSON.stringify(permissions)}) { const declaration = '<uses-permission android:name="' + permission + '" />'; if (!manifest.includes(declaration)) manifest = manifest.replace('</manifest>', '    ' + declaration + '\\n</manifest>') }
+await writeFile(manifestPath, manifest)
+const gradlePath = 'android/app/build.gradle'
+let gradle = await readFile(gradlePath, 'utf8')
+gradle = gradle.replace(/versionCode \\d+/, ${JSON.stringify(`versionCode ${android.versionCode}`)}).replace(/versionName "[^"]+"/, ${JSON.stringify(`versionName "${android.versionName}"`)})
+await writeFile(gradlePath, gradle)
+const stylesPath = 'android/app/src/main/res/values/styles.xml'
+let styles = await readFile(stylesPath, 'utf8')
+const systemBars = '<item name="android:statusBarColor">${android.themeColor}</item>\\n        <item name="android:navigationBarColor">${android.themeColor}</item>\\n        <item name="android:windowLightStatusBar">${android.statusBarStyle === "dark"}</item>'
+if (!styles.includes('android:statusBarColor')) styles = styles.replace('<item name="windowActionBar">false</item>', '<item name="windowActionBar">false</item>\\n        ' + systemBars)
+const splash = '<item name="windowSplashScreenBackground">${android.themeColor}</item>\\n        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>'
+if (!styles.includes('windowSplashScreenBackground')) styles = styles.replace('<item name="android:background">@drawable/splash</item>', '<item name="android:background">@drawable/splash</item>\\n        ' + splash)
+await writeFile(stylesPath, styles)
+await writeFile('android/app/src/main/res/values/ic_launcher_background.xml', '<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background">${android.themeColor}</color></resources>')
+await writeFile('android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml', '<?xml version="1.0" encoding="utf-8"?><vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#FFFFFF" android:pathData="M30,31h48v10h-48zM30,49h36v10h-36zM30,67h24v10h-24z"/></vector>')
+console.log('Configurazione Android applicata')
+`;
+  const androidRuntime = `\nimport { App as NativeApp } from '@capacitor/app'\nimport { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar'\nvoid StatusBar.setStyle({ style: StatusBarStyle.${android.statusBarStyle === "dark" ? "Light" : "Dark"} })\nvoid StatusBar.setBackgroundColor({ color: ${JSON.stringify(android.themeColor)} })\n${android.backButton ? "void NativeApp.addListener('backButton', ({ canGoBack }) => canGoBack ? history.back() : NativeApp.minimizeApp())" : ""}\n`;
+  files["src/main.ts"] += androidRuntime;
+  files["src/style.css"] +=
+    "\nhtml{background:var(--safe-area-color,#fff)}body{padding-top:env(safe-area-inset-top);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left)}";
+  files["index.html"] = files["index.html"].replace(
+    'content="width=device-width,initial-scale=1"',
+    'content="width=device-width,initial-scale=1,viewport-fit=cover"',
+  );
   files["android.frontend-editor.json"] = JSON.stringify(android, null, 2);
   files["README-ANDROID.md"] =
     `# Android\n\nTarget: Capacitor 8 / Android API 24+.\n\nFrontend Editor può preparare automaticamente la cartella nativa. Manualmente: npm install, npm run build, npm run android:add, npm run android:sync. Aprire con npm run android:open. La firma di pubblicazione resta intenzionalmente esterna.\n\nOrientamento: ${android.orientation}. Permessi richiesti: ${android.permissions.join(", ") || "nessuno"}. Versione: ${android.versionName} (${android.versionCode}).`;
@@ -246,7 +301,8 @@ function authenticationAssets(project: Project) {
       markup: "",
       open: "",
       close: "",
-      runtime: "let authToken = import.meta.env.VITE_API_TOKEN || ''",
+      runtime:
+        "let authToken = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_API_TOKEN || ''",
     };
   const endpoint =
     project.dataSources.find((source) => source.provider === "generated")
