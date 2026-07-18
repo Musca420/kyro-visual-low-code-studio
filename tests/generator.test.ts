@@ -159,4 +159,36 @@ describe("web generator", () => {
       permissions: ["camera"],
     });
   });
+
+  it("generates a persistent REST backend and keeps secrets in the environment", () => {
+    const project = createProject("Backend Notes");
+    project.pages.push({
+      id: "page",
+      name: "Home",
+      path: "/",
+      components: [
+        makeComponent("input"),
+        makeComponent("button"),
+        makeComponent("list"),
+      ],
+    });
+    project.dataSources.push({
+      id: "backend",
+      name: "Notes backend",
+      provider: "generated",
+      collection: "records",
+      schema: { id: "string", text: "string", date: "datetime" },
+      capabilities: ["get", "query", "insert", "update", "delete", "subscribe"],
+      secretStrategy: "none",
+      endpoint: "http://127.0.0.1:8787/records",
+    });
+    const files = generateFiles(project),
+      pkg = JSON.parse(files["package.json"]);
+    expect(pkg.scripts.server).toBe("node server/index.mjs");
+    expect(files["server/index.mjs"]).toContain("writeFile(file");
+    expect(files["server/index.mjs"]).toContain("request.method === 'DELETE'");
+    expect(files["src/main.ts"]).toContain("fetch(endpoint");
+    expect(files["src/main.ts"]).toContain("import.meta.env.VITE_API_TOKEN");
+    expect(files["project.frontend-editor.json"]).not.toContain("API_TOKEN=");
+  });
 });

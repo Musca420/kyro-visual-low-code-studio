@@ -14,6 +14,7 @@
 - export PWA con manifest e service worker; export Android con Capacitor 8;
 - preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
 - catalogo ricercabile con nove template completi, ricerca componenti con sinonimi e command palette `Ctrl+K`;
+- procedura dati guidata per IndexedDB, API REST o backend Node generato; CRUD del backend verificato in esecuzione;
 - skill `frontend-editor-live` validata con script reali.
 
 Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-details.png`, `artifacts/live-canvas-capture.png`, `artifacts/live-preview-capture.png`.
@@ -32,6 +33,7 @@ Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperat
 | Eventi/flow | evento click collegato a grafo modificabile | E2E + flow editor React Flow |
 | Runtime success/error | esecuzione deterministica, log, timeout/cancel/loop guard | `tests/flow.test.ts` + E2E errore input vuoto |
 | Provider locale | IndexedDB per progetto, record e plugin | E2E editor ed export indipendente |
+| API e backend | REST esistente con token da ambiente oppure server Node persistente generato | `e2e/data-guidance.spec.ts`, `tests/generatedBackend.test.ts` |
 | Preview/diagnostica | iframe sandbox, loading/empty/error, console nodi | E2E vertical slice |
 | Import/export progetto | JSON validato e deterministico | unit test modello + controlli dashboard |
 | App indipendente | ZIP Vite/TS, install/build/start e CRUD | `npm run export:sample`, build e `npm run test:generated` |

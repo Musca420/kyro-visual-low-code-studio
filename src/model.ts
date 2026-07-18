@@ -1,77 +1,162 @@
-import { z } from 'zod'
+import { z } from "zod";
 
-export const BREAKPOINTS = ['desktop', 'tablet', 'mobile'] as const
-export type Breakpoint = (typeof BREAKPOINTS)[number]
+export const BREAKPOINTS = ["desktop", "tablet", "mobile"] as const;
+export type Breakpoint = (typeof BREAKPOINTS)[number];
 
 const styleSchema = z.object({
-  width: z.string().default('100%'),
-  height: z.string().default('auto'),
-  minWidth: z.string().default('0px'),
-  maxWidth: z.string().default('none'),
-  minHeight: z.string().default('44px'),
-  maxHeight: z.string().default('none'),
-  color: z.string().default('#172033'),
-  background: z.string().default('#ffffff'),
-  backgroundImage: z.string().default('none'),
-  backgroundSize: z.string().default('cover'),
-  backgroundPosition: z.string().default('center'),
-  opacity: z.string().default('1'),
-  borderWidth: z.string().default('0px'),
-  borderStyle: z.enum(['none', 'solid', 'dashed', 'dotted', 'double']).default('none'),
-  borderColor: z.string().default('#d8dce6'),
-  borderRadius: z.string().default('10px'),
-  borderTopLeftRadius: z.string().default('10px'),
-  borderTopRightRadius: z.string().default('10px'),
-  borderBottomRightRadius: z.string().default('10px'),
-  borderBottomLeftRadius: z.string().default('10px'),
-  padding: z.string().default('12px'),
-  paddingTop: z.string().default('12px'),
-  paddingRight: z.string().default('12px'),
-  paddingBottom: z.string().default('12px'),
-  paddingLeft: z.string().default('12px'),
-  fontSize: z.string().default('16px'),
-  fontFamily: z.string().default('Inter, system-ui, sans-serif'),
-  fontWeight: z.string().default('400'),
-  lineHeight: z.string().default('1.5'),
-  textAlign: z.enum(['left', 'center', 'right', 'justify']).default('left'),
-  marginLeft: z.string().default('0px'),
-  marginTop: z.string().default('0px'),
-  marginRight: z.string().default('0px'),
-  marginBottom: z.string().default('0px'),
-  boxShadow: z.string().default('none'),
-  display: z.enum(['block', 'none', 'flex', 'grid']).default('block'),
-  flexDirection: z.enum(['row', 'column', 'row-reverse', 'column-reverse']).default('column'),
-  flexWrap: z.enum(['nowrap', 'wrap']).default('nowrap'),
-  alignItems: z.enum(['stretch', 'flex-start', 'center', 'flex-end', 'baseline']).default('stretch'),
-  justifyContent: z.enum(['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly']).default('flex-start'),
-  gap: z.string().default('12px'),
-  gridTemplateColumns: z.string().default('1fr'),
-  position: z.enum(['static', 'relative', 'absolute', 'sticky', 'fixed']).default('static'),
-  top: z.string().default('auto'),
-  right: z.string().default('auto'),
-  bottom: z.string().default('auto'),
-  left: z.string().default('auto'),
-  zIndex: z.string().default('auto'),
-  overflow: z.enum(['visible', 'hidden', 'auto', 'scroll', 'clip']).default('visible'),
-  aspectRatio: z.string().default('auto'),
-  cursor: z.enum(['auto', 'default', 'pointer', 'text', 'move', 'not-allowed', 'grab']).default('auto'),
-  filter: z.string().default('none'),
-  backdropFilter: z.string().default('none'),
-  transform: z.string().default('none'),
-  transformOrigin: z.string().default('center'),
-  transition: z.string().default('all 180ms ease'),
-  animation: z.string().default('none'),
-})
+  width: z.string().default("100%"),
+  height: z.string().default("auto"),
+  minWidth: z.string().default("0px"),
+  maxWidth: z.string().default("none"),
+  minHeight: z.string().default("44px"),
+  maxHeight: z.string().default("none"),
+  color: z.string().default("#172033"),
+  background: z.string().default("#ffffff"),
+  backgroundImage: z.string().default("none"),
+  backgroundSize: z.string().default("cover"),
+  backgroundPosition: z.string().default("center"),
+  opacity: z.string().default("1"),
+  borderWidth: z.string().default("0px"),
+  borderStyle: z
+    .enum(["none", "solid", "dashed", "dotted", "double"])
+    .default("none"),
+  borderColor: z.string().default("#d8dce6"),
+  borderRadius: z.string().default("10px"),
+  borderTopLeftRadius: z.string().default("10px"),
+  borderTopRightRadius: z.string().default("10px"),
+  borderBottomRightRadius: z.string().default("10px"),
+  borderBottomLeftRadius: z.string().default("10px"),
+  padding: z.string().default("12px"),
+  paddingTop: z.string().default("12px"),
+  paddingRight: z.string().default("12px"),
+  paddingBottom: z.string().default("12px"),
+  paddingLeft: z.string().default("12px"),
+  fontSize: z.string().default("16px"),
+  fontFamily: z.string().default("Inter, system-ui, sans-serif"),
+  fontWeight: z.string().default("400"),
+  lineHeight: z.string().default("1.5"),
+  textAlign: z.enum(["left", "center", "right", "justify"]).default("left"),
+  marginLeft: z.string().default("0px"),
+  marginTop: z.string().default("0px"),
+  marginRight: z.string().default("0px"),
+  marginBottom: z.string().default("0px"),
+  boxShadow: z.string().default("none"),
+  display: z.enum(["block", "none", "flex", "grid"]).default("block"),
+  flexDirection: z
+    .enum(["row", "column", "row-reverse", "column-reverse"])
+    .default("column"),
+  flexWrap: z.enum(["nowrap", "wrap"]).default("nowrap"),
+  alignItems: z
+    .enum(["stretch", "flex-start", "center", "flex-end", "baseline"])
+    .default("stretch"),
+  justifyContent: z
+    .enum([
+      "flex-start",
+      "center",
+      "flex-end",
+      "space-between",
+      "space-around",
+      "space-evenly",
+    ])
+    .default("flex-start"),
+  gap: z.string().default("12px"),
+  gridTemplateColumns: z.string().default("1fr"),
+  position: z
+    .enum(["static", "relative", "absolute", "sticky", "fixed"])
+    .default("static"),
+  top: z.string().default("auto"),
+  right: z.string().default("auto"),
+  bottom: z.string().default("auto"),
+  left: z.string().default("auto"),
+  zIndex: z.string().default("auto"),
+  overflow: z
+    .enum(["visible", "hidden", "auto", "scroll", "clip"])
+    .default("visible"),
+  aspectRatio: z.string().default("auto"),
+  cursor: z
+    .enum(["auto", "default", "pointer", "text", "move", "not-allowed", "grab"])
+    .default("auto"),
+  filter: z.string().default("none"),
+  backdropFilter: z.string().default("none"),
+  transform: z.string().default("none"),
+  transformOrigin: z.string().default("center"),
+  transition: z.string().default("all 180ms ease"),
+  animation: z.string().default("none"),
+});
 
 export const componentTypes = [
-  'container', 'stack', 'grid', 'spacer', 'text', 'title', 'link', 'image', 'icon',
-  'button', 'input', 'textarea', 'select', 'checkbox', 'radio', 'form', 'card',
-  'list', 'table', 'navbar', 'tabs', 'modal', 'loader', 'empty', 'alert', 'toast',
-  'header', 'sidebar', 'hero', 'footer', 'section', 'carousel', 'gallery', 'menu',
-  'breadcrumb', 'accordion', 'drawer', 'tooltip', 'pagination', 'upload', 'avatar',
-  'badge', 'progress', 'skeleton', 'chart', 'calendar', 'map', 'audio', 'video', 'reusable',
-] as const
-export const containerTypes = ['container', 'stack', 'grid', 'form', 'card', 'navbar', 'tabs', 'modal', 'header', 'sidebar', 'hero', 'footer', 'section', 'carousel', 'gallery', 'menu', 'accordion', 'drawer', 'reusable'] as const
+  "container",
+  "stack",
+  "grid",
+  "spacer",
+  "text",
+  "title",
+  "link",
+  "image",
+  "icon",
+  "button",
+  "input",
+  "textarea",
+  "select",
+  "checkbox",
+  "radio",
+  "form",
+  "card",
+  "list",
+  "table",
+  "navbar",
+  "tabs",
+  "modal",
+  "loader",
+  "empty",
+  "alert",
+  "toast",
+  "header",
+  "sidebar",
+  "hero",
+  "footer",
+  "section",
+  "carousel",
+  "gallery",
+  "menu",
+  "breadcrumb",
+  "accordion",
+  "drawer",
+  "tooltip",
+  "pagination",
+  "upload",
+  "avatar",
+  "badge",
+  "progress",
+  "skeleton",
+  "chart",
+  "calendar",
+  "map",
+  "audio",
+  "video",
+  "reusable",
+] as const;
+export const containerTypes = [
+  "container",
+  "stack",
+  "grid",
+  "form",
+  "card",
+  "navbar",
+  "tabs",
+  "modal",
+  "header",
+  "sidebar",
+  "hero",
+  "footer",
+  "section",
+  "carousel",
+  "gallery",
+  "menu",
+  "accordion",
+  "drawer",
+  "reusable",
+] as const;
 
 export const componentSchema = z.object({
   id: z.string().min(1),
@@ -79,43 +164,77 @@ export const componentSchema = z.object({
   name: z.string().min(1),
   parentId: z.string().min(1).optional(),
   props: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
-  styles: z.object({ desktop: styleSchema, tablet: styleSchema.partial(), mobile: styleSchema.partial() }),
-  states: z.object({ hover: z.record(z.string(), z.string()), focus: z.record(z.string(), z.string()), active: z.record(z.string(), z.string()), disabled: z.record(z.string(), z.string()) }).default({ hover: {}, focus: {}, active: {}, disabled: {} }),
+  styles: z.object({
+    desktop: styleSchema,
+    tablet: styleSchema.partial(),
+    mobile: styleSchema.partial(),
+  }),
+  states: z
+    .object({
+      hover: z.record(z.string(), z.string()),
+      focus: z.record(z.string(), z.string()),
+      active: z.record(z.string(), z.string()),
+      disabled: z.record(z.string(), z.string()),
+    })
+    .default({ hover: {}, focus: {}, active: {}, disabled: {} }),
   events: z.record(z.string(), z.string()),
-  binding: z.object({ sourceId: z.string(), state: z.enum(['data', 'loading', 'empty', 'error']) }).optional(),
+  binding: z
+    .object({
+      sourceId: z.string(),
+      state: z.enum(["data", "loading", "empty", "error"]),
+    })
+    .optional(),
   accessibility: z.object({ label: z.string(), role: z.string().optional() }),
-})
+});
 
-export type EditorComponent = z.infer<typeof componentSchema>
+export type EditorComponent = z.infer<typeof componentSchema>;
 
 const nodeSchema = z.object({
   id: z.string(),
-  type: z.enum(['event', 'readInput', 'validate', 'insert', 'query', 'update', 'delete', 'filter', 'sort', 'kpi', 'refresh', 'navigate', 'openModal', 'notify', 'log']),
+  type: z.enum([
+    "event",
+    "readInput",
+    "validate",
+    "insert",
+    "query",
+    "update",
+    "delete",
+    "filter",
+    "sort",
+    "kpi",
+    "refresh",
+    "navigate",
+    "openModal",
+    "notify",
+    "log",
+  ]),
   label: z.string(),
   position: z.object({ x: z.number(), y: z.number() }),
   config: z.record(z.string(), z.string()),
-})
+});
 
 const edgeSchema = z.object({
   id: z.string(),
   source: z.string(),
   target: z.string(),
-  path: z.enum(['success', 'error']).default('success'),
-})
+  path: z.enum(["success", "error"]).default("success"),
+});
 
 export const pluginManifestSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9.-]+$/),
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
   author: z.string().min(1),
-  compatibility: z.literal('1.x'),
+  compatibility: z.literal("1.x"),
   dependencies: z.array(z.string()).default([]),
-  permissions: z.array(z.enum(['components', 'flows', 'data', 'themes'])).default([]),
+  permissions: z
+    .array(z.enum(["components", "flows", "data", "themes"]))
+    .default([]),
   contributions: z.array(z.string()).default([]),
   configuration: z.record(z.string(), z.string()).default({}),
-})
+});
 
-export type PluginManifest = z.infer<typeof pluginManifestSchema>
+export type PluginManifest = z.infer<typeof pluginManifestSchema>;
 
 export const projectSchema = z.object({
   formatVersion: z.literal(1),
@@ -124,70 +243,164 @@ export const projectSchema = z.object({
   revision: z.number().int().nonnegative().default(0),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  pages: z.array(z.object({ id: z.string(), name: z.string(), path: z.string(), components: z.array(componentSchema) })),
-  flows: z.array(z.object({ id: z.string(), name: z.string(), nodes: z.array(nodeSchema), edges: z.array(edgeSchema) })),
+  pages: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      path: z.string(),
+      components: z.array(componentSchema),
+    }),
+  ),
+  flows: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      nodes: z.array(nodeSchema),
+      edges: z.array(edgeSchema),
+    }),
+  ),
   state: z.record(z.string(), z.unknown()),
-  dataSources: z.array(z.object({
-    id: z.string(), name: z.string(), provider: z.literal('indexeddb'), collection: z.string(),
-    schema: z.record(z.string(), z.enum(['string', 'datetime'])),
-    capabilities: z.array(z.enum(['get', 'query', 'insert', 'update', 'delete', 'subscribe'])),
-    secretStrategy: z.literal('none'),
-  })),
+  dataSources: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      provider: z.enum(["indexeddb", "rest", "generated"]),
+      collection: z.string(),
+      schema: z.record(z.string(), z.enum(["string", "datetime"])),
+      capabilities: z.array(
+        z.enum(["get", "query", "insert", "update", "delete", "subscribe"]),
+      ),
+      secretStrategy: z.enum(["none", "environment"]),
+      endpoint: z.string().url().optional(),
+      environmentKey: z
+        .string()
+        .regex(/^[A-Z][A-Z0-9_]*$/)
+        .optional(),
+    }),
+  ),
   theme: z.object({ tokens: z.record(z.string(), z.string()) }),
-  animations: z.array(z.object({ id: z.string(), name: z.string(), css: z.string() })),
-  assets: z.array(z.object({ id: z.string(), name: z.string(), url: z.string() })),
-  plugins: z.array(z.object({ id: z.string(), version: z.string(), enabled: z.boolean() })),
+  animations: z.array(
+    z.object({ id: z.string(), name: z.string(), css: z.string() }),
+  ),
+  assets: z.array(
+    z.object({ id: z.string(), name: z.string(), url: z.string() }),
+  ),
+  plugins: z.array(
+    z.object({ id: z.string(), version: z.string(), enabled: z.boolean() }),
+  ),
   dependencies: z.record(z.string(), z.string()),
   exportConfig: z.object({
-    target: z.enum(['web', 'pwa', 'android']).default('web'), capacitor: z.boolean().default(false),
-    android: z.object({ packageId: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/), appName: z.string().min(1), orientation: z.enum(['any', 'portrait', 'landscape']), themeColor: z.string(), versionName: z.string(), versionCode: z.number().int().positive(), permissions: z.array(z.string()), statusBarStyle: z.enum(['light', 'dark']), keyboardResize: z.boolean(), backButton: z.boolean() }).optional(),
+    target: z.enum(["web", "pwa", "android"]).default("web"),
+    capacitor: z.boolean().default(false),
+    android: z
+      .object({
+        packageId: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/),
+        appName: z.string().min(1),
+        orientation: z.enum(["any", "portrait", "landscape"]),
+        themeColor: z.string(),
+        versionName: z.string(),
+        versionCode: z.number().int().positive(),
+        permissions: z.array(z.string()),
+        statusBarStyle: z.enum(["light", "dark"]),
+        keyboardResize: z.boolean(),
+        backButton: z.boolean(),
+      })
+      .optional(),
   }),
-})
+});
 
-export type Project = z.infer<typeof projectSchema>
-export type Flow = Project['flows'][number]
+export type Project = z.infer<typeof projectSchema>;
+export type Flow = Project["flows"][number];
 
 const baseStyle = {
-  width: '100%', minHeight: '44px', color: '#172033', background: '#ffffff',
-  borderRadius: '10px', padding: '12px', fontSize: '16px', display: 'block' as const,
-  marginLeft: '0px', marginTop: '0px', boxShadow: 'none',
-}
+  width: "100%",
+  minHeight: "44px",
+  color: "#172033",
+  background: "#ffffff",
+  borderRadius: "10px",
+  padding: "12px",
+  fontSize: "16px",
+  display: "block" as const,
+  marginLeft: "0px",
+  marginTop: "0px",
+  boxShadow: "none",
+};
 
-export function makeComponent(type: EditorComponent['type']): EditorComponent {
-  const label: Partial<Record<EditorComponent['type'], string>> = {
-    input: 'Nuova attività', button: 'Aggiungi', list: 'Attività', title: 'Titolo', text: 'Testo',
-  }
+export function makeComponent(type: EditorComponent["type"]): EditorComponent {
+  const label: Partial<Record<EditorComponent["type"], string>> = {
+    input: "Nuova attività",
+    button: "Aggiungi",
+    list: "Attività",
+    title: "Titolo",
+    text: "Testo",
+  };
   return componentSchema.parse({
-    id: crypto.randomUUID(), type, name: `${type[0].toUpperCase()}${type.slice(1)}`,
-    props: { label: label[type] ?? type, placeholder: type === 'input' ? 'Scrivi qualcosa…' : '' },
-    styles: { desktop: baseStyle, tablet: {}, mobile: { fontSize: '15px' } },
-    events: {}, accessibility: { label: label[type] ?? type },
-  })
+    id: crypto.randomUUID(),
+    type,
+    name: `${type[0].toUpperCase()}${type.slice(1)}`,
+    props: {
+      label: label[type] ?? type,
+      placeholder: type === "input" ? "Scrivi qualcosa…" : "",
+    },
+    styles: { desktop: baseStyle, tablet: {}, mobile: { fontSize: "15px" } },
+    events: {},
+    accessibility: { label: label[type] ?? type },
+  });
 }
 
 export function createProject(name: string): Project {
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
   return projectSchema.parse({
-    formatVersion: 1, id: crypto.randomUUID(), name: name.trim(), revision: 0, createdAt: now, updatedAt: now,
-    pages: [], flows: [], state: {}, dataSources: [], theme: { tokens: { primary: '#6d5dfc', surface: '#ffffff' } },
-    animations: [], assets: [], plugins: [], dependencies: {}, exportConfig: { target: 'web', capacitor: false },
-  })
+    formatVersion: 1,
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    revision: 0,
+    createdAt: now,
+    updatedAt: now,
+    pages: [],
+    flows: [],
+    state: {},
+    dataSources: [],
+    theme: { tokens: { primary: "#6d5dfc", surface: "#ffffff" } },
+    animations: [],
+    assets: [],
+    plugins: [],
+    dependencies: {},
+    exportConfig: { target: "web", capacitor: false },
+  });
 }
 
 export function parseProject(input: unknown): Project {
-  input = migrateProject(input)
-  if (typeof input === 'object' && input && 'formatVersion' in input && (input as { formatVersion: unknown }).formatVersion !== 1) {
-    throw new Error(`Versione progetto non supportata: ${String((input as { formatVersion: unknown }).formatVersion)}`)
+  input = migrateProject(input);
+  if (
+    typeof input === "object" &&
+    input &&
+    "formatVersion" in input &&
+    (input as { formatVersion: unknown }).formatVersion !== 1
+  ) {
+    throw new Error(
+      `Versione progetto non supportata: ${String((input as { formatVersion: unknown }).formatVersion)}`,
+    );
   }
-  const result = projectSchema.safeParse(input)
-  if (!result.success) throw new Error(result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('\n'))
-  validateReferences(result.data)
-  return result.data
+  const result = projectSchema.safeParse(input);
+  if (!result.success)
+    throw new Error(
+      result.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("\n"),
+    );
+  validateReferences(result.data);
+  return result.data;
 }
 
 function migrateProject(input: unknown): unknown {
-  if (!input || typeof input !== 'object' || (input as { formatVersion?: unknown }).formatVersion !== 0) return input
-  const legacy = input as Record<string, unknown>
+  if (
+    !input ||
+    typeof input !== "object" ||
+    (input as { formatVersion?: unknown }).formatVersion !== 0
+  )
+    return input;
+  const legacy = input as Record<string, unknown>;
   return {
     ...legacy,
     formatVersion: 1,
@@ -198,39 +411,73 @@ function migrateProject(input: unknown): unknown {
     assets: legacy.assets ?? [],
     plugins: legacy.plugins ?? [],
     dependencies: legacy.dependencies ?? {},
-    exportConfig: legacy.exportConfig ?? { target: 'web', capacitor: false },
-  }
+    exportConfig: legacy.exportConfig ?? { target: "web", capacitor: false },
+  };
 }
 
 export function validateReferences(project: Project) {
-  const componentIds = new Set(project.pages.flatMap((page) => page.components.map((component) => component.id)))
-  const flowIds = new Set(project.flows.map((flow) => flow.id))
-  const sourceIds = new Set(project.dataSources.map((source) => source.id))
+  const componentIds = new Set(
+    project.pages.flatMap((page) =>
+      page.components.map((component) => component.id),
+    ),
+  );
+  const flowIds = new Set(project.flows.map((flow) => flow.id));
+  const sourceIds = new Set(project.dataSources.map((source) => source.id));
   for (const page of project.pages) {
-    const pageIds = new Set(page.components.map((component) => component.id))
-    if (pageIds.size !== page.components.length) throw new Error(`ID componente duplicato nella pagina ${page.id}`)
+    const pageIds = new Set(page.components.map((component) => component.id));
+    if (pageIds.size !== page.components.length)
+      throw new Error(`ID componente duplicato nella pagina ${page.id}`);
     for (const component of page.components) {
-      if (component.parentId && !pageIds.has(component.parentId)) throw new Error(`Contenitore mancante ${component.parentId} in ${component.id}`)
-      if (component.parentId === component.id) throw new Error(`Un componente non può contenere sé stesso: ${component.id}`)
-      const visited = new Set([component.id]); let parentId = component.parentId
-      while (parentId) { if (visited.has(parentId)) throw new Error(`Gerarchia ciclica in ${component.id}`); visited.add(parentId); parentId = page.components.find((item) => item.id === parentId)?.parentId }
-      for (const flowId of Object.values(component.events)) if (!flowIds.has(flowId)) throw new Error(`Flow mancante ${flowId} in ${component.id}`)
-      if (component.binding && !sourceIds.has(component.binding.sourceId)) throw new Error(`Sorgente mancante ${component.binding.sourceId}`)
+      if (component.parentId && !pageIds.has(component.parentId))
+        throw new Error(
+          `Contenitore mancante ${component.parentId} in ${component.id}`,
+        );
+      if (component.parentId === component.id)
+        throw new Error(
+          `Un componente non può contenere sé stesso: ${component.id}`,
+        );
+      const visited = new Set([component.id]);
+      let parentId = component.parentId;
+      while (parentId) {
+        if (visited.has(parentId))
+          throw new Error(`Gerarchia ciclica in ${component.id}`);
+        visited.add(parentId);
+        parentId = page.components.find(
+          (item) => item.id === parentId,
+        )?.parentId;
+      }
+      for (const flowId of Object.values(component.events))
+        if (!flowIds.has(flowId))
+          throw new Error(`Flow mancante ${flowId} in ${component.id}`);
+      if (component.binding && !sourceIds.has(component.binding.sourceId))
+        throw new Error(`Sorgente mancante ${component.binding.sourceId}`);
     }
   }
   for (const flow of project.flows) {
-    const nodes = new Set(flow.nodes.map((node) => node.id))
-    for (const edge of flow.edges) if (!nodes.has(edge.source) || !nodes.has(edge.target)) throw new Error(`Collegamento non valido ${edge.id}`)
-    for (const node of flow.nodes) if (node.type === 'readInput' && !componentIds.has(node.config.componentId)) throw new Error(`Input mancante ${node.config.componentId}`)
+    const nodes = new Set(flow.nodes.map((node) => node.id));
+    for (const edge of flow.edges)
+      if (!nodes.has(edge.source) || !nodes.has(edge.target))
+        throw new Error(`Collegamento non valido ${edge.id}`);
+    for (const node of flow.nodes)
+      if (
+        node.type === "readInput" &&
+        !componentIds.has(node.config.componentId)
+      )
+        throw new Error(`Input mancante ${node.config.componentId}`);
   }
 }
 
 export function serializeProject(project: Project) {
-  return JSON.stringify(sortValue(parseProject(project)), null, 2)
+  return JSON.stringify(sortValue(parseProject(project)), null, 2);
 }
 
 function sortValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortValue)
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, sortValue(item)]))
-  return value
+  if (Array.isArray(value)) return value.map(sortValue);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, sortValue(item)]),
+    );
+  return value;
 }

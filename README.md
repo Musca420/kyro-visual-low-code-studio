@@ -76,6 +76,8 @@ Il formato include metadati, pagine, componenti tipizzati, stili desktop/tablet/
 
 Segreti, token e password non appartengono al modello. Il provider MVP non richiede segreti. Import e manifest sono validati; la preview non usa `eval`, non inserisce HTML dinamico non fidato e ha `sandbox="allow-scripts"`. L'eliminazione progetto richiede conferma. I plugin dichiarano permessi ma, nell'MVP, non eseguono codice.
 
+La scheda Dati propone in termini pratici tre destinazioni: IndexedDB sul dispositivo, una API REST esistente o un backend Node generato. Per le API, l'export legge il token da `VITE_API_TOKEN`; non viene serializzato nel progetto. Il backend generato espone CRUD su `/records` e persiste in `server/data.json`; `tests/generatedBackend.test.ts` lo avvia e verifica l'intero ciclo HTTP.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, sincronizza la cartella nativa e compila l'APK quando la toolchain è disponibile.

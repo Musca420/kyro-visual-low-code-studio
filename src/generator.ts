@@ -243,6 +243,24 @@ function generateExperienceFiles(
     .join("\n");
   const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`;
   const landingMain = `import './style.css'\nawait import('./ui.js')\n`;
+  const dashboardSource = project.dataSources[0];
+  const dashboardDataRuntime =
+    dashboardSource?.provider === "rest" ||
+    dashboardSource?.provider === "generated"
+      ? `const endpoint = ${JSON.stringify(dashboardSource.endpoint)}
+const request = async (path = '', init?: RequestInit) => { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(import.meta.env.VITE_API_TOKEN ? { authorization: 'Bearer ' + import.meta.env.VITE_API_TOKEN } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
+async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value }
+async function save(input: ProjectInput): Promise<void> { if (input.name.trim().length < 2 || input.description.trim().length < 4 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dueDate)) throw new Error('Complete all required fields with valid values.'); await request(input.id ? '/' + encodeURIComponent(input.id) : '', { method: input.id ? 'PUT' : 'POST', body: JSON.stringify({ ...input, text: input.name }) }) }
+async function remove(id: string): Promise<void> { await request('/' + encodeURIComponent(id), { method: 'DELETE' }) }`
+      : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('frontend-editor-export', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId') }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+async function query(): Promise<Item[]> { const db = await openDb(); return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve((request.result as Item[]).sort((a, b) => b.date.localeCompare(a.date))); request.onerror = () => reject(request.error) }) }
+async function save(input: ProjectInput): Promise<void> {
+  if (input.name.trim().length < 2 || input.description.trim().length < 4 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dueDate)) throw new Error('Complete all required fields with valid values.')
+  const db = await openDb(); const existingId = input.id; const existing = existingId ? (await new Promise<Item | undefined>((resolve, reject) => { const request = db.transaction('records').objectStore('records').get(existingId); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })) : undefined
+  const item: Item = { id: existing?.id ?? crypto.randomUUID(), sourceId, text: input.name.trim(), description: input.description.trim(), status: input.status, priority: input.priority, dueDate: input.dueDate, date: new Date().toISOString() }
+  await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
+}
+async function remove(id: string): Promise<void> { const db = await openDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }`;
   const dashboardMain = `import './style.css'
 
 type Status = 'Planned' | 'In progress' | 'Completed' | 'On hold'
@@ -251,15 +269,7 @@ type ProjectInput = { id?: string; name: string; description: string; status: St
 type Item = { id: string; sourceId: string; text: string; description: string; status: Status; priority: Priority; dueDate: string; date: string }
 const sourceId = ${JSON.stringify(project.dataSources[0]?.id ?? "")}
 if (!sourceId) throw new Error('Sorgente dati dashboard non configurata')
-const openDb = () => new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('frontend-editor-export', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId') }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
-async function query(): Promise<Item[]> { const db = await openDb(); return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve((request.result as Item[]).sort((a, b) => b.date.localeCompare(a.date))); request.onerror = () => reject(request.error) }) }
-async function save(input: ProjectInput): Promise<void> {
-  if (input.name.trim().length < 2 || input.description.trim().length < 4 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dueDate)) throw new Error('Complete all required fields with valid values.')
-  const db = await openDb(); const existingId = input.id; const existing = existingId ? (await new Promise<Item | undefined>((resolve, reject) => { const request = db.transaction('records').objectStore('records').get(existingId); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })) : undefined
-  const item: Item = { id: existing?.id ?? crypto.randomUUID(), sourceId, text: input.name.trim(), description: input.description.trim(), status: input.status, priority: input.priority, dueDate: input.dueDate, date: new Date().toISOString() }
-  await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
-}
-async function remove(id: string): Promise<void> { const db = await openDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }
+${dashboardDataRuntime}
 declare global { interface Window { dashboardData: { query: () => Promise<Item[]>; action: (action: string, payload: ProjectInput) => Promise<Item[]> } } }
 window.dashboardData = { query, action: async (action, payload) => { if (action === 'delete') await remove(String(payload.id)); else await save(payload); return query() } }
 await import('./ui.js')
@@ -277,6 +287,28 @@ await import('./ui.js')
   };
 }
 
+function withGeneratedBackend(project: Project, files: Record<string, string>) {
+  if (!project.dataSources.some((source) => source.provider === "generated"))
+    return files;
+  const pkg = JSON.parse(files["package.json"]) as {
+    scripts: Record<string, string>;
+  };
+  pkg.scripts.server = "node server/index.mjs";
+  files["package.json"] = JSON.stringify(pkg, null, 2);
+  files["server/data.json"] = "[]";
+  files["server/index.mjs"] = `import { createServer } from 'node:http'
+import { readFile, writeFile } from 'node:fs/promises'
+const file = new URL('./data.json', import.meta.url)
+const read = async () => JSON.parse(await readFile(file, 'utf8'))
+const save = async (records) => writeFile(file, JSON.stringify(records, null, 2))
+const body = async (request) => { let value = ''; for await (const chunk of request) value += chunk; return value ? JSON.parse(value) : {} }
+createServer(async (request, response) => { try { response.setHeader('content-type', 'application/json'); response.setHeader('access-control-allow-origin', 'http://127.0.0.1:5173'); response.setHeader('access-control-allow-headers', 'content-type,authorization'); response.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS'); if (request.method === 'OPTIONS') { response.writeHead(204); return response.end() } const url = new URL(request.url, 'http://127.0.0.1:8787'), records = await read(), id = url.pathname.split('/')[2]; if (url.pathname === '/records' && request.method === 'GET') return response.end(JSON.stringify(records)); if (url.pathname === '/records' && request.method === 'POST') { const input = await body(request), record = { ...input, id: crypto.randomUUID(), date: new Date().toISOString() }; records.push(record); await save(records); response.writeHead(201); return response.end(JSON.stringify(record)) } const index = records.findIndex((record) => record.id === id); if (index < 0) { response.writeHead(404); return response.end(JSON.stringify({ error: 'Record non trovato' })) } if (request.method === 'PUT') { records[index] = { ...records[index], ...(await body(request)), id }; await save(records); return response.end(JSON.stringify(records[index])) } if (request.method === 'DELETE') { records.splice(index, 1); await save(records); response.writeHead(204); return response.end() } response.writeHead(404); response.end(JSON.stringify({ error: 'Percorso non trovato' })) } catch (error) { response.writeHead(500); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })) } }).listen(8787, '127.0.0.1', () => console.log('Backend pronto su http://127.0.0.1:8787'))
+`;
+  files["README-BACKEND.md"] =
+    `# Backend generato\n\nAvviare con \`npm run server\`, poi in un secondo processo \`npm run dev\`. I record sono salvati in \`server/data.json\`. L'API ascolta solo su 127.0.0.1:8787 e accetta GET/POST/PUT/DELETE su /records. Per pubblicazione pubblica aggiungere autenticazione e configurare l'origine consentita.`;
+  return files;
+}
+
 export function generateFiles(input: Project): Record<string, string> {
   const project = parseProject(input);
   const page = project.pages[0];
@@ -289,9 +321,12 @@ export function generateFiles(input: Project): Record<string, string> {
       throw new Error("Configura i flow prima dell’export");
     if (project.state.experience === "dashboard" && !project.dataSources.length)
       throw new Error("Configura la sorgente dati prima dell’export");
-    return platformFiles(
+    return withGeneratedBackend(
       project,
-      generateExperienceFiles(project, project.state.experience),
+      platformFiles(
+        project,
+        generateExperienceFiles(project, project.state.experience),
+      ),
     );
   }
   const inputComponent = page.components.find(
@@ -313,11 +348,13 @@ export function generateFiles(input: Project): Record<string, string> {
   const mobile = allComponents
     .map((component) => componentCss(component, "mobile"))
     .join("\n");
-  const main = `import './style.css'
-
-type Item = { id: string; sourceId: string; text: string; date: string }
-const sourceId = ${JSON.stringify(source?.id ?? "local-items")}
-const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const dataRuntime =
+    source?.provider === "rest" || source?.provider === "generated"
+      ? `const endpoint = ${JSON.stringify(source.endpoint)}
+async function request(path = '', init?: RequestInit) { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(import.meta.env.VITE_API_TOKEN ? { authorization: 'Bearer ' + import.meta.env.VITE_API_TOKEN } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
+async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ id: String(item.id ?? index), sourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
+async function insert(text: string) { await request('', { method: 'POST', body: JSON.stringify({ text }) }) }`
+      : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
   const request = indexedDB.open('frontend-editor-export', 1)
   request.onupgradeneeded = () => request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId')
   request.onsuccess = () => resolve(request.result)
@@ -330,7 +367,12 @@ async function query(): Promise<Item[]> {
 async function insert(text: string) {
   const db = await openDb()
   return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
-}
+}`;
+  const main = `import './style.css'
+
+type Item = { id: string; sourceId: string; text: string; date: string }
+const sourceId = ${JSON.stringify(source?.id ?? "local-items")}
+${dataRuntime}
 const status = document.querySelector<HTMLElement>('.status')
 const list = document.getElementById('${list?.id ?? ""}')?.querySelector('ul')
 async function refresh() {
@@ -348,7 +390,7 @@ document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async 
 })
 void refresh()
 `;
-  return platformFiles(project, {
+  const files = platformFiles(project, {
     "package.json": JSON.stringify(
       {
         name:
@@ -389,6 +431,7 @@ void refresh()
     "project.frontend-editor.json": serializeProject(project),
     "README.md": `# ${project.name}\n\n\`npm install\`, poi \`npm run dev\`. Build: \`npm run build\`. Per Android installare @capacitor/cli e @capacitor/android, quindi \`npx cap add android\` e \`npx cap sync\`. Nessun segreto è incluso.`,
   });
+  return withGeneratedBackend(project, files);
 }
 
 export async function downloadGeneratedApp(project: Project) {

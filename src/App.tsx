@@ -397,6 +397,12 @@ function Editor({
   const [logs, setLogs] = useState<FlowLog[]>([]);
   const [sourceName, setSourceName] = useState("Attività locali");
   const [collection, setCollection] = useState("items");
+  const [sourceProvider, setSourceProvider] = useState<
+    "indexeddb" | "rest" | "generated"
+  >("indexeddb");
+  const [sourceEndpoint, setSourceEndpoint] = useState(
+    "http://127.0.0.1:8787/records",
+  );
   const [feedback, setFeedback] = useState("");
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? "");
   const [contextMenu, setContextMenu] = useState<{
@@ -765,6 +771,15 @@ function Editor({
       )
     )
       return setFeedback("Esiste già una sorgente per questa collezione");
+    if (sourceProvider !== "indexeddb") {
+      try {
+        new URL(sourceEndpoint);
+      } catch {
+        return setFeedback(
+          "Inserisci un indirizzo API completo, per esempio https://api.esempio.it/progetti",
+        );
+      }
+    }
     const schema: Record<string, "string" | "datetime"> =
       project.state.experience === "dashboard"
         ? {
@@ -784,7 +799,7 @@ function Editor({
         {
           id: crypto.randomUUID(),
           name: sourceName.trim(),
-          provider: "indexeddb",
+          provider: sourceProvider,
           collection: collection.trim(),
           schema,
           capabilities: [
@@ -795,11 +810,21 @@ function Editor({
             "delete",
             "subscribe",
           ],
-          secretStrategy: "none",
+          secretStrategy: sourceProvider === "rest" ? "environment" : "none",
+          ...(sourceProvider === "indexeddb"
+            ? {}
+            : { endpoint: sourceEndpoint }),
+          ...(sourceProvider === "rest" ? { environmentKey: "API_TOKEN" } : {}),
         },
       ],
     });
-    setFeedback("Sorgente IndexedDB creata e schema validato");
+    setFeedback(
+      sourceProvider === "indexeddb"
+        ? "Sorgente IndexedDB creata e schema validato"
+        : sourceProvider === "generated"
+          ? "Backend locale configurato: verrà incluso nell’export"
+          : "API REST collegata. Il token resta in una variabile d’ambiente, non nel progetto",
+    );
   };
   const createFlow = () => {
     if (project.state.experience === "landing") {
@@ -947,17 +972,45 @@ function Editor({
     setFeedback("Flow collegato al click e lista collegata alla sorgente");
   };
 
-  const refreshRecords = useCallback(
-    async (): Promise<LocalRecord[]> =>
-      project.dataSources[0] ? queryRecords(project.dataSources[0].id) : [],
-    [project.dataSources],
-  );
+  const refreshRecords = useCallback(async (): Promise<LocalRecord[]> => {
+    const source = project.dataSources[0];
+    if (!source) return [];
+    if (source.provider === "indexeddb" || source.provider === "generated")
+      return queryRecords(source.id);
+    const response = await fetch(source.endpoint!);
+    if (!response.ok)
+      throw new Error(`API non disponibile (${response.status})`);
+    const value = await response.json();
+    if (!Array.isArray(value))
+      throw new Error("L’API deve restituire un elenco JSON");
+    return value.map((record, index) => ({
+      id: String(record.id ?? index),
+      sourceId: source.id,
+      text: String(record.name ?? record.text ?? record.title ?? "Elemento"),
+      description: record.description ? String(record.description) : undefined,
+      status: record.status,
+      priority: record.priority,
+      dueDate: record.dueDate,
+      date: String(record.date ?? new Date().toISOString()),
+    }));
+  }, [project.dataSources]);
   const addRecord = useCallback(
     async (input: string) => {
       const activeFlow = project.flows[0];
       const source = project.dataSources[0];
       if (!activeFlow || !source)
         throw new Error("Configura prima sorgente e flow");
+      if (source.provider === "rest") {
+        const response = await fetch(source.endpoint!, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text: input }),
+        });
+        if (!response.ok)
+          throw new Error(`Salvataggio API non riuscito (${response.status})`);
+        await refreshRecords();
+        return;
+      }
       const result = await runFlow(activeFlow, {
         input,
         insert: (text) => insertRecord(source.id, text),
@@ -969,13 +1022,32 @@ function Editor({
       const error = result.find((entry) => entry.level === "error");
       if (error) throw new Error(error.message);
     },
-    [project.flows, project.dataSources],
+    [project.flows, project.dataSources, refreshRecords],
   );
 
   const dashboardAction = useCallback(
     async (action: string, payload?: Record<string, string>) => {
       const source = project.dataSources[0];
       if (!source) throw new Error("Configura prima la sorgente locale");
+      if (source.provider === "rest") {
+        const endpoint =
+          action === "create"
+            ? source.endpoint!
+            : `${source.endpoint!}/${encodeURIComponent(String(payload?.id ?? ""))}`;
+        const response = await fetch(endpoint, {
+          method:
+            action === "create"
+              ? "POST"
+              : action === "update"
+                ? "PUT"
+                : "DELETE",
+          headers: { "content-type": "application/json" },
+          body: action === "delete" ? undefined : JSON.stringify(payload),
+        });
+        if (!response.ok)
+          throw new Error(`Operazione API non riuscita (${response.status})`);
+        return refreshRecords();
+      }
       if (action === "create") await insertProjectRecord(source.id, payload);
       if (action === "update")
         await updateProjectRecord(
@@ -987,7 +1059,7 @@ function Editor({
         await deleteProjectRecord(source.id, String(payload?.id ?? ""));
       return queryRecords(source.id);
     },
-    [project.dataSources],
+    [project.dataSources, refreshRecords],
   );
 
   const exportProject = () => {
@@ -1490,11 +1562,11 @@ function Editor({
         <main className="wide-workspace">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Provider locale reale</p>
+              <p className="eyebrow">Dati reali, senza scelte oscure</p>
               <h1>Dati & integrazioni</h1>
               <p>
-                IndexedDB conserva i record sul dispositivo. Nessun segreto
-                richiesto o salvato.
+                Scegli dove devono vivere i dati. Frontend Editor configura il
+                collegamento e non salva mai password o token nel progetto.
               </p>
             </div>
           </div>
@@ -1507,6 +1579,46 @@ function Editor({
               }}
             >
               <h2>Nuova sorgente</h2>
+              <fieldset className="provider-choice">
+                <legend>Dove vuoi salvare i dati?</legend>
+                {(
+                  [
+                    [
+                      "indexeddb",
+                      "Su questo dispositivo",
+                      "Ideale per prototipi, uso personale e modalità offline. Non richiede account.",
+                    ],
+                    [
+                      "rest",
+                      "Servizio già esistente",
+                      "Collega un indirizzo API REST. Eventuali credenziali restano nelle variabili d’ambiente.",
+                    ],
+                    [
+                      "generated",
+                      "Genera anche il backend",
+                      "L’export includerà un piccolo server Node con archivio persistente e API CRUD.",
+                    ],
+                  ] as const
+                ).map(([value, label, help]) => (
+                  <label
+                    key={value}
+                    className={sourceProvider === value ? "active" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="source-provider"
+                      checked={sourceProvider === value}
+                      onChange={() => {
+                        setSourceProvider(value);
+                        if (value === "generated")
+                          setSourceEndpoint("http://127.0.0.1:8787/records");
+                      }}
+                    />
+                    <strong>{label}</strong>
+                    <small>{help}</small>
+                  </label>
+                ))}
+              </fieldset>
               <label>
                 Nome
                 <input
@@ -1521,6 +1633,22 @@ function Editor({
                   onChange={(event) => setCollection(event.target.value)}
                 />
               </label>
+              {sourceProvider !== "indexeddb" && (
+                <label>
+                  Indirizzo API
+                  <input
+                    type="url"
+                    value={sourceEndpoint}
+                    onChange={(event) => setSourceEndpoint(event.target.value)}
+                    placeholder="https://api.esempio.it/progetti"
+                  />
+                  <small>
+                    {sourceProvider === "generated"
+                      ? "È l’indirizzo predefinito del backend incluso nell’export."
+                      : "Non inserire token nell’indirizzo. Verranno richiesti all’avvio come variabile API_TOKEN."}
+                  </small>
+                </label>
+              )}
               <fieldset>
                 <legend>Schema record</legend>
                 {(project.state.experience === "dashboard"
@@ -1545,7 +1673,13 @@ function Editor({
                   </div>
                 ))}
               </fieldset>
-              <button type="submit">Crea sorgente IndexedDB</button>
+              <button type="submit">
+                {sourceProvider === "indexeddb"
+                  ? "Crea sorgente IndexedDB"
+                  : sourceProvider === "generated"
+                    ? "Configura backend generato"
+                    : "Collega API REST"}
+              </button>
             </form>
             <section>
               <h2>Sorgenti configurate</h2>
@@ -1557,7 +1691,13 @@ function Editor({
               ) : (
                 project.dataSources.map((source) => (
                   <article className="source-card" key={source.id}>
-                    <span className="provider-icon">DB</span>
+                    <span className="provider-icon">
+                      {source.provider === "indexeddb"
+                        ? "DB"
+                        : source.provider === "rest"
+                          ? "API"
+                          : "BE"}
+                    </span>
                     <div>
                       <strong>{source.name}</strong>
                       <span>
