@@ -15,6 +15,7 @@ export type FlowContext = {
   getState?: (key: string) => unknown
   setState?: (key: string, value: unknown) => void
   resetState?: (key: string) => void
+  request?: (url: string, method: string, body?: string) => Promise<unknown>
   signal?: AbortSignal
   timeoutMs?: number
 }
@@ -42,6 +43,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'resetState') { required(context.resetState, 'Stato non disponibile')(node.config.key || ''); value = undefined }
       if (node.type === 'delay') await guarded(new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(node.config.ms) || 0)))), context)
       if (node.type === 'format') value = (node.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
+      if (node.type === 'http') value = await guarded(required(context.request, 'Richieste API non disponibili')(safeHttpUrl(node.config.url), node.config.method || 'GET', ['GET', 'DELETE'].includes(node.config.method || 'GET') ? undefined : (node.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value))), context)
       if (node.type === 'insert') value = await guarded(node.config.sourceId ? context.insert(String(value).trim(), node.config.sourceId) : context.insert(String(value).trim()), context)
       if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
@@ -70,6 +72,12 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     node = next
   }
   return logs
+}
+
+export function safeHttpUrl(value = '') {
+  const url = new URL(value)
+  if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo API HTTP o HTTPS')
+  return url.toString()
 }
 
 const required = <T>(value: T | undefined, message: string): T => {

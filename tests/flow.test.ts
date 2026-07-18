@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { runFlow } from '../src/flow'
+import { runFlow, safeHttpUrl } from '../src/flow'
 import type { Flow } from '../src/model'
 
 const flow: Flow = {
@@ -105,5 +105,17 @@ describe('flow runtime', () => {
     ], edges: ['event', 'format', 'set', 'delay'].map((source, index) => ({ id: String(index), source, target: ['format', 'set', 'delay', 'get'][index], path: 'success' })) }
     const logs = await runFlow(stateful, { input: 'Canva', insert: async () => undefined, refresh: async () => undefined, getState: (key) => state.get(key), setState: (key, value) => state.set(key, value), resetState: (key) => void state.delete(key) })
     expect(logs.at(-1)?.value).toBe('Ciao Canva')
+  })
+
+  it('chiama un API senza accettare protocolli eseguibili', async () => {
+    const api: Flow = { id: 'api', name: 'API', nodes: [
+      { id: 'event', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'http', type: 'http', label: 'Create', position: { x: 1, y: 0 }, config: { url: 'https://api.example.test/items', method: 'POST', body: '{"name":"{{value}}"}' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'http', path: 'success' }] }
+    const request = vi.fn(async () => ({ id: '1' }))
+    const logs = await runFlow(api, { input: 'Canva', insert: async () => undefined, refresh: async () => undefined, request })
+    expect(request).toHaveBeenCalledWith('https://api.example.test/items', 'POST', '{"name":"Canva"}')
+    expect(logs.at(-1)?.value).toEqual({ id: '1' })
+    expect(() => safeHttpUrl('javascript:alert(1)')).toThrow('HTTP o HTTPS')
   })
 })

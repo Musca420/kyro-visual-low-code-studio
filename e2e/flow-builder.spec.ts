@@ -69,6 +69,11 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByLabel("Formato testo").fill("Risultato: {{value}}");
   await nodePalette.getByRole("button", { name: "Attendi" }).click();
   await page.getByLabel("Durata attesa").fill("250");
+  await nodePalette.getByRole("button", { name: "Chiama API" }).click();
+  await page.getByLabel("Indirizzo API").fill("https://api.example.test/items");
+  await page.getByLabel("Metodo API").selectOption("POST");
+  await page.getByLabel("Corpo richiesta API").fill('{"name":"{{value}}"}');
+  await expect(page.getByText("Nessuna password viene salvata qui")).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Salva stato" })).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Componi testo" })).toContainText("unknown → string");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-state.png", fullPage: true });

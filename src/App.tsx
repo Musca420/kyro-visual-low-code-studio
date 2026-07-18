@@ -1616,6 +1616,11 @@ function Editor({
         getState: (key) => runtimeState.current[key],
         setState: (key, value) => { runtimeState.current[key] = value; },
         resetState: (key) => { delete runtimeState.current[key]; },
+        request: async (url, method, body) => {
+          const response = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : undefined, body });
+          if (!response.ok) throw new Error(`API non disponibile (${response.status})`);
+          return response.status === 204 ? undefined : response.headers.get("content-type")?.includes("json") ? response.json() : response.text();
+        },
       });
       setLogs(result);
       const error = result.find((entry) => entry.level === "error");

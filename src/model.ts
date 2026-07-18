@@ -218,6 +218,7 @@ export const flowNodeTypes = [
   "resetState",
   "delay",
   "format",
+  "http",
   "insert",
   "query",
   "update",

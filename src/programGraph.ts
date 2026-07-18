@@ -195,6 +195,8 @@ export function inspectFlowNodeProgram(
     errors.push("Scrivi il messaggio mostrato quando la validazione fallisce.");
   if (node.type === "module" && !node.config.moduleId)
     errors.push("Scegli o crea il modulo protetto eseguito da questo nodo.");
+  if (node.type === "http" && !node.config.url)
+    errors.push("Inserisci l'indirizzo HTTP o HTTPS del servizio.");
   const nodeById = (id: string) => flow.nodes.find((item) => item.id === id);
   return {
     nodeId,
