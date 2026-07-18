@@ -24,7 +24,9 @@ test("un utente configura pagina, indietro e sito esterno dal flow", async ({ pa
   await preview.getByRole("button", { name: "Aggiungi" }).click();
   await expect.poll(() => preview.locator("body").evaluate(() => location.hash)).toBe("#/destinazione");
   await page.getByRole("button", { name: /^Flow/ }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Vai alla pagina" }).click({ force: true });
+  const navigationNode = page.locator(".react-flow__node").filter({ hasText: "Vai alla pagina" });
+  await navigationNode.locator("strong").click();
+  await expect(page.getByLabel("Tipo navigazione")).toBeVisible();
   await page.getByLabel("Tipo navigazione").selectOption("back");
   await expect(page.getByLabel("Percorso navigazione")).toHaveCount(0);
   await page.getByLabel("Tipo navigazione").selectOption("url");

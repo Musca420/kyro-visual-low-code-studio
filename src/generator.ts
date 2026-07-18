@@ -725,7 +725,7 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'requireRole') { const role = graphRole(), allowed = (current.config.roles || 'admin').split(',').map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(current.config.message || 'Non hai il permesso per questa azione'); value = { role, allowed: true } }
       if (current.type === 'signOut') graphSignOut()
       if (current.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; await insert(next); value = next }
-      if (current.type === 'query') value = await query()
+      if (current.type === 'query') { const previous = value, records = await query(); if (current.config.mode === 'one') { const configured = current.config.id || '{{value}}', id = configured === '{{value}}' ? (previous && typeof previous === 'object' ? graphField(previous, current.config.field || 'id') : previous) : configured; if (id === undefined || id === null || String(id).trim() === '') throw new Error('Indica l’ID del record da caricare'); const record = records.find((item) => String(graphField(item, 'id') ?? '') === String(id)); if (!record) throw new Error('Record ' + String(id) + ' non trovato'); value = record } else value = records }
       if (current.type === 'update') value = await update(value)
       if (current.type === 'delete') { await remove(value); value = undefined }
       if (current.type === 'filter') { if (!Array.isArray(value)) throw new Error('Il nodo filtro richiede un elenco'); const needle = (current.config.value || '').toLowerCase(); value = value.filter((item) => String(graphField(item, current.config.field) ?? '').toLowerCase().includes(needle)) }

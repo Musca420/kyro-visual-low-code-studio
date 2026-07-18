@@ -147,6 +147,8 @@ Una sorgente già creata non è bloccata: **Evoluzione sicura** permette di aggi
 
 La categoria **Accesso** del Flow Editor contiene **Controlla ruolo** ed **Esci dall’account**. Il controllo espone i percorsi consentito/negato, accetta ruoli in linguaggio semplice e permette di simulare admin, editor o lettore in preview. Nell’export il ruolo viene letto dalla sessione firmata, mentre logout elimina la sessione e torna al gate di accesso. `e2e/auth-flow.spec.ts` verifica un’azione negata a un lettore e riuscita a un editor.
 
+Il nodo **Carica dati** può restituire l’intero elenco oppure un solo record per ID. L’ID può essere scritto direttamente o arrivare dal valore/campo del passo precedente; ID vuoti e record mancanti seguono il ramo errore con un messaggio comprensibile. Preview ed export applicano la stessa risoluzione. `e2e/get-record-flow.spec.ts` verifica configurazione e persistenza interamente visuali.
+
 La preview inoltra automaticamente log, avvisi, errori JavaScript e promise non gestite alla console visuale dell’editor. I messaggi sono limitati agli ultimi 200 elementi e rendono visibili anche oggetti e ID di componente senza aprire DevTools. `e2e/runtime-observability.spec.ts` verifica il ponte dal runtime isolato al pannello.
 
 Anche gli export rifiniti **Landing** e **Dashboard** caricano ora il runtime del grafo unificato. Il template continua a fornire navigazione, modal, ricerca e CRUD pronti, ma eventi e nodi aggiunti dall’utente vengono risolti tramite l’identità stabile `data-component`, senza sostituire gli ID interni usati dai widget specializzati. `npm run export:specialized` materializza entrambi gli export e `npm run test:specialized` li avvia su porte separate e attraversa un flow personalizzato reale.

@@ -137,6 +137,18 @@ describe("web generator", () => {
     expect(source).toContain("setAttribute('hidden', '')");
   });
 
+  it("esporta il caricamento di un singolo record per ID", () => {
+    const project = createProject("Get export");
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [] });
+    project.flows.push({ id: "get", name: "Leggi", nodes: [
+      { id: "event", type: "event", label: "Input", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } },
+      { id: "query", type: "query", label: "Uno", position: { x: 1, y: 0 }, config: { mode: "one", id: "fixed-id" } },
+    ], edges: [{ id: "edge", source: "event", target: "query", path: "success" }] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain("current.config.mode === 'one'");
+    expect(source).toContain("Record ' + String(id) + ' non trovato");
+  });
+
   it("preserves nested containers in the exported markup", () => {
     const project = createProject("Nested Export");
     const stack = makeComponent("stack"),

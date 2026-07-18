@@ -278,4 +278,16 @@ describe('flow runtime', () => {
     await runFlow(modal, { input: '', insert: async () => undefined, refresh: async () => undefined, openModal })
     expect(openModal).toHaveBeenLastCalledWith('dialog', 'open')
   })
+
+  it('carica un singolo record per ID dal valore o da un campo', async () => {
+    const one: Flow = { id: 'get-one', name: 'Leggi record', nodes: [
+      { id: 'event', type: 'event', label: 'Input', position: { x: 0, y: 0 }, config: {} },
+      { id: 'query', type: 'query', label: 'Uno', position: { x: 1, y: 0 }, config: { mode: 'one', id: '{{value}}', field: 'projectId' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'query', path: 'success' }] }
+    const records = [{ id: 'alpha', name: 'Alpha' }, { id: 'beta', name: 'Beta' }]
+    const logs = await runFlow(one, { input: { projectId: 'beta' }, insert: async () => undefined, refresh: async () => undefined, query: async () => records })
+    expect(logs.at(-1)?.value).toEqual(records[1])
+    const missing = await runFlow(one, { input: { projectId: 'missing' }, insert: async () => undefined, refresh: async () => undefined, query: async () => records })
+    expect(missing.at(-1)?.message).toBe('Record missing non trovato')
+  })
 })

@@ -75,7 +75,11 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'requireRole') { const role = context.getRole?.() ?? node.config.previewRole ?? 'viewer'; const allowed = (node.config.roles || 'admin').split(',').map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(node.config.message || `Questa azione richiede il ruolo ${allowed.join(' o ')}`); value = { role, allowed: true } }
       if (node.type === 'signOut') await context.signOut?.()
       if (node.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; value = await guarded(node.config.sourceId ? context.insert(next, node.config.sourceId) : context.insert(next), context) }
-      if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
+      if (node.type === 'query') {
+        const previous = value
+        const records = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
+        value = node.config.mode === 'one' ? findRecord(records, previous, node.config.id, node.config.field) : records
+      }
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
       if (node.type === 'delete') value = await guarded(required(context.delete, 'Eliminazione dati non disponibile')(value, node.config.sourceId), context)
       if (node.type === 'filter') value = filter(value, node.config.field, node.config.value)
@@ -117,6 +121,14 @@ const required = <T>(value: T | undefined, message: string): T => {
 }
 
 const field = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
+
+const findRecord = (records: unknown[], input: unknown, configuredId = '{{value}}', inputField = 'id') => {
+  const id = configuredId === '{{value}}' ? (input && typeof input === 'object' ? field(input, inputField || 'id') : input) : configuredId
+  if (id === undefined || id === null || String(id).trim() === '') throw new Error('Indica l’ID del record da caricare')
+  const record = records.find((item) => String(field(item, 'id') ?? '') === String(id))
+  if (!record) throw new Error(`Record ${String(id)} non trovato`)
+  return record
+}
 
 const validate = (value: unknown, key = '', rule = 'required', expected = '', message = '') => {
   const actual = key ? field(value, key) : value
