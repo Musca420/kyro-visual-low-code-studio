@@ -77,6 +77,8 @@ describe("web generator", () => {
     expect(source).toContain('void runGraph("load-flow")');
     expect(source).toContain('setInterval(() => { void runGraph("timer-flow") }, 1200)');
     expect(source).toContain("current.type === 'updateUI'");
+    expect(source).toContain("typeof value === 'object'");
+    expect(source).toContain("Object.fromEntries(new FormData");
   });
 
   it("preserves nested containers in the exported markup", () => {

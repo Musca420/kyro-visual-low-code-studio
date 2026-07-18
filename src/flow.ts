@@ -3,7 +3,7 @@ import type { Flow } from './model'
 export type FlowLog = { nodeId: string; level: 'info' | 'error'; message: string; value?: unknown }
 export type FlowContext = {
   input: unknown
-  insert: (text: string, sourceId?: string) => Promise<unknown>
+  insert: (value: unknown, sourceId?: string) => Promise<unknown>
   query?: (sourceId?: string) => Promise<unknown[]>
   update?: (value: unknown, sourceId?: string) => Promise<unknown>
   delete?: (value: unknown, sourceId?: string) => Promise<unknown>
@@ -69,7 +69,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'format') value = (node.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
       if (node.type === 'map') value = mapItems(value, node.config.field, node.config.template)
       if (node.type === 'http') value = await guarded(required(context.request, 'Richieste API non disponibili')(safeHttpUrl(node.config.url), node.config.method || 'GET', ['GET', 'DELETE'].includes(node.config.method || 'GET') ? undefined : (node.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value))), context)
-      if (node.type === 'insert') value = await guarded(node.config.sourceId ? context.insert(String(value).trim(), node.config.sourceId) : context.insert(String(value).trim()), context)
+      if (node.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; value = await guarded(node.config.sourceId ? context.insert(next, node.config.sourceId) : context.insert(next), context) }
       if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
       if (node.type === 'delete') value = await guarded(required(context.delete, 'Eliminazione dati non disponibile')(value, node.config.sourceId), context)

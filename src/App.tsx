@@ -11,6 +11,7 @@ import {
   deleteProjectRecord,
   getProject,
   insertProjectRecord,
+  insertGenericRecord,
   insertRecord,
   listPlugins,
   listExports,
@@ -1608,7 +1609,7 @@ function Editor({
       setLogs([]);
       const result = await runFlow(activeFlow, {
         input,
-        insert: (text, sourceId) => insertRecord(sourceId || source.id, text),
+        insert: (value, sourceId) => insertRecord(sourceId || source.id, String(value)),
         query: (sourceId) => queryRecords(sourceId || source.id),
         refresh: async () => {
           await queryRecords(source.id);
@@ -1647,7 +1648,7 @@ function Editor({
     setLogs([]);
     const result = await runFlow(activeFlow, {
       input,
-      insert: (value, sourceId) => insertRecord(sourceId || source?.id || "", value),
+      insert: (value, sourceId) => insertGenericRecord(sourceId || source?.id || "", value),
       query: (sourceId) => queryRecords(sourceId || source?.id || ""),
       update: async (value, sourceId) => {
         if (!value || typeof value !== "object") throw new Error("Il record da modificare non è valido");

@@ -171,6 +171,20 @@ export function VisualProperties({
           }
         />
       </label>
+      {["input", "textarea", "select", "checkbox", "radio", "calendar"].includes(component.type) && (
+        <label>
+          Nome del campo dati
+          <input
+            value={String(component.props.fieldName ?? "")}
+            placeholder="es. email, budget, stato"
+            onChange={(event) => onUpdate((item) => ({ ...item, props: { ...item.props, fieldName: event.target.value } }))}
+          />
+        </label>
+      )}
+      {component.type === "input" && (
+        <><label>Tipo di campo<select value={String(component.props.inputType ?? "text")} onChange={(event) => onUpdate((item) => ({ ...item, props: { ...item.props, inputType: event.target.value } }))}><option value="text">Testo</option><option value="email">Email</option><option value="number">Numero</option><option value="password">Password</option><option value="search">Ricerca</option><option value="date">Data</option></select></label><label>Testo di esempio<input value={String(component.props.placeholder ?? "")} onChange={(event) => onUpdate((item) => ({ ...item, props: { ...item.props, placeholder: event.target.value } }))} /></label></>
+      )}
+      {component.type === "button" && <label>Comportamento pulsante<select value={String(component.props.buttonType ?? "button")} onChange={(event) => onUpdate((item) => ({ ...item, props: { ...item.props, buttonType: event.target.value } }))}><option value="button">Azione normale</option><option value="submit">Invia il form</option><option value="reset">Azzera il form</option></select></label>}
       <details className="intent-properties">
         <summary>Significato nel programma</summary>
         <div className="property-section">

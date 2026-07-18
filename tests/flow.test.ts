@@ -21,7 +21,7 @@ const flow: Flow = {
 
 describe('flow runtime', () => {
   it('runs the success path deterministically', async () => {
-    const insert = vi.fn(async (text: string) => ({ text }))
+    const insert = vi.fn(async (value: unknown) => ({ text: String(value) }))
     const refresh = vi.fn(async () => undefined)
     const logs = await runFlow(flow, { input: ' Ship it ', insert, refresh })
     expect(insert).toHaveBeenCalledWith('Ship it', 'db')
@@ -195,5 +195,15 @@ describe('flow runtime', () => {
     const updateUI = vi.fn()
     await runFlow(visual, { input: '', insert: async () => undefined, refresh: async () => undefined, updateUI })
     expect(updateUI).toHaveBeenCalledWith('panel', 'hide', '')
+  })
+
+  it('conserva tutti i campi di un record proveniente da un form', async () => {
+    const create: Flow = { id: 'form', name: 'Form', nodes: [
+      { id: 'event', type: 'event', label: 'Submit', position: { x: 0, y: 0 }, config: { trigger: 'submit' } },
+      { id: 'insert', type: 'insert', label: 'Crea', position: { x: 1, y: 0 }, config: { sourceId: 'products' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'insert', path: 'success' }] }
+    const insert = vi.fn(async (value: unknown) => value)
+    await runFlow(create, { input: { name: 'Lampada', price: 39, active: true }, insert, refresh: async () => undefined })
+    expect(insert).toHaveBeenCalledWith({ name: 'Lampada', price: 39, active: true }, 'products')
   })
 })

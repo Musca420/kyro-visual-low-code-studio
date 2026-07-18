@@ -132,6 +132,21 @@ export async function insertRecord(sourceId: string, text: string): Promise<Loca
   return record
 }
 
+export async function insertGenericRecord(sourceId: string, input: unknown): Promise<LocalRecord> {
+  if (typeof input === 'string') return insertRecord(sourceId, input)
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Il record deve essere un insieme di campi')
+  const fields = input as Record<string, unknown>
+  const record = {
+    ...fields,
+    id: typeof fields.id === 'string' && fields.id ? fields.id : crypto.randomUUID(),
+    sourceId,
+    text: String(fields.text ?? fields.name ?? fields.title ?? 'Elemento'),
+    date: typeof fields.date === 'string' ? fields.date : new Date().toISOString(),
+  } as LocalRecord
+  await request('records', 'readwrite', (store) => store.add(record))
+  return record
+}
+
 export async function insertProjectRecord(sourceId: string, input: unknown): Promise<LocalRecord> {
   const value = projectInputSchema.parse(input)
   const record: LocalRecord = { id: crypto.randomUUID(), sourceId, text: value.name, description: value.description, status: value.status, priority: value.priority, dueDate: value.dueDate, date: new Date().toISOString() }

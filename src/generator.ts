@@ -15,21 +15,22 @@ const cssEscape = (value: unknown) => String(value ?? "").replace(/[{};]/g, "");
 
 function componentHtml(component: EditorComponent, children = "") {
   const label = htmlEscape(component.props.label || component.name);
+  const fieldName = htmlEscape(component.props.fieldName || component.id);
   const attributes = `${component.props.tooltip ? ` title="${htmlEscape(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
   if (component.type === "input")
-    return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" placeholder="${htmlEscape(component.props.placeholder)}" /></label>`;
+    return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date"].includes(String(component.props.inputType)) ? htmlEscape(component.props.inputType) : "text"}" placeholder="${htmlEscape(component.props.placeholder)}" /></label>`;
   if (component.type === "button")
-    return `<button id="${component.id}" type="button"${attributes}${component.props.disabled === true ? " disabled" : ""}>${label}</button>`;
+    return `<button id="${component.id}" type="${["button", "submit", "reset"].includes(String(component.props.buttonType)) ? htmlEscape(component.props.buttonType) : "button"}"${attributes}${component.props.disabled === true ? " disabled" : ""}>${label}</button>`;
   if (component.type === "list")
     return `<section id="${component.id}" aria-label="${htmlEscape(component.accessibility.label)}"><div class="status" role="status">Caricamento…</div><ul></ul></section>`;
   if (component.type === "title")
     return `<h1 id="${component.id}">${label}</h1>`;
   if (component.type === "textarea")
-    return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}"></textarea></label>`;
+    return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}" name="${fieldName}"></textarea></label>`;
   if (component.type === "select")
-    return `<label>${htmlEscape(component.accessibility.label)}<select id="${component.id}"><option>${label}</option></select></label>`;
+    return `<label>${htmlEscape(component.accessibility.label)}<select id="${component.id}" name="${fieldName}"><option>${label}</option></select></label>`;
   if (component.type === "checkbox")
-    return `<label><input id="${component.id}" type="checkbox" /> ${label}</label>`;
+    return `<label><input id="${component.id}" name="${fieldName}" type="checkbox" /> ${label}</label>`;
   if (component.type === "image")
     return `<img id="${component.id}" src="${htmlEscape(component.props.src || "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22160%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e8eaf2%22/%3E%3C/svg%3E")}" alt="${htmlEscape(component.accessibility.label)}">`;
   if (component.type === "link")
@@ -536,8 +537,8 @@ export function generateFiles(input: Project): Record<string, string> {
     source?.provider === "rest" || source?.provider === "generated"
       ? `const endpoint = ${JSON.stringify(source.endpoint)}
 async function request(path = '', init?: RequestInit) { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
-async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ id: String(item.id ?? index), sourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
-async function insert(text: string) { await request('', { method: 'POST', body: JSON.stringify({ text }) }) }
+async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ ...item, id: String(item.id ?? index), sourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
+async function insert(value: unknown) { const fields = value && typeof value === 'object' && !Array.isArray(value) ? value : { text: String(value) }; await request('', { method: 'POST', body: JSON.stringify(fields) }) }
 async function update(value: unknown) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'PUT', body: JSON.stringify(item) }) }
 async function remove(value: unknown) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'DELETE' }) }`
       : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -550,9 +551,11 @@ async function query(): Promise<Item[]> {
   const db = await openDb()
   return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
 }
-async function insert(text: string) {
+async function insert(value: unknown) {
   const db = await openDb()
-  return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
+  const fields = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : { text: String(value) }
+  const item = { ...fields, id: typeof fields.id === 'string' && fields.id ? fields.id : crypto.randomUUID(), sourceId, text: String(fields.text ?? fields.name ?? fields.title ?? 'Elemento'), date: typeof fields.date === 'string' ? fields.date : new Date().toISOString() }
+  return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }
 async function update(value: unknown) {
   const db = await openDb(), item = value as Item
@@ -695,7 +698,7 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'format') value = (current.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
       if (current.type === 'map') { if (!Array.isArray(value)) throw new Error('Il nodo trasformazione richiede un elenco'); value = value.map((item) => (current.config.template || '{{value}}').replaceAll('{{value}}', String(current.config.field ? graphField(item, current.config.field) ?? '' : item ?? ''))) }
       if (current.type === 'http') { const url = new URL(current.config.url); if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo API HTTP o HTTPS'); const method = current.config.method || 'GET', body = ['GET', 'DELETE'].includes(method) ? undefined : (current.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value)); const response = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : undefined, body }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); value = response.status === 204 ? undefined : response.headers.get('content-type')?.includes('json') ? await response.json() : await response.text() }
-      if (current.type === 'insert') { await insert(String(value).trim()); value = { text: String(value).trim() } }
+      if (current.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; await insert(next); value = next }
       if (current.type === 'query') value = await query()
       if (current.type === 'update') value = await update(value)
       if (current.type === 'delete') { await remove(value); value = undefined }
@@ -714,7 +717,7 @@ async function runGraph(flowId: string, input: unknown = '') {
     const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
   }
 }
-${bindings.map((binding) => `document.getElementById(${JSON.stringify(binding.componentId)})?.addEventListener(${JSON.stringify(binding.event)}, (event) => { event.preventDefault(); const target = event.target as HTMLInputElement; void runGraph(${JSON.stringify(binding.flowId)}, target?.value ?? '') })`).join("\n")}
+${bindings.map((binding) => `{ const element = document.getElementById(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement; const input = event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.value ?? ''; void runGraph(${JSON.stringify(binding.flowId)}, input) }; element?.addEventListener(${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
 ${automatic.map((item) => item.trigger === "pageLoad" ? `void runGraph(${JSON.stringify(item.flowId)})` : `setInterval(() => { void runGraph(${JSON.stringify(item.flowId)}) }, ${item.interval})`).join("\n")}`;
 }
 
