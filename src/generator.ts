@@ -671,6 +671,7 @@ function generatedFlowRuntime(project: Project) {
 type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: 'success' | 'error' }[] }
 const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
 const graphState: Record<string, unknown> = ${JSON.stringify(project.state)}
+const graphDebounce = new Map<string, number>()
 const extensionRunners: Record<string, (value: never) => unknown> = { ${runners} }
 const graphField = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
 const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
@@ -686,7 +687,9 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'setState') graphState[current.config.key || ''] = value
       if (current.type === 'resetState') { delete graphState[current.config.key || '']; value = undefined }
       if (current.type === 'delay') await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(current.config.ms) || 0))))
+      if (current.type === 'debounce') { const key = flow.id + ':' + current.id, version = (graphDebounce.get(key) ?? 0) + 1; graphDebounce.set(key, version); await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(current.config.ms) || 0)))); if (graphDebounce.get(key) !== version) return }
       if (current.type === 'format') value = (current.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
+      if (current.type === 'map') { if (!Array.isArray(value)) throw new Error('Il nodo trasformazione richiede un elenco'); value = value.map((item) => (current.config.template || '{{value}}').replaceAll('{{value}}', String(current.config.field ? graphField(item, current.config.field) ?? '' : item ?? ''))) }
       if (current.type === 'http') { const url = new URL(current.config.url); if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo API HTTP o HTTPS'); const method = current.config.method || 'GET', body = ['GET', 'DELETE'].includes(method) ? undefined : (current.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value)); const response = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : undefined, body }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); value = response.status === 204 ? undefined : response.headers.get('content-type')?.includes('json') ? await response.json() : await response.text() }
       if (current.type === 'insert') { await insert(String(value).trim()); value = { text: String(value).trim() } }
       if (current.type === 'query') value = await query()

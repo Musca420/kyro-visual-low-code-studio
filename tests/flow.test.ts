@@ -118,4 +118,20 @@ describe('flow runtime', () => {
     expect(logs.at(-1)?.value).toEqual({ id: '1' })
     expect(() => safeHttpUrl('javascript:alert(1)')).toThrow('HTTP o HTTPS')
   })
+
+  it('trasforma elenchi e lascia proseguire solo l’ultimo input ravvicinato', async () => {
+    const visual: Flow = { id: 'debounced', name: 'Search', nodes: [
+      { id: 'event', type: 'event', label: 'Input', position: { x: 0, y: 0 }, config: {} },
+      { id: 'debounce', type: 'debounce', label: 'Wait', position: { x: 1, y: 0 }, config: { ms: '15' } },
+      { id: 'query', type: 'query', label: 'Load', position: { x: 2, y: 0 }, config: {} },
+      { id: 'map', type: 'map', label: 'Labels', position: { x: 3, y: 0 }, config: { field: 'name', template: 'Progetto: {{value}}' } },
+      { id: 'notify', type: 'notify', label: 'Done', position: { x: 4, y: 0 }, config: { message: 'Pronto' } },
+    ], edges: ['event', 'debounce', 'query', 'map'].map((source, index) => ({ id: String(index), source, target: ['debounce', 'query', 'map', 'notify'][index], path: 'success' })) }
+    const notify = vi.fn(), context = { insert: async () => undefined, refresh: async () => undefined, query: async () => [{ name: 'Aurora' }], notify }
+    const first = runFlow(visual, { ...context, input: 'a' })
+    const second = runFlow(visual, { ...context, input: 'au' })
+    const [, latest] = await Promise.all([first, second])
+    expect(notify).toHaveBeenCalledOnce()
+    expect(latest.find((entry) => entry.nodeId === 'map')?.value).toEqual(['Progetto: Aurora'])
+  })
 })

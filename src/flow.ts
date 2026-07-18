@@ -20,6 +20,8 @@ export type FlowContext = {
   timeoutMs?: number
 }
 
+const debounceVersions = new Map<string, number>()
+
 export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog[]> {
   const logs: FlowLog[] = []
   const nodes = new Map(flow.nodes.map((node) => [node.id, node]))
@@ -42,7 +44,9 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'setState') required(context.setState, 'Stato non disponibile')(node.config.key || '', value)
       if (node.type === 'resetState') { required(context.resetState, 'Stato non disponibile')(node.config.key || ''); value = undefined }
       if (node.type === 'delay') await guarded(new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(node.config.ms) || 0)))), context)
+      if (node.type === 'debounce' && !await debounce(`${flow.id}:${node.id}`, Number(node.config.ms) || 0, context)) return logs
       if (node.type === 'format') value = (node.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
+      if (node.type === 'map') value = mapItems(value, node.config.field, node.config.template)
       if (node.type === 'http') value = await guarded(required(context.request, 'Richieste API non disponibili')(safeHttpUrl(node.config.url), node.config.method || 'GET', ['GET', 'DELETE'].includes(node.config.method || 'GET') ? undefined : (node.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value))), context)
       if (node.type === 'insert') value = await guarded(node.config.sourceId ? context.insert(String(value).trim(), node.config.sourceId) : context.insert(String(value).trim()), context)
       if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
@@ -107,6 +111,11 @@ const aggregate = (value: unknown, operation = 'count', key = '') => {
   throw new Error(`Operazione KPI non supportata: ${operation}`)
 }
 
+const mapItems = (value: unknown, key = '', template = '{{value}}') => {
+  if (!Array.isArray(value)) throw new Error('Il nodo trasformazione richiede un elenco')
+  return value.map((item) => template.replaceAll('{{value}}', String(key ? field(item, key) ?? '' : item ?? '')))
+}
+
 const matches = (value: unknown, key = '', operator = 'equals', expected = '') => {
   const actual = key ? field(value, key) : value
   if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''
@@ -133,4 +142,11 @@ function guarded<T>(operation: Promise<T>, context: FlowContext): Promise<T> {
     context.signal?.addEventListener('abort', abort, { once: true })
     operation.then((value) => finish(resolve, value), (error) => finish(reject, error))
   })
+}
+
+async function debounce(key: string, milliseconds: number, context: FlowContext) {
+  const version = (debounceVersions.get(key) ?? 0) + 1
+  debounceVersions.set(key, version)
+  await guarded(new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, milliseconds)))), context)
+  return debounceVersions.get(key) === version
 }
