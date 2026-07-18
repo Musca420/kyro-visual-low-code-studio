@@ -169,4 +169,17 @@ describe('flow runtime', () => {
     const tooMany = structuredClone(each); tooMany.nodes.find((node) => node.type === 'loop')!.config.max = '1'
     expect((await runFlow(tooMany, { input: ['A', 'B'], insert: async () => undefined, refresh: async () => undefined })).some((entry) => entry.message.includes('limite di 1'))).toBe(true)
   })
+
+  it('mette in pausa su un breakpoint e riprende solo su comando', async () => {
+    const paused = structuredClone(flow)
+    paused.nodes.find((node) => node.id === 'validate')!.config.breakpoint = 'true'
+    let resume!: () => void
+    const onBreakpoint = vi.fn(() => new Promise<void>((resolve) => { resume = resolve }))
+    const insert = vi.fn(async () => undefined), execution = runFlow(paused, { input: 'Vai', insert, refresh: async () => undefined, onBreakpoint })
+    await vi.waitFor(() => expect(onBreakpoint).toHaveBeenCalledWith('validate', 'Vai'))
+    expect(insert).not.toHaveBeenCalled()
+    resume()
+    await execution
+    expect(insert).toHaveBeenCalledOnce()
+  })
 })

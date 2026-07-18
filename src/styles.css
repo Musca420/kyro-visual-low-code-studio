@@ -1292,6 +1292,10 @@ label {
   color: #ff8f83;
 }
 .log-console pre { margin: 4px 0 0; white-space: pre-wrap; color: #d5dbe8; }
+.log-step { padding: 0; background: transparent; color: inherit; text-align: left; font-weight: 500; }
+.log-step:hover { background: transparent; color: var(--purple); transform: none; }
+.flow-paused { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px; border: 1px solid var(--flow); border-radius: 10px; background: color-mix(in srgb, var(--flow) 12%, transparent); }
+.flow-paused pre { flex: 1; margin: 0; }
 .data-layout {
   display: grid;
   grid-template-columns: minmax(300px, 420px) 1fr;

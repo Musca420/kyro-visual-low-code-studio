@@ -23,12 +23,20 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   const refreshNode = page.locator(".react-flow__node").filter({ hasText: "Aggiorna lista" });
   await expect(queryNode).toBeVisible();
   await refreshNode.locator(".react-flow__handle.source").dragTo(queryNode.locator(".react-flow__handle.target"));
+  await page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).click();
+  await page.getByLabel("Ferma qui durante il debug").check();
 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
   await preview.getByLabel("Nuova attività").fill("Provare il flow visuale");
   await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(page.getByText("In pausa sul nodo")).toBeVisible();
+  await expect(page.locator(".log-console")).toContainText("Non vuoto: completato");
+  await page.locator(".log-console").screenshot({ path: "artifacts/frontend-editor-flow-breakpoint.png" });
+  await page.getByRole("button", { name: "Continua esecuzione" }).click();
   await expect(page.locator(".log-console")).toContainText("Carica attività recenti: completato");
+  await page.locator(".log-step").filter({ hasText: "Carica attività recenti: completato" }).click();
+  await expect(queryNode).toHaveClass(/selected/);
 
   await expect(page.getByText("Salvato automaticamente")).toBeVisible();
   await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();

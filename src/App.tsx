@@ -599,6 +599,7 @@ function Editor({
   const [exportHistory, setExportHistory] = useState<ExportRecord[]>([]);
   const [saveState, setSaveState] = useState("Salvato");
   const [logs, setLogs] = useState<FlowLog[]>([]);
+  const [pausedFlow, setPausedFlow] = useState<{ nodeId: string; value: unknown }>();
   const [sourceName, setSourceName] = useState("Attività locali");
   const [collection, setCollection] = useState("items");
   const [sourceProvider, setSourceProvider] = useState<
@@ -628,6 +629,7 @@ function Editor({
   }>();
   const processingCommands = useRef(new Set<string>());
   const runtimeState = useRef<Record<string, unknown>>({ ...initial.state });
+  const resumeFlow = useRef<(() => void) | undefined>(undefined);
   const assetInput = useRef<HTMLInputElement>(null);
   const refreshPlugins = useCallback(
     () => listPlugins().then(setInstalledPlugins),
@@ -1601,6 +1603,7 @@ function Editor({
         await refreshRecords();
         return;
       }
+      setLogs([]);
       const result = await runFlow(activeFlow, {
         input,
         insert: (text, sourceId) => insertRecord(sourceId || source.id, text),
@@ -1621,6 +1624,11 @@ function Editor({
           if (!response.ok) throw new Error(`API non disponibile (${response.status})`);
           return response.status === 204 ? undefined : response.headers.get("content-type")?.includes("json") ? response.json() : response.text();
         },
+        onLog: (log) => setLogs((current) => [...current, log]),
+        onBreakpoint: (nodeId, value) => new Promise<void>((resolve) => {
+          setPausedFlow({ nodeId, value });
+          resumeFlow.current = () => { setPausedFlow(undefined); resumeFlow.current = undefined; resolve(); };
+        }),
       });
       setLogs(result);
       const error = result.find((entry) => entry.level === "error");
@@ -2408,7 +2416,7 @@ function Editor({
               onOpenData={() => setTab("data")}
             />
           )}
-          <LogConsole logs={logs} />
+          <LogConsole logs={logs} paused={pausedFlow} onResume={() => resumeFlow.current?.()} onSelect={setSelectedFlowNodeId} />
         </main>
       )}
       {tab === "data" && (
@@ -2716,7 +2724,7 @@ function Editor({
               <span>Crea una pagina per aprire la preview.</span>
             </div>
           )}
-          <LogConsole logs={logs} />
+          <LogConsole logs={logs} paused={pausedFlow} onResume={() => resumeFlow.current?.()} onSelect={(nodeId) => { setSelectedFlowNodeId(nodeId); setTab("flow"); }} />
         </main>
       )}
       {tab === "settings" && (
@@ -3940,13 +3948,14 @@ function Properties({
   );
 }
 
-function LogConsole({ logs }: { logs: FlowLog[] }) {
+function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; paused?: { nodeId: string; value: unknown }; onResume?: () => void; onSelect?: (nodeId: string) => void }) {
   return (
     <section className="log-console" aria-labelledby="log-title">
       <div>
         <h2 id="log-title">Console flow</h2>
         <span>{logs.length ? `${logs.length} operazioni` : "In attesa"}</span>
       </div>
+      {paused && <div className="flow-paused" role="status"><strong>In pausa sul nodo</strong><pre>{JSON.stringify(paused.value, null, 2)}</pre><button type="button" onClick={onResume}>Continua esecuzione</button></div>}
       {logs.length === 0 ? (
         <p>
           Esegui il flow dalla preview per ispezionare input, output ed errori.
@@ -3956,7 +3965,7 @@ function LogConsole({ logs }: { logs: FlowLog[] }) {
           {logs.map((log, index) => (
             <li key={`${log.nodeId}-${index}`} className={log.level}>
               <code>{log.level}</code>
-              <span>{log.message}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</span>
+              <button type="button" className="log-step" onClick={() => onSelect?.(log.nodeId)}>{log.message}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</button>
             </li>
           ))}
         </ol>
