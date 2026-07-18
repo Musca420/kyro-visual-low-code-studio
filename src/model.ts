@@ -69,6 +69,7 @@ export const projectSchema = z.object({
   formatVersion: z.literal(1),
   id: z.string(),
   name: z.string().min(1),
+  revision: z.number().int().nonnegative().default(0),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   pages: z.array(z.object({ id: z.string(), name: z.string(), path: z.string(), components: z.array(componentSchema) })),
@@ -112,7 +113,7 @@ export function makeComponent(type: EditorComponent['type']): EditorComponent {
 export function createProject(name: string): Project {
   const now = new Date().toISOString()
   return projectSchema.parse({
-    formatVersion: 1, id: crypto.randomUUID(), name: name.trim(), createdAt: now, updatedAt: now,
+    formatVersion: 1, id: crypto.randomUUID(), name: name.trim(), revision: 0, createdAt: now, updatedAt: now,
     pages: [], flows: [], state: {}, dataSources: [], theme: { tokens: { primary: '#6d5dfc', surface: '#ffffff' } },
     animations: [], assets: [], plugins: [], dependencies: {}, exportConfig: { target: 'web', capacitor: true },
   })

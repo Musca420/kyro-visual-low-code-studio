@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor Live"
+  short_description: "Inspect and safely modify the live visual project"
+  default_prompt: "Use $frontend-editor-live to inspect the active selection, make the requested structured change, validate it, and verify the preview visually."

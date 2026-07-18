@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { createProject, makeComponent, parseProject, serializeProject } from '../src/model'
 
 describe('project model', () => {
+  it('assegna una revisione iniziale e migra i documenti senza revisione', () => {
+    const project = createProject('Revision')
+    expect(project.revision).toBe(0)
+    const legacy = JSON.parse(JSON.stringify(project))
+    delete legacy.revision
+    expect(parseProject(legacy).revision).toBe(0)
+  })
   it('round-trips deterministically and preserves stable ids', () => {
     const project = createProject('Demo')
     const component = makeComponent('input')

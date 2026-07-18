@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test'
+
+const browser = await chromium.launch({ headless: false, slowMo: 350 })
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+await page.goto('http://127.0.0.1:4173')
+await page.getByLabel('Nome progetto').fill(`Guided live ${new Date().toLocaleTimeString('it-IT')}`)
+await page.getByRole('button', { name: 'Landing page Hero, feature, CTA e footer' }).click()
+const component = page.locator('.canvas-component').first()
+await component.click({ button: 'right' })
+await page.getByRole('menuitem', { name: /Spiega elemento/ }).click()
+await page.getByText('Logged in using ChatGPT').waitFor()
+await page.screenshot({ path: 'artifacts/guided-codex-panel.png', fullPage: true })
+console.log('READY: pannello Codex contestuale visibile')
+await new Promise((resolve) => page.on('close', resolve))
+await browser.close()
