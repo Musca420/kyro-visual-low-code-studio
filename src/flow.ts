@@ -43,7 +43,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     visited.set(node.id, count)
     if (count > 1 && loops.size === 0) throw new Error(`Loop non controllato al nodo ${node.label}`)
     try {
-      if (node.config.breakpoint === 'true') await context.onBreakpoint?.(node.id, value)
+      if (node.config.breakpoint === 'true' && breakpointMatches(value, node.config.breakpointWhen, node.config.breakpointValue)) await context.onBreakpoint?.(node.id, value)
       if (node.type === 'readInput') value = context.input
       if (node.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(node.config.message || 'Il valore è obbligatorio')
       const conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
@@ -152,6 +152,8 @@ const switchCase = (value: unknown, key = '', cases = '') => {
   const match = cases.split(',').map((item) => item.trim()).filter(Boolean).find((item) => item === actual)
   return match ? `case:${match}` : 'error'
 }
+
+const breakpointMatches = (value: unknown, when = 'always', expected = '') => when === 'always' || (when === 'equals' ? String(value) === expected : when === 'contains' ? String(value).toLowerCase().includes(expected.toLowerCase()) : false)
 
 function guarded<T>(operation: Promise<T>, context: FlowContext): Promise<T> {
   return new Promise((resolve, reject) => {

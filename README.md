@@ -6,7 +6,7 @@ Il Flow Editor permette di aggiungere liberamente nodi da una palette ricercabil
 
 Il confronto funzionale aggiornato con i visual builder e la roadmap verificabile sono in [BENCHMARK_ROADMAP.md](./BENCHMARK_ROADMAP.md). Il modello include anche l'intento semantico degli elementi; il pannello **Programma collegato** attraversa eventi, flow, dati e file generati e segnala le capability mancanti allo stesso Live Bridge usato da Codex. I file derivati dal componente, dal nodo o dalla sorgente selezionata sono pulsanti reali: si aprono in un inspector di sola lettura che mostra il contenuto effettivamente esportato e mantiene esplicita la provenienza dal grafo.
 
-Per il debug, ogni nodo può attivare **Ferma qui**. La preview sospende davvero l’operazione prima del nodo, mostra il valore corrente e riparte soltanto con **Continua esecuzione**; ogni passo della console è selezionabile e riporta al nodo corrispondente sul canvas.
+Per il debug, ogni nodo può attivare **Ferma qui**, sempre oppure solo quando il valore è uguale a/contiene un testo. La preview sospende davvero l’operazione prima del nodo, mostra il valore corrente e riparte soltanto con **Continua esecuzione**. La console riproduce i passi dall’inizio manualmente o in automatico e seleziona sul canvas il nodo corrispondente a ogni valore.
 
 Nel generatore web generico, eventi, nodi, rami success/error e moduli protetti vengono serializzati dal medesimo grafo ed eseguiti da un runtime TypeScript deterministico. `npm run export:sample`, build e `npm run test:generated` dimostrano separatamente il percorso evento → validazione → modulo → IndexedDB → refresh, senza un handler simulato nell’export.
 

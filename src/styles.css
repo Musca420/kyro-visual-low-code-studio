@@ -1300,6 +1300,10 @@ label {
 .log-step:hover { background: transparent; color: var(--purple); transform: none; }
 .flow-paused { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px; border: 1px solid var(--flow); border-radius: 10px; background: color-mix(in srgb, var(--flow) 12%, transparent); }
 .flow-paused pre { flex: 1; margin: 0; }
+.log-replay { display: flex; align-items: center; gap: 7px; margin-top: 12px; }
+.log-replay button { padding: 6px 9px; }
+.log-replay output { min-width: 48px; color: var(--muted); text-align: center; font-size: 11px; }
+.log-console li.current { margin-left: -8px; padding-left: 6px; border-left: 2px solid var(--flow); }
 .data-layout {
   display: grid;
   grid-template-columns: minmax(300px, 420px) 1fr;

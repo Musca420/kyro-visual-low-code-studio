@@ -181,5 +181,9 @@ describe('flow runtime', () => {
     resume()
     await execution
     expect(insert).toHaveBeenCalledOnce()
+    paused.nodes.find((node) => node.id === 'validate')!.config = { ...paused.nodes.find((node) => node.id === 'validate')!.config, breakpointWhen: 'equals', breakpointValue: 'Altro' }
+    onBreakpoint.mockClear()
+    await runFlow(paused, { input: 'Vai', insert, refresh: async () => undefined, onBreakpoint })
+    expect(onBreakpoint).not.toHaveBeenCalled()
   })
 })

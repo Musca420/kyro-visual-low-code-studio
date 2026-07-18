@@ -42,6 +42,12 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await expect(page.locator(".log-console")).toContainText("Carica attività recenti: completato");
   await page.locator(".log-step").filter({ hasText: "Carica attività recenti: completato" }).click();
   await expect(queryNode).toHaveClass(/selected/);
+  await page.getByRole("button", { name: "Dall’inizio" }).click();
+  await expect(page.locator(".log-console li.current")).toContainText("Click pulsante: completato");
+  await page.getByRole("button", { name: "Passo successivo" }).click();
+  await expect(page.locator(".log-console li.current")).toContainText("Leggi input: completato");
+  await page.getByRole("button", { name: "Riproduci", exact: true }).click();
+  await expect(page.locator(".log-console li.current")).toContainText("Carica attività recenti: completato", { timeout: 7_000 });
 
   await expect(page.getByText("Salvato automaticamente")).toBeVisible();
   await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();

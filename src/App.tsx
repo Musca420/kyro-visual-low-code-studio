@@ -3949,6 +3949,23 @@ function Properties({
 }
 
 function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; paused?: { nodeId: string; value: unknown }; onResume?: () => void; onSelect?: (nodeId: string) => void }) {
+  const [cursor, setCursor] = useState(-1);
+  const [playing, setPlaying] = useState(false);
+  const showStep = useCallback((index: number) => {
+    const next = Math.max(0, Math.min(logs.length - 1, index));
+    setCursor(next);
+    if (logs[next]) onSelect?.(logs[next].nodeId);
+  }, [logs, onSelect]);
+  useEffect(() => {
+    if (!playing || !logs.length) return;
+    const timer = setInterval(() => setCursor((current) => {
+      const next = current < 0 ? 0 : current + 1;
+      if (next >= logs.length) { setPlaying(false); return logs.length - 1; }
+      onSelect?.(logs[next].nodeId);
+      return next;
+    }), 650);
+    return () => clearInterval(timer);
+  }, [playing, logs, onSelect]);
   return (
     <section className="log-console" aria-labelledby="log-title">
       <div>
@@ -3956,6 +3973,7 @@ function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; pau
         <span>{logs.length ? `${logs.length} operazioni` : "In attesa"}</span>
       </div>
       {paused && <div className="flow-paused" role="status"><strong>In pausa sul nodo</strong><pre>{JSON.stringify(paused.value, null, 2)}</pre><button type="button" onClick={onResume}>Continua esecuzione</button></div>}
+      {logs.length > 0 && <div className="log-replay" role="group" aria-label="Riproduzione flow"><button type="button" className="secondary" onClick={() => showStep(0)}>Dall’inizio</button><button type="button" className="secondary" aria-label="Passo precedente" disabled={cursor <= 0} onClick={() => showStep(cursor - 1)}>←</button><output>{cursor < 0 ? `— / ${logs.length}` : `${cursor + 1} / ${logs.length}`}</output><button type="button" className="secondary" aria-label="Passo successivo" disabled={cursor >= logs.length - 1} onClick={() => showStep(cursor + 1)}>→</button><button type="button" className="secondary" aria-pressed={playing} onClick={() => { setCursor(-1); setPlaying((value) => !value); }}>{playing ? "Ferma replay" : "Riproduci"}</button></div>}
       {logs.length === 0 ? (
         <p>
           Esegui il flow dalla preview per ispezionare input, output ed errori.
@@ -3963,9 +3981,9 @@ function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; pau
       ) : (
         <ol>
           {logs.map((log, index) => (
-            <li key={`${log.nodeId}-${index}`} className={log.level}>
+            <li key={`${log.nodeId}-${index}`} className={`${log.level}${cursor === index ? " current" : ""}`}>
               <code>{log.level}</code>
-              <button type="button" className="log-step" onClick={() => onSelect?.(log.nodeId)}>{log.message}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</button>
+              <button type="button" className="log-step" onClick={() => showStep(index)}>{log.message}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</button>
             </li>
           ))}
         </ol>
