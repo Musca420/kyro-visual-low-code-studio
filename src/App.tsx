@@ -620,6 +620,13 @@ function Editor({
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? "");
   const [selectedFlowNodeId, setSelectedFlowNodeId] = useState("");
   const [selectedSourceId, setSelectedSourceId] = useState(initial.dataSources[0]?.id ?? "");
+  const [sourceDraftFields, setSourceDraftFields] = useState<Array<{ id: string; name: string; type: "string" | "number" | "boolean" | "datetime" }>>(() =>
+    Object.entries(initial.dataSources[0]?.schema ?? {}).map(([name, type]) => ({ id: crypto.randomUUID(), name, type })),
+  );
+  const [relationField, setRelationField] = useState("");
+  const [relationTarget, setRelationTarget] = useState("");
+  const [relationTargetField, setRelationTargetField] = useState("id");
+  const [relationKind, setRelationKind] = useState<"one" | "many">("one");
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -704,6 +711,7 @@ function Editor({
   const selectedSource = project.dataSources.some((source) => source.id === selectedSourceId)
     ? inspectDataSourceProgram(project, selectedSourceId)
     : undefined;
+  const selectedSourceDefinition = project.dataSources.find((source) => source.id === selectedSourceId);
 
   useEffect(() => {
     const components = currentPage?.components ?? [];
@@ -1358,6 +1366,9 @@ function Editor({
           provider: sourceProvider,
           collection: collection.trim(),
           schema,
+          schemaVersion: 1,
+          migrations: [],
+          relations: [],
           capabilities: [
             "get",
             "query",
@@ -1375,6 +1386,7 @@ function Editor({
       ],
     });
     setSelectedSourceId(id);
+    setSourceDraftFields(normalizedFields.map((field) => ({ ...field, id: crypto.randomUUID() })));
     setFeedback(
       sourceProvider === "indexeddb"
         ? "Sorgente IndexedDB creata e schema validato"
@@ -1382,6 +1394,47 @@ function Editor({
           ? "Backend locale configurato: verrà incluso nell’export"
           : "API REST collegata. Il token resta in una variabile d’ambiente, non nel progetto",
     );
+  };
+  const openSource = (id: string) => {
+    const source = project.dataSources.find((item) => item.id === id);
+    setSelectedSourceId(id);
+    setSourceDraftFields(Object.entries(source?.schema ?? {}).map(([name, type]) => ({ id: crypto.randomUUID(), name, type })));
+    setRelationField("");
+    setRelationTarget("");
+    setRelationTargetField("id");
+  };
+  const migrateSelectedSource = () => {
+    if (!selectedSourceDefinition) return;
+    const normalized = sourceDraftFields.map((field) => ({ ...field, name: field.name.trim() }));
+    if (normalized.some((field) => !/^[A-Za-z][A-Za-z0-9_]*$/.test(field.name)))
+      return setFeedback("Ogni campo deve iniziare con una lettera e contenere solo lettere, numeri o underscore");
+    if (new Set(normalized.map((field) => field.name)).size !== normalized.length)
+      return setFeedback("I nomi dei campi devono essere unici");
+    if (!normalized.some((field) => field.name === "id")) return setFeedback("Lo schema deve contenere il campo id");
+    const nextSchema = Object.fromEntries(normalized.map((field) => [field.name, field.type]));
+    if (JSON.stringify(nextSchema) === JSON.stringify(selectedSourceDefinition.schema)) return setFeedback("Lo schema è già aggiornato");
+    const version = (selectedSourceDefinition.schemaVersion ?? 1) + 1;
+    change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? {
+      ...source,
+      schema: nextSchema,
+      schemaVersion: version,
+      migrations: [...(source.migrations ?? []), { version, createdAt: new Date().toISOString(), previousSchema: source.schema, nextSchema }],
+    } : source) });
+    setSourceDraftFields(normalized);
+    setFeedback(`Schema aggiornato alla versione ${version}. I record esistenti restano disponibili.`);
+  };
+  const addRelation = () => {
+    if (!selectedSourceDefinition || !relationField || !relationTarget) return setFeedback("Scegli il campo locale e la sorgente da collegare");
+    const target = project.dataSources.find((source) => source.id === relationTarget);
+    if (!target || !relationTargetField || !(relationTargetField in target.schema)) return setFeedback("Scegli un campo valido nella sorgente collegata");
+    if ((selectedSourceDefinition.relations ?? []).some((relation) => relation.field === relationField)) return setFeedback("Questo campo è già collegato");
+    change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? { ...source, relations: [...(source.relations ?? []), { id: crypto.randomUUID(), field: relationField, targetSourceId: target.id, targetField: relationTargetField, kind: relationKind }] } : source) });
+    setFeedback(`Relazione creata: ${relationField} → ${target.name}.${relationTargetField}`);
+  };
+  const removeRelation = (relationId: string) => {
+    if (!selectedSourceDefinition) return;
+    change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? { ...source, relations: (source.relations ?? []).filter((relation) => relation.id !== relationId) } : source) });
+    setFeedback("Relazione rimossa");
   };
   const createFlow = () => {
     if (project.state.experience === "landing") {
@@ -2627,7 +2680,7 @@ function Editor({
                     className={`source-card ${selectedSourceId === source.id ? "selected" : ""}`}
                     aria-pressed={selectedSourceId === source.id}
                     key={source.id}
-                    onClick={() => setSelectedSourceId(source.id)}
+                    onClick={() => openSource(source.id)}
                   >
                     <span className="provider-icon">
                       {source.provider === "indexeddb"
@@ -2647,9 +2700,36 @@ function Editor({
                           .join(" · ")}
                       </small>
                     </div>
-                    <span className="valid-chip">Valida</span>
+                    <span className="valid-chip">v{source.schemaVersion ?? 1}</span>
                   </button>
                 ))
+              )}
+              {selectedSourceDefinition && (
+                <section className="source-schema-editor" aria-label="Evoluzione sorgente dati">
+                  <div className="section-heading"><div><p className="eyebrow">Evoluzione sicura</p><h3>Schema v{selectedSourceDefinition.schemaVersion ?? 1}</h3></div><span>{selectedSourceDefinition.migrations?.length ?? 0} migrazioni</span></div>
+                  <p className="property-help">Aggiungi o cambia campi senza cancellare i record già salvati. Ogni aggiornamento crea una versione riproducibile.</p>
+                  <fieldset>
+                    <legend>Campi della versione successiva</legend>
+                    {sourceDraftFields.map((field) => <div className="schema-row" key={field.id}>
+                      <input aria-label="Nome campo schema esistente" value={field.name} disabled={field.name === "id"} onChange={(event) => setSourceDraftFields((fields) => fields.map((item) => item.id === field.id ? { ...item, name: event.target.value } : item))} />
+                      <select aria-label={`Tipo campo esistente ${field.name}`} value={field.type} onChange={(event) => setSourceDraftFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}><option value="string">Testo</option><option value="number">Numero</option><option value="boolean">Sì / no</option><option value="datetime">Data e ora</option></select>
+                      <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Rimuovi campo esistente ${field.name}`} onClick={() => setSourceDraftFields((fields) => fields.filter((item) => item.id !== field.id))}>Rimuovi</button>
+                    </div>)}
+                    <div className="inline-actions"><button type="button" className="secondary" onClick={() => setSourceDraftFields((fields) => [...fields, { id: crypto.randomUUID(), name: `campo${fields.length}`, type: "string" }])}>+ Nuovo campo</button><button type="button" onClick={migrateSelectedSource}>Salva nuova versione</button></div>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Collega a un'altra sorgente</legend>
+                    {project.dataSources.length < 2 ? <p className="property-help">Crea una seconda sorgente per collegare, per esempio, progetti e clienti.</p> : <>
+                      <label>Campo locale<select aria-label="Campo locale relazione" value={relationField} onChange={(event) => setRelationField(event.target.value)}><option value="">Scegli campo…</option>{Object.keys(selectedSourceDefinition.schema).map((field) => <option key={field}>{field}</option>)}</select></label>
+                      <label>Sorgente collegata<select aria-label="Sorgente relazione" value={relationTarget} onChange={(event) => { setRelationTarget(event.target.value); setRelationTargetField("id"); }}><option value="">Scegli sorgente…</option>{project.dataSources.filter((source) => source.id !== selectedSourceDefinition.id).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
+                      <label>Campo collegato<select aria-label="Campo destinazione relazione" value={relationTargetField} onChange={(event) => setRelationTargetField(event.target.value)}>{Object.keys(project.dataSources.find((source) => source.id === relationTarget)?.schema ?? { id: "string" }).map((field) => <option key={field}>{field}</option>)}</select></label>
+                      <label>Cardinalità<select aria-label="Cardinalità relazione" value={relationKind} onChange={(event) => setRelationKind(event.target.value as "one" | "many")}><option value="one">Un elemento</option><option value="many">Più elementi</option></select></label>
+                      <button type="button" onClick={addRelation}>Crea relazione</button>
+                    </>}
+                    {(selectedSourceDefinition.relations ?? []).map((relation) => { const target = project.dataSources.find((source) => source.id === relation.targetSourceId); return <div className="relation-row" key={relation.id}><span><strong>{relation.field}</strong> → {target?.name ?? "Sorgente mancante"}.{relation.targetField} · {relation.kind === "one" ? "uno" : "molti"}</span><button type="button" className="secondary" onClick={() => removeRelation(relation.id)}>Rimuovi</button></div>; })}
+                  </fieldset>
+                  {(selectedSourceDefinition.migrations?.length ?? 0) > 0 && <details><summary>Cronologia schema</summary><ol>{[...(selectedSourceDefinition.migrations ?? [])].reverse().map((migration) => <li key={migration.version}><strong>Versione {migration.version}</strong> · {new Date(migration.createdAt).toLocaleString("it")}</li>)}</ol></details>}
+                </section>
               )}
               {selectedSource && (
                 <DataSourceConnections

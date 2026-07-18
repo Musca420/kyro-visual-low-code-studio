@@ -67,4 +67,17 @@ describe('project model', () => {
     project.dataSources.push({ id: 'source', name: 'Prodotti', provider: 'indexeddb', collection: 'products', schema: { id: 'string', price: 'number', active: 'boolean', publishedAt: 'datetime' }, capabilities: ['get', 'query'], secretStrategy: 'none' })
     expect(parseProject(project).dataSources[0].schema).toEqual({ id: 'string', price: 'number', active: 'boolean', publishedAt: 'datetime' })
   })
+
+  it('versiona gli schemi e valida relazioni tra sorgenti', () => {
+    const project = createProject('Relazioni')
+    project.dataSources.push(
+      { id: 'clients', name: 'Clienti', provider: 'indexeddb', collection: 'clients', schema: { id: 'string', name: 'string' }, schemaVersion: 1, migrations: [], relations: [], capabilities: ['get', 'query'], secretStrategy: 'none' },
+      { id: 'projects', name: 'Progetti', provider: 'indexeddb', collection: 'projects', schema: { id: 'string', clientId: 'string' }, schemaVersion: 2, migrations: [{ version: 2, createdAt: new Date().toISOString(), previousSchema: { id: 'string' }, nextSchema: { id: 'string', clientId: 'string' } }], relations: [{ id: 'relation', field: 'clientId', targetSourceId: 'clients', targetField: 'id', kind: 'one' }], capabilities: ['get', 'query'], secretStrategy: 'none' },
+    )
+    const restored = parseProject(project)
+    expect(restored.dataSources[1].schemaVersion).toBe(2)
+    expect(restored.dataSources[1].relations?.[0]).toMatchObject({ field: 'clientId', targetSourceId: 'clients' })
+    restored.dataSources[1].relations![0].targetField = 'missing'
+    expect(() => parseProject(restored)).toThrow('Campo relazione mancante Clienti.missing')
+  })
 })

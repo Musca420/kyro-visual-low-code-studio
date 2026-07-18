@@ -141,6 +141,8 @@ Nella stessa scheda, Asset consente di caricare immagini, audio e video fino a 2
 
 Il componente **Upload** può inoltre avviare un flow al cambio del file. Il nodo visuale **Prepara file** controlla dimensione e formati ammessi, legge il contenuto senza eseguire nulla e produce un record con nome, MIME type, dimensione e data URL. Il record può essere collegato a **Crea record** e persiste nella sorgente locale; preview ed export usano lo stesso percorso. `e2e/file-flow.spec.ts` copre costruzione senza codice, caricamento reale, persistenza e riapertura.
 
+Una sorgente già creata non è bloccata: **Evoluzione sicura** permette di aggiungere, rimuovere o cambiare campi e salva una nuova versione con schema precedente e successivo, senza cancellare i record IndexedDB esistenti. Dallo stesso pannello si collegano entità diverse scegliendo campo locale, sorgente, campo destinazione e cardinalità. Le relazioni mancanti o incoerenti vengono rifiutate durante la validazione del progetto; `e2e/data-evolution.spec.ts` verifica migrazione, relazione e persistenza dopo la riapertura.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.

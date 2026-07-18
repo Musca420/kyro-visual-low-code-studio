@@ -356,6 +356,20 @@ export const projectSchema = z.object({
       provider: z.enum(["indexeddb", "rest", "generated"]),
       collection: z.string(),
       schema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
+      schemaVersion: z.number().int().positive().default(1).optional(),
+      migrations: z.array(z.object({
+        version: z.number().int().positive(),
+        createdAt: z.string().datetime(),
+        previousSchema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
+        nextSchema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
+      })).default([]).optional(),
+      relations: z.array(z.object({
+        id: z.string(),
+        field: z.string(),
+        targetSourceId: z.string(),
+        targetField: z.string(),
+        kind: z.enum(["one", "many"]),
+      })).default([]).optional(),
       capabilities: z.array(
         z.enum(["get", "query", "insert", "update", "delete", "subscribe"]),
       ),
@@ -643,6 +657,13 @@ export function validateReferences(project: Project) {
       else if (node.type === "module" && node.config.moduleId && !moduleIds.has(node.config.moduleId))
         throw new Error(`Modulo mancante ${node.config.moduleId}`);
   }
+  for (const source of project.dataSources)
+    for (const relation of source.relations ?? []) {
+      const target = project.dataSources.find((item) => item.id === relation.targetSourceId);
+      if (!target) throw new Error(`Sorgente collegata mancante ${relation.targetSourceId}`);
+      if (!(relation.field in source.schema)) throw new Error(`Campo relazione mancante ${source.name}.${relation.field}`);
+      if (!(relation.targetField in target.schema)) throw new Error(`Campo relazione mancante ${target.name}.${relation.targetField}`);
+    }
 }
 
 export function serializeProject(project: Project) {

@@ -1364,6 +1364,19 @@ label {
   font-size: 12px;
 }
 .source-card.selected { border-color: #6d5dfc; box-shadow: 0 0 0 2px #6d5dfc20; }
+.source-schema-editor {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.source-schema-editor fieldset { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 11px; }
+.source-schema-editor .inline-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.relation-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 8%, transparent); font-size: 12px; }
+.source-schema-editor details { color: var(--muted); font-size: 12px; }
 .data-source-connections {
   display: grid;
   gap: 10px;
