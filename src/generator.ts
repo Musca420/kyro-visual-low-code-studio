@@ -97,8 +97,12 @@ function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
           `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${cssEscape(item)}`,
       )
       .join(";");
-  const target = `[id="${component.id}"]`;
-  return `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`;
+  const rules = (target: string) =>
+    `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`;
+  return (
+    rules(`[id="${component.id}"]`) +
+    rules(`[data-component="${component.id}"]`)
+  );
 }
 
 function preservedSourceFiles(project: Project) {
@@ -336,20 +340,41 @@ function generateExperienceFiles(
   project: Project,
   experience: "landing" | "dashboard",
 ): Record<string, string> {
-  const page = project.pages[0];
+  const components = project.pages.flatMap((item) => item.components);
   const auth = authenticationAssets(project);
-  const assets = buildExperienceAssets(experience, page.components);
-  const desktop = page.components
+  const assets = buildExperienceAssets(experience, components);
+  const desktop = components
     .map((component) => componentCss(component, "desktop"))
     .join("\n");
-  const tablet = page.components
+  const tablet = components
     .map((component) => componentCss(component, "tablet"))
     .join("\n");
-  const mobile = page.components
+  const mobile = components
     .map((component) => componentCss(component, "mobile"))
     .join("\n");
   const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}${authenticationCss}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`;
-  const landingMain = `import './style.css'\n${auth.runtime}\nawait import('./ui.js')\n`;
+  const landingSource = project.dataSources[0];
+  const landingDataRuntime =
+    landingSource?.provider === "rest" ||
+    landingSource?.provider === "generated"
+      ? `const endpoint = ${JSON.stringify(landingSource.endpoint)}
+async function query(): Promise<SiteItem[]> { const response = await fetch(endpoint, { headers: authToken ? { authorization: 'Bearer ' + authToken } : {} }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); const value = await response.json(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value }
+async function insert(text: string): Promise<void> { const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}) }, body: JSON.stringify({ text }) }); if (!response.ok) throw new Error('Salvataggio non riuscito (' + response.status + ')') }`
+      : landingSource
+        ? `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('frontend-editor-export', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId') }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+async function query(): Promise<SiteItem[]> { const db = await openDb(); return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve((request.result as SiteItem[]).sort((a, b) => b.date.localeCompare(a.date))); request.onerror = () => reject(request.error) }) }
+async function insert(text: string): Promise<void> { const db = await openDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }`
+        : `async function query(): Promise<SiteItem[]> { return [] }
+async function insert(): Promise<void> { throw new Error('Configura una sorgente dati per salvare le richieste') }`;
+  const landingMain = `import './style.css'
+${auth.runtime}
+type SiteItem = { id: string; sourceId: string; text: string; date: string }
+const sourceId = ${JSON.stringify(landingSource?.id ?? "")}
+${landingDataRuntime}
+declare global { interface Window { siteData: { query: () => Promise<SiteItem[]>; insert: (text: string) => Promise<void> } } }
+window.siteData = { query, insert }
+await import('./ui.js')
+`;
   const dashboardSource = project.dataSources[0];
   const dashboardDataRuntime =
     dashboardSource?.provider === "rest" ||
@@ -386,7 +411,7 @@ ${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource($
 `;
   const ui =
     experience === "landing"
-      ? `export {};const send=()=>{};${assets.script}`
+      ? `export {};const deliver=(detail)=>dispatchEvent(new MessageEvent('message',{data:{channel:'frontend-editor-host',...detail}}));const send=async(type,payload={})=>{try{if(type==='READY')deliver({records:await window.siteData.query()});if(type==='ADD'){await window.siteData.insert(payload.value);deliver({records:await window.siteData.query(),action:'add'})}}catch(error){deliver({records:await window.siteData.query(),error:error instanceof Error?error.message:String(error)})}};${assets.script}`
       : `export {};const deliver=(detail)=>dispatchEvent(new MessageEvent('message',{data:{channel:'frontend-editor-host',...detail}}));const send=async(type,payload={})=>{try{if(type==='READY')deliver({records:await window.dashboardData.query()});if(type==='DASHBOARD_ACTION')deliver({records:await window.dashboardData.action(payload.action,payload.payload),action:payload.action})}catch(error){deliver({records:await window.dashboardData.query(),error:error instanceof Error?error.message:String(error)})}};${assets.script}`;
   return {
     ...commonExportFiles(project),

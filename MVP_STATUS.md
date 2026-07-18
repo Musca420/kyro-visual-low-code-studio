@@ -15,6 +15,8 @@
 - preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
 - installazione su dispositivo Android reale con verifica di avvio, tastiera, safe area, orientamento, tasto Indietro e persistenza;
 - import sicuro di cartelle Web/PWA/Capacitor con ripristino esatto del modello, conversione HTML, diagnosi e sorgente originale preservata nell'export;
+- sito professionale multipagina con filtro, modal, navbar mobile, form persistente e flow visuale, creato e collaudato interamente dalla UI;
+- parità editor/preview/export verificata anche per stili personalizzati e applicazioni avviate simultaneamente su porte separate;
 - catalogo ricercabile con nove template completi, ricerca componenti con sinonimi e command palette `Ctrl+K`;
 - procedura dati guidata per IndexedDB, API REST o backend Node generato; CRUD del backend verificato in esecuzione;
 - configurazione visuale di autenticazione, ruoli, offline, SSE e variabili d'ambiente; export autenticato compilato e verificato end-to-end;
@@ -45,6 +47,9 @@ Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperat
 | Plugin manager | install/enable/disable/remove, collisioni e manifest Zod | secondo test Playwright |
 | Web/PWA/Android | target guidati, manifest/service worker, Capacitor 8, configurazione nativa, build APK e collaudo fisico | `e2e/onboarding-targets.spec.ts`, `e2e/android-build.spec.ts`, test generatore, screenshot `artifacts/android-*.png` |
 | Import progetto esistente | Cartella sorgente, rilevamento stack, modello esatto o conversione HTML, modifica e round-trip | `tests/folderImport.test.ts`, `e2e/folder-import.spec.ts`, screenshot `artifacts/imported-android-app.png` |
+| Test A sito ricco | Tre pagine, stile/animazione visuale, modal, filtro, form persistente, responsive e riapertura | `e2e/rich-website.spec.ts`, screenshot `artifacts/professional-website-*.png` |
+| Test B gestionale | Cinque record creati in preview, KPI, CRUD, ricerca, filtro, validazione e mobile | `e2e/scenarios.spec.ts`, `e2e/application-config.spec.ts` |
+| Export separati | Tre ZIP installati, compilati e avviati sulle porte 4181-4183; grafica e comportamento confrontati | `SCENARIO_EXPORTS=1 npx playwright test e2e/exported-scenarios.spec.ts --workers=1` |
 | Sicurezza/a11y | niente segreti, iframe sandbox, DOM textContent, focus/label/semantic HTML | review sorgenti + E2E controlli accessibili |
 
 ## Vertical slice obbligatorio

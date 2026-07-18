@@ -914,7 +914,11 @@ function Editor({
       const flows = landingFlows(project);
       change({ ...project, flows: flows.flows, pages: flows.pages });
       setFlowId(flows.flows[0].id);
-      setFeedback("Due flow collegati: navigazione alle feature e notifica");
+      setFeedback(
+        flows.flows.length === 2
+          ? "Due flow collegati: navigazione alle feature e notifica"
+          : "Tre flow collegati: navigazione, notifica e richiesta contatto persistente",
+      );
       return;
     }
     if (project.state.experience === "dashboard") {
@@ -2729,10 +2733,11 @@ function landingFlows(project: Project): {
   flows: Flow[];
   pages: Project["pages"];
 } {
-  const primary = project.pages[0]?.components.find(
+  const components = project.pages.flatMap((page) => page.components);
+  const primary = components.find(
     (component) => component.props.slot === "hero-primary",
   );
-  const secondary = project.pages[0]?.components.find(
+  const secondary = components.find(
     (component) => component.props.slot === "hero-secondary",
   );
   if (!primary || !secondary) throw new Error("Pulsanti landing mancanti");
@@ -2774,6 +2779,105 @@ function landingFlows(project: Project): {
       message: "Interactive demo enabled",
     }),
   ];
+  const contactName = components.find(
+    (component) => component.props.slot === "contact-name",
+  );
+  const contactSubmit = components.find(
+    (component) => component.props.slot === "contact-submit",
+  );
+  const contactList = components.find(
+    (component) => component.props.slot === "contact-list",
+  );
+  const source = project.dataSources[0];
+  if (contactName && contactSubmit && contactList && source) {
+    const ids = Array.from({ length: 6 }, () => crypto.randomUUID());
+    flows.push({
+      id: crypto.randomUUID(),
+      name: "Invia richiesta contatto",
+      nodes: [
+        {
+          id: ids[0],
+          type: "event",
+          label: "Invia form",
+          position: { x: 0, y: 100 },
+          config: { componentId: contactSubmit.id },
+        },
+        {
+          id: ids[1],
+          type: "readInput",
+          label: "Leggi contatto",
+          position: { x: 180, y: 100 },
+          config: { componentId: contactName.id },
+        },
+        {
+          id: ids[2],
+          type: "validate",
+          label: "Valida richiesta",
+          position: { x: 360, y: 100 },
+          config: { message: "Completa i campi obbligatori" },
+        },
+        {
+          id: ids[3],
+          type: "insert",
+          label: "Salva richiesta",
+          position: { x: 540, y: 60 },
+          config: { sourceId: source.id },
+        },
+        {
+          id: ids[4],
+          type: "refresh",
+          label: "Aggiorna richieste",
+          position: { x: 720, y: 60 },
+          config: { componentId: contactList.id },
+        },
+        {
+          id: ids[5],
+          type: "notify",
+          label: "Mostra errore",
+          position: { x: 540, y: 190 },
+          config: { level: "error" },
+        },
+      ],
+      edges: [
+        {
+          id: crypto.randomUUID(),
+          source: ids[0],
+          target: ids[1],
+          path: "success",
+        },
+        {
+          id: crypto.randomUUID(),
+          source: ids[1],
+          target: ids[2],
+          path: "success",
+        },
+        {
+          id: crypto.randomUUID(),
+          source: ids[2],
+          target: ids[3],
+          path: "success",
+        },
+        {
+          id: crypto.randomUUID(),
+          source: ids[2],
+          target: ids[5],
+          path: "error",
+        },
+        {
+          id: crypto.randomUUID(),
+          source: ids[3],
+          target: ids[4],
+          path: "success",
+        },
+        {
+          id: crypto.randomUUID(),
+          source: ids[3],
+          target: ids[5],
+          path: "error",
+        },
+      ],
+    });
+  }
   return {
     flows,
     pages: project.pages.map((page) => ({
@@ -2783,7 +2887,9 @@ function landingFlows(project: Project): {
           ? { ...component, events: { click: flows[0].id } }
           : component.id === secondary.id
             ? { ...component, events: { click: flows[1].id } }
-            : component,
+            : component.id === contactSubmit?.id && flows[2]
+              ? { ...component, events: { click: flows[2].id } }
+              : component,
       ),
     })),
   };

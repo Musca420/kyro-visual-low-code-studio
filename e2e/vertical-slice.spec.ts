@@ -1,100 +1,162 @@
-import { expect, test } from '@playwright/test'
-import JSZip from 'jszip'
+import { expect, test } from "@playwright/test";
+import JSZip from "jszip";
 
-test('vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export', async ({ page }) => {
-  const pageErrors: string[] = []
-  page.on('pageerror', (error) => pageErrors.push(error.message))
-  await page.goto('/')
-  await page.getByLabel('Nome progetto').fill('Vertical Slice E2E')
-  await page.getByRole('button', { name: 'Progetto vuoto Parti da una tela pulita' }).click()
+test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto("/");
+  await page.getByLabel("Nome progetto").fill("Vertical Slice E2E");
+  await page
+    .getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" })
+    .click();
 
-  await page.getByRole('button', { name: 'Aggiungi pagina', exact: true }).click()
-  const palette = page.locator('.palette')
-  const canvas = page.locator('.design-canvas')
-  await palette.getByRole('button', { name: '⌨ input' }).dragTo(canvas)
-  await palette.getByRole('button', { name: '● button' }).dragTo(canvas)
-  await palette.getByRole('button', { name: '≡ list' }).dragTo(canvas)
-  await expect(page.getByTestId('component-input')).toBeVisible()
-  await expect(page.getByTestId('component-button')).toBeVisible()
-  await expect(page.getByTestId('component-list')).toBeVisible()
+  await page
+    .getByRole("button", { name: "Aggiungi pagina", exact: true })
+    .click();
+  const palette = page.locator(".palette");
+  const canvas = page.locator(".design-canvas");
+  await palette.getByRole("button", { name: "⌨ input" }).dragTo(canvas);
+  await palette.getByRole("button", { name: "● button" }).dragTo(canvas);
+  await palette.getByRole("button", { name: "≡ list" }).dragTo(canvas);
+  await expect(page.getByTestId("component-input")).toBeVisible();
+  await expect(page.getByTestId("component-button")).toBeVisible();
+  await expect(page.getByTestId("component-list")).toBeVisible();
 
-  await page.getByTestId('component-input').click()
-  await page.getByLabel('Larghezza').fill('82%')
-  await page.getByRole('button', { name: 'mobile' }).click()
-  await page.getByLabel('Larghezza').fill('100%')
-  await page.getByLabel('Posizione X').fill('4px')
+  await page.getByTestId("component-input").click();
+  await page.getByLabel("Larghezza").fill("82%");
+  await page.getByRole("button", { name: "mobile" }).click();
+  await page.getByLabel("Larghezza").fill("100%");
+  await page.getByLabel("Posizione X").fill("4px");
 
-  await page.getByRole('button', { name: 'Dati' }).click()
-  await page.getByRole('button', { name: 'Crea sorgente IndexedDB' }).click()
-  await expect(page.getByText('Sorgente IndexedDB creata e schema validato')).toBeVisible()
-  await expect(page.getByText('Attività locali')).toBeVisible()
+  await page.getByRole("button", { name: "Dati" }).click();
+  await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
+  await expect(
+    page.getByText("Sorgente IndexedDB creata e schema validato"),
+  ).toBeVisible();
+  await expect(page.getByText("Attività locali")).toBeVisible();
 
-  await page.getByRole('button', { name: 'Flow' }).click()
-  await page.getByRole('button', { name: 'Crea flow dati' }).click()
-  await expect(page.getByText('Flow collegato al click e lista collegata alla sorgente')).toBeVisible()
-  await expect(page.getByLabel('Editor grafico del flow')).toBeVisible()
+  await page.getByRole("button", { name: "Flow" }).click();
+  await page.getByRole("button", { name: "Crea flow dati" }).click();
+  await expect(
+    page.getByText("Flow collegato al click e lista collegata alla sorgente"),
+  ).toBeVisible();
+  await expect(page.getByLabel("Editor grafico del flow")).toBeVisible();
 
-  await page.getByRole('button', { name: 'Preview' }).click()
-  const preview = page.frameLocator('iframe[title="Preview isolata"]')
-  await preview.getByLabel('Nuova attività').fill('Completare il vertical slice')
-  await preview.getByRole('button', { name: 'Aggiungi' }).click()
-  await expect(preview.getByText('Completare il vertical slice')).toBeVisible()
-  await expect(page.locator('.log-console')).toContainText('Aggiorna lista: completato')
-  await page.screenshot({ path: 'artifacts/vertical-slice-running.png', fullPage: true })
+  await page.getByRole("button", { name: "Preview" }).click();
+  const preview = page.frameLocator('iframe[title="Preview isolata"]');
+  await preview
+    .getByLabel("Nuova attività")
+    .fill("Completare il vertical slice");
+  await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(preview.getByText("Completare il vertical slice")).toBeVisible();
+  await expect(page.locator(".log-console")).toContainText(
+    "Aggiorna lista: completato",
+  );
+  await page.screenshot({
+    path: "artifacts/vertical-slice-running.png",
+    fullPage: true,
+  });
 
-  await preview.getByRole('button', { name: 'Aggiungi' }).click()
-  await expect(preview.getByRole('alert')).toContainText('Scrivi un’attività prima di aggiungerla')
+  await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await expect(preview.getByRole("alert")).toContainText(
+    "Scrivi un’attività prima di aggiungerla",
+  );
 
-  await expect(page.getByText('Salvato automaticamente')).toBeVisible({ timeout: 5_000 })
-  await page.getByRole('button', { name: 'Chiudi progetto e torna alla dashboard' }).click()
-  await page.getByRole('button', { name: /Vertical Slice E2E/ }).click()
-  await page.getByRole('button', { name: 'Preview' }).click()
-  await expect(page.frameLocator('iframe[title="Preview isolata"]').getByText('Completare il vertical slice')).toBeVisible()
+  await expect(page.getByText("Salvato automaticamente")).toBeVisible({
+    timeout: 5_000,
+  });
+  await page
+    .getByRole("button", { name: "Chiudi progetto e torna alla dashboard" })
+    .click();
+  await page.getByRole("button", { name: /Vertical Slice E2E/ }).click();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(
+    page
+      .frameLocator('iframe[title="Preview isolata"]')
+      .getByText("Completare il vertical slice"),
+  ).toBeVisible();
 
-  const projectDownloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Esporta JSON' }).click()
-  const projectDownload = await projectDownloadPromise
-  const projectStream = await projectDownload.createReadStream()
-  const projectChunks: Buffer[] = []
-  for await (const chunk of projectStream) projectChunks.push(chunk as Buffer)
-  const exportedProject = JSON.parse(Buffer.concat(projectChunks).toString('utf8'))
-  expect(exportedProject.formatVersion).toBe(1)
-  expect(exportedProject.pages[0].components).toHaveLength(3)
+  const projectDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Esporta JSON" }).click();
+  const projectDownload = await projectDownloadPromise;
+  const projectStream = await projectDownload.createReadStream();
+  const projectChunks: Buffer[] = [];
+  for await (const chunk of projectStream) projectChunks.push(chunk as Buffer);
+  const exportedProject = JSON.parse(
+    Buffer.concat(projectChunks).toString("utf8"),
+  );
+  expect(exportedProject.formatVersion).toBe(1);
+  expect(exportedProject.pages[0].components).toHaveLength(3);
 
-  const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Esporta app' }).click()
-  const download = await downloadPromise
-  const stream = await download.createReadStream()
-  const chunks: Buffer[] = []
-  for await (const chunk of stream) chunks.push(chunk as Buffer)
-  const zip = await JSZip.loadAsync(Buffer.concat(chunks))
-  expect(Object.keys(zip.files)).toEqual(expect.arrayContaining(['package.json', 'src/main.ts', 'src/style.css', 'capacitor.config.ts']))
-  const unnamedButtons = await page.locator('button').evaluateAll((buttons) => buttons.filter((button) => !(button.textContent?.trim() || button.getAttribute('aria-label'))).length)
-  expect(unnamedButtons).toBe(0)
-  expect(pageErrors).toEqual([])
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Esporta app" }).click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const zip = await JSZip.loadAsync(Buffer.concat(chunks));
+  expect(Object.keys(zip.files)).toEqual(
+    expect.arrayContaining([
+      "package.json",
+      "src/main.ts",
+      "src/style.css",
+      "capacitor.config.ts",
+    ]),
+  );
+  const unnamedButtons = await page
+    .locator("button")
+    .evaluateAll(
+      (buttons) =>
+        buttons.filter(
+          (button) =>
+            !(button.textContent?.trim() || button.getAttribute("aria-label")),
+        ).length,
+    );
+  expect(unnamedButtons).toBe(0);
+  expect(pageErrors).toEqual([]);
 
-  await page.getByRole('button', { name: 'Chiudi progetto e torna alla dashboard' }).click()
-  exportedProject.id = crypto.randomUUID()
-  exportedProject.name = 'Progetto importato E2E'
-  await page.locator('input[type="file"]').setInputFiles({ name: 'project.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exportedProject)) })
-  await expect(page.getByRole('button', { name: /Progetto importato E2E/ })).toBeVisible()
-})
+  await page
+    .getByRole("button", { name: "Chiudi progetto e torna alla dashboard" })
+    .click();
+  exportedProject.id = crypto.randomUUID();
+  exportedProject.name = "Progetto importato E2E";
+  await page
+    .locator('input[type="file"][accept*="json"]')
+    .setInputFiles({
+      name: "project.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(exportedProject)),
+    });
+  await expect(
+    page.getByRole("button", { name: /Progetto importato E2E/ }),
+  ).toBeVisible();
+});
 
-test('plugin manager installa, disabilita, abilita e rimuove il plugin validato', async ({ page }) => {
-  await page.goto('/')
-  const existing = page.getByRole('button', { name: /Vertical Slice E2E/ })
-  if (await existing.count()) await existing.click()
+test("plugin manager installa, disabilita, abilita e rimuove il plugin validato", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const existing = page.getByRole("button", { name: /Vertical Slice E2E/ });
+  if (await existing.count()) await existing.click();
   else {
-    await page.getByLabel('Nome progetto').fill('Plugin E2E')
-    await page.getByRole('button', { name: 'Lista attività Vertical slice già configurato' }).click()
+    await page.getByLabel("Nome progetto").fill("Plugin E2E");
+    await page
+      .getByRole("button", {
+        name: "Lista attività Vertical slice già configurato",
+      })
+      .click();
   }
-  await page.getByRole('button', { name: 'Plugin' }).click()
-  await page.getByRole('button', { name: 'Installa plugin di esempio' }).click()
-  await expect(page.getByText('Plugin installato e abilitato')).toBeVisible()
-  await page.getByRole('button', { name: 'Disabilita' }).click()
-  await expect(page.getByText('Plugin disabilitato')).toBeVisible()
-  await page.getByRole('button', { name: 'Abilita' }).click()
-  await expect(page.getByText('Plugin abilitato')).toBeVisible()
-  await page.getByRole('button', { name: 'Rimuovi' }).click()
-  await expect(page.getByText('Plugin rimosso')).toBeVisible()
-})
+  await page.getByRole("button", { name: "Plugin" }).click();
+  await page
+    .getByRole("button", { name: "Installa plugin di esempio" })
+    .click();
+  await expect(page.getByText("Plugin installato e abilitato")).toBeVisible();
+  await page.getByRole("button", { name: "Disabilita" }).click();
+  await expect(page.getByText("Plugin disabilitato")).toBeVisible();
+  await page.getByRole("button", { name: "Abilita" }).click();
+  await expect(page.getByText("Plugin abilitato")).toBeVisible();
+  await page.getByRole("button", { name: "Rimuovi" }).click();
+  await expect(page.getByText("Plugin rimosso")).toBeVisible();
+});

@@ -32,6 +32,9 @@ npm run export:sample
 npm --prefix generated-app install
 npm --prefix generated-app run build
 npm run test:generated
+
+# Dopo aver estratto e avviato gli ZIP di collaudo sulle porte 4181-4183
+SCENARIO_EXPORTS=1 npx playwright test e2e/exported-scenarios.spec.ts --workers=1
 ```
 
 ## Percorso MVP
@@ -103,8 +106,11 @@ In questo ambiente il rilevamento automatico trova Android SDK e il JBR di Andro
 - Il vertical slice, il provider IndexedDB, l'export web e il plugin di esempio sono completi e reali.
 - Il catalogo espone tutti i componenti MVP con modello/stili/eventi/accessibilità; i componenti fuori dal vertical slice hanno rendering semantico di base, non widget avanzati completi.
 - Il runtime MVP esegue i nodi del vertical slice. L'autenticazione generata, i ruoli, REST e SSE sono reali nell'export con backend Node; OIDC resta una configurazione per un provider esterno e richiede credenziali. Database remoti gestiti e marketplace remoto non sono simulati né dichiarati pronti.
-- Snap/guide, componenti riutilizzabili avanzati, animazioni visuali e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti.
+- Snap/guide, componenti riutilizzabili avanzati e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti. Animazioni, transizioni, trasformazioni e stati interattivi sono invece configurabili dall’ispettore.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
+- Un progetto importato con `project.frontend-editor.json` è modificabile integralmente. Per cartelle generiche l’HTML statico viene convertito; codice arbitrario di framework viene preservato sotto `original-project/` e richiede conversione progressiva prima che ogni costrutto sia modificabile sul canvas.
 - La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale e ripristino protetto dell’intera operazione file. Resta da completare il terminale PTY interattivo; non è simulato.
 
 Stato verificato e matrice dei requisiti: [MVP_STATUS.md](./MVP_STATUS.md).
+
+Percorsi, conteggio delle azioni, difetti corretti, screenshot e limiti osservati dei test A/B/C: [USABILITY_REPORT.md](./USABILITY_REPORT.md).

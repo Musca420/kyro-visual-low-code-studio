@@ -266,6 +266,96 @@ export function createLandingProject(name: string): Project {
   ];
   project.pages = [
     { id: crypto.randomUUID(), name: "Landing", path: "/", components },
+    {
+      id: crypto.randomUUID(),
+      name: "Prezzi",
+      path: "/pricing",
+      components: [
+        style(
+          component(
+            "title",
+            "Pricing heading",
+            "Un piano semplice per ogni ambizione.",
+            "pricing-title",
+          ),
+          { fontSize: "54px", color: "#101528" },
+          { fontSize: "38px" },
+        ),
+        style(
+          component("input", "Plan search", "", "pricing-search", {
+            placeholder: "Cerca un piano",
+          }),
+          { background: "#ffffff", borderRadius: "12px" },
+        ),
+        ...[
+          ["Starter", "Per progetti personali e piccoli esperimenti."],
+          ["Team", "Collaborazione completa per squadre in crescita."],
+          ["Scale", "Controllo, sicurezza e supporto per organizzazioni."],
+        ].map(([title, description], index) =>
+          style(
+            component(
+              "card",
+              `Pricing card ${index + 1}`,
+              title,
+              "pricing-card",
+              { description },
+            ),
+            {
+              width: "31%",
+              minHeight: "280px",
+              background: index === 1 ? "#eeecff" : "#ffffff",
+              padding: "28px",
+              borderRadius: "18px",
+              boxShadow: "0 16px 38px #30385816",
+            },
+          ),
+        ),
+      ],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Contatti",
+      path: "/contact",
+      components: [
+        style(
+          component(
+            "title",
+            "Contact heading",
+            "Costruiamo qualcosa di memorabile.",
+            "contact-title",
+          ),
+          { fontSize: "54px", color: "#101528" },
+          { fontSize: "38px" },
+        ),
+        style(
+          component("form", "Contact form", "Contact form", "contact-form"),
+          {
+            background: "#ffffff",
+            padding: "28px",
+            borderRadius: "20px",
+            boxShadow: "0 18px 45px #2e35551c",
+          },
+        ),
+        component("input", "Contact name", "", "contact-name", {
+          placeholder: "Il tuo nome",
+        }),
+        style(
+          component(
+            "button",
+            "Contact submit",
+            "Invia richiesta",
+            "contact-submit",
+          ),
+          { background: "#6d5dfc", color: "#ffffff", borderRadius: "12px" },
+        ),
+        component(
+          "list",
+          "Contact history",
+          "Richieste inviate",
+          "contact-list",
+        ),
+      ],
+    },
   ];
   project.state = { experience: "landing" };
   project.theme.tokens = {
