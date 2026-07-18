@@ -1,0 +1,10 @@
+node_modules/
+dist/
+generated-app/
+playwright-report/
+test-results/
+artifacts/
+.live-browser-profile/
+*.log
+*.tsbuildinfo
+.DS_Store
