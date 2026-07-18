@@ -130,6 +130,7 @@ function Dashboard({
   onOpen: (id: string) => void;
   onRefresh: () => Promise<void>;
 }) {
+  const desktopImportStarted = useRef(false);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [target, setTarget] = useState<"web" | "pwa" | "android">("web");
@@ -138,6 +139,31 @@ function Dashboard({
   const [importResult, setImportResult] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const desktop = window.frontendEditorDesktop;
+    if (!desktop || loading || desktopImportStarted.current) return;
+    desktopImportStarted.current = true;
+    void desktop.readWorkspace().then(async (workspace) => {
+      if (!workspace) return;
+      const storageKey = `frontend-editor-desktop:${workspace.root}`;
+      const existingId = localStorage.getItem(storageKey);
+      const existing = existingId ? await getProject(existingId) : undefined;
+      if (existing) {
+        onOpen(existing.id);
+        return;
+      }
+      setImportResult(`Importo ${workspace.name} dalla cartella aperta con la CLI…`);
+      const project = importExistingFolder(workspace.name, workspace.files);
+      await saveProject(project);
+      localStorage.setItem(storageKey, project.id);
+      await onRefresh();
+      setImportResult(`${workspace.name} è pronto sul canvas visuale.`);
+      onOpen(project.id);
+    }).catch((problem) => {
+      setError(`Apertura desktop non riuscita: ${problem instanceof Error ? problem.message : String(problem)}`);
+      desktopImportStarted.current = false;
+    });
+  }, [loading, onOpen, onRefresh]);
   const create = async (template: "blank" | "todo" | TemplateId = "blank") => {
     if (!name.trim()) return setError("Inserisci un nome per il progetto");
     let project =

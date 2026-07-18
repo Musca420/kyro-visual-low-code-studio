@@ -5,6 +5,8 @@ android-builds/
 playwright-report/
 test-results/
 artifacts/
+desktop-dist/
+out/
 .live-browser-profile/
 *.log
 *.tsbuildinfo

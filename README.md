@@ -4,6 +4,8 @@ Editor visuale low-code locale per creare UI responsive, collegare flow determin
 
 Il confronto funzionale aggiornato con i visual builder e la roadmap verificabile sono in [BENCHMARK_ROADMAP.md](./BENCHMARK_ROADMAP.md). Il modello include anche l'intento semantico degli elementi; il pannello **Programma collegato** attraversa eventi, flow, dati e file generati e segnala le capability mancanti allo stesso Live Bridge usato da Codex.
 
+Il refactoring UI e la trasformazione in prodotto desktop installabile fanno parte della Definition of Done in [DESKTOP_PRODUCT_ROADMAP.md](./DESKTOP_PRODUCT_ROADMAP.md). La shell scelta è Electron perché riusa i servizi Node locali già necessari a Live Bridge, Codex, terminale, import ed export; formato ed applicazioni esportate restano aperti e indipendenti.
+
 Per chi arriva da Canva, il pannello proprietà parte in modalità **Essenziale**: palette, colori, gradienti, immagini di sfondo, font, allineamento, angoli, spaziatura, ombre e animazioni aggiornano subito canvas e preview. Senza selezione, lo stesso pannello modifica lo sfondo globale di pagina. **Avanzata** espone tutti i valori precisi senza cambiare modello.
 
 I requisiti di prodotto e la Definition of Done complessiva sono definiti da `PROJECT_SPEC.md`, `versione 2.md` e `aggiunta.md`. In particolare, i flussi principali devono restare completabili da utenti non tecnici senza codice o terminale.
@@ -21,6 +23,23 @@ npm run dev
 
 Aprire `http://127.0.0.1:5173`. I progetti e i record sono salvati nell'IndexedDB del browser; non vengono inviati a servizi esterni.
 
+### Desktop e CLI
+
+```bash
+# shell desktop in sviluppo, aprendo una cartella esistente
+npm run desktop:dev -- --project "C:\percorso\progetto"
+
+# registra il comando globale dal checkout locale
+npm link
+frontend-editor "C:\percorso\progetto"
+
+# pacchetto nativo e installer della piattaforma corrente
+npm run desktop:package
+npm run desktop:make
+```
+
+La shell usa isolamento del contesto, sandbox e renderer senza Node. La CLI autorizza una sola cartella, ignora dipendenze/build/link simbolici e importa soltanto file sorgente testuali entro limiti espliciti. Su Windows l'installer Squirrel crea collegamenti Desktop e Start Menu; le configurazioni Forge includono maker per ZIP macOS, DEB e RPM Linux da produrre sui rispettivi sistemi.
+
 ## Verifica
 
 ```bash
@@ -30,6 +49,8 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npm run desktop:test
+npm run desktop:test:packaged
 
 # Materializza, installa e verifica l'output indipendente
 npm run export:sample

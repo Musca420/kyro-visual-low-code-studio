@@ -371,4 +371,8 @@ Non fermarti a una UI esteticamente gradevole ma non funzionante, né a funzioni
 
 Continua attraverso cicli di osservazione, implementazione, test nel browser, correzione e semplificazione finché questi criteri sono dimostrati con risultati riproducibili.
 
+## Definition of Done desktop e refactoring UX
+
+È requisito fondamentale anche il completamento verificato di `DESKTOP_PRODUCT_ROADMAP.md`: identità originale chiara/scura accessibile, canvas e pannelli adatti a desktop e mobile, progressive disclosure per utenti non tecnici, applicazione desktop multipiattaforma, CLI globale per aprire cartelle, persistenza completa, home con recenti/ricerca/template/backup/ripristino e aggiornamenti sicuri. La scelta della shell deve essere motivata e gli artefatti installabili devono essere avviati e collaudati, non soltanto configurati.
+
 Se un requisito è bloccato da credenziali, costi, strumenti esterni o hardware non disponibile, completa tutto ciò che è possibile, documenta esattamente il blocco e non descrivere la parte non verificata come funzionante.

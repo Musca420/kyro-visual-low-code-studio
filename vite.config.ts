@@ -16,6 +16,8 @@ import {
   type WorkspaceSnapshot,
 } from "./server/workspaceTransactions";
 
+const workspaceRoot = resolve(process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
+
 const run = promisify(execFile);
 const codexCommand = process.platform === "win32" ? process.execPath : "codex";
 const codexPrefix =
@@ -80,11 +82,11 @@ async function gitSnapshot() {
   try {
     const [status, diff] = await Promise.all([
       run("git", ["status", "--short"], {
-        cwd: process.cwd(),
+        cwd: workspaceRoot,
         timeout: 10_000,
       }),
       run("git", ["diff", "--no-ext-diff", "--no-color", "HEAD"], {
-        cwd: process.cwd(),
+        cwd: workspaceRoot,
         timeout: 10_000,
         maxBuffer: 1_000_000,
       }),
@@ -211,7 +213,7 @@ function liveBridge() {
             latest = {
               ...state,
               timestamp: new Date().toISOString(),
-              workspace: process.cwd(),
+              workspace: workspaceRoot,
             };
             projects.set(String(state.projectId), latest);
             return reply(response, 200, { ok: true });
@@ -390,7 +392,7 @@ function liveBridge() {
               return reply(response, 200, {
                 sessionId: existing.id,
                 status: existing.status,
-                workspace: process.cwd(),
+                workspace: workspaceRoot,
               });
             const terminalCommand =
               process.platform === "win32"
@@ -408,7 +410,7 @@ function liveBridge() {
               ),
             ) as NodeJS.ProcessEnv;
             const child = spawn(terminalCommand, terminalArgs, {
-              cwd: process.cwd(),
+              cwd: workspaceRoot,
               env: safeEnvironment,
               stdio: "pipe",
               windowsHide: true,
@@ -417,7 +419,7 @@ function liveBridge() {
               id: crypto.randomUUID(),
               projectId,
               status: "running",
-              output: `Frontend Editor terminale locale\nWorkspace: ${process.cwd()}\n`,
+              output: `Frontend Editor terminale locale\nWorkspace: ${workspaceRoot}\n`,
               process: child,
             };
             terminalSessions.set(session.id, session);
@@ -438,7 +440,7 @@ function liveBridge() {
             return reply(response, 201, {
               sessionId: session.id,
               status: session.status,
-              workspace: process.cwd(),
+              workspace: workspaceRoot,
             });
           }
           if (url.pathname.startsWith("/api/terminal/sessions/")) {
@@ -531,7 +533,7 @@ function liveBridge() {
             const inspect = async (command: string, args: string[]) => {
               try {
                 const value = await run(command, args, {
-                  cwd: process.cwd(),
+                  cwd: workspaceRoot,
                   timeout: 8_000,
                 });
                 return {
@@ -586,7 +588,7 @@ function liveBridge() {
               Object.keys(files).length > 250
             )
               return reply(response, 400, { error: "File Android non validi" });
-            const base = resolve(process.cwd(), "android-builds"),
+            const base = resolve(workspaceRoot, "android-builds"),
               directory = resolve(base, `${projectId}-${Date.now()}`);
             if (
               !directory.startsWith(
@@ -854,7 +856,7 @@ function liveBridge() {
                 changedFiles: [],
                 before:
                   mode === "apply"
-                    ? await snapshotWorkspace(process.cwd())
+                    ? await snapshotWorkspace(workspaceRoot)
                     : undefined,
               };
             jobs.set(id, job);
@@ -870,12 +872,12 @@ function liveBridge() {
                 "--json",
                 "--ephemeral",
                 "-C",
-                process.cwd(),
+                workspaceRoot,
                 "-s",
                 mode === "plan" ? "read-only" : "workspace-write",
                 "-",
               ],
-              { cwd: process.cwd(), stdio: "pipe" },
+              { cwd: workspaceRoot, stdio: "pipe" },
             );
             agent.stdout.on("data", (chunk) => {
               job.output += chunk;
@@ -898,7 +900,7 @@ function liveBridge() {
                     : "error";
               job.git = await gitSnapshot();
               if (job.before) {
-                job.after = await snapshotWorkspace(process.cwd());
+                job.after = await snapshotWorkspace(workspaceRoot);
                 job.changedFiles = changedPaths(job.before, job.after);
               }
             });
@@ -953,7 +955,7 @@ function liveBridge() {
                 error: "Operazione non ripristinabile",
               });
             const restored = await restoreWorkspace(
-              process.cwd(),
+              workspaceRoot,
               job.before,
               job.after,
             );
@@ -965,18 +967,18 @@ function liveBridge() {
               const result = await run(
                 codexCommand,
                 [...codexPrefix, "login", "status"],
-                { cwd: process.cwd(), timeout: 10_000 },
+                { cwd: workspaceRoot, timeout: 10_000 },
               );
               return reply(response, 200, {
                 authenticated: true,
                 message: result.stdout.trim() || result.stderr.trim(),
-                workspace: process.cwd(),
+                workspace: workspaceRoot,
               });
             } catch (error) {
               return reply(response, 200, {
                 authenticated: false,
                 message: error instanceof Error ? error.message : String(error),
-                workspace: process.cwd(),
+                workspace: workspaceRoot,
               });
             }
           }
@@ -1010,7 +1012,7 @@ function liveBridge() {
                 "login",
                 ...(input.deviceAuth === true ? ["--device-auth"] : []),
               ],
-              { cwd: process.cwd(), stdio: "pipe" },
+              { cwd: workspaceRoot, stdio: "pipe" },
             );
             loginProcess.stdout.on("data", (chunk) => {
               session.output += chunk;
@@ -1073,7 +1075,7 @@ function liveBridge() {
               const result = await run(
                 codexCommand,
                 [...codexPrefix, "logout"],
-                { cwd: process.cwd(), timeout: 10_000 },
+                { cwd: workspaceRoot, timeout: 10_000 },
               );
               return reply(response, 200, {
                 loggedOut: true,
@@ -1112,12 +1114,12 @@ function liveBridge() {
                 "--json",
                 "--ephemeral",
                 "-C",
-                process.cwd(),
+                workspaceRoot,
                 "-s",
                 mode === "plan" ? "read-only" : "workspace-write",
                 "-",
               ],
-              { cwd: process.cwd(), stdio: "pipe" },
+              { cwd: workspaceRoot, stdio: "pipe" },
             );
             let output = "",
               errors = "";
@@ -1161,6 +1163,7 @@ function liveBridge() {
 }
 
 export default defineConfig({
+  base: "./",
   plugins: [react(), liveBridge()],
   server: { watch: { ignored: ["**/android-builds/**"] } },
   test: {
