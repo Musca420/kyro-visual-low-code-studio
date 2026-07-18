@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createProject, makeComponent } from "../src/model";
-import { inspectComponentProgram, inspectFlowNodeProgram } from "../src/programGraph";
+import { inspectComponentProgram, inspectDataSourceProgram, inspectFlowNodeProgram } from "../src/programGraph";
 
 describe("unified program graph", () => {
   it("rileva dati, flow e stati mancanti a partire dall'intento visuale", () => {
@@ -58,5 +58,18 @@ describe("unified program graph", () => {
     expect(view.components[0].id).toBe(list.id);
     expect(view.generatedFiles).toContain("server/index.mjs");
     expect(view.errors).toEqual([]);
+  });
+
+  it("risale dalla sorgente a binding, flow e file", () => {
+    const project = createProject("Source graph");
+    const list = makeComponent("list");
+    list.binding = { sourceId: "source", state: "data" };
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [list] });
+    project.dataSources.push({ id: "source", name: "Atleti", provider: "indexeddb", collection: "athletes", schema: { id: "string", name: "string" }, capabilities: ["query", "insert"], secretStrategy: "none" });
+    project.flows.push({ id: "flow", name: "Crea atleta", nodes: [{ id: "insert", type: "insert", label: "Salva atleta", position: { x: 0, y: 0 }, config: { sourceId: "source" } }], edges: [] });
+    const view = inspectDataSourceProgram(project, "source");
+    expect(view.components[0]).toMatchObject({ id: list.id, pageName: "Home" });
+    expect(view.flows[0]).toMatchObject({ id: "flow", nodes: ["Salva atleta"] });
+    expect(view.fields).toContainEqual({ name: "name", type: "string" });
   });
 });

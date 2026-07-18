@@ -55,9 +55,11 @@ import { TerminalPanel } from "./TerminalPanel";
 import {
   inspectComponentProgram,
   inspectFlowNodeProgram,
+  inspectDataSourceProgram,
   type ComponentProgramView,
   type CapabilityIssue,
   type FlowNodeProgramView,
+  type DataSourceProgramView,
 } from "./programGraph";
 
 type WorkspaceTab =
@@ -467,6 +469,7 @@ function Editor({
   const [feedback, setFeedback] = useState("");
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? "");
   const [selectedFlowNodeId, setSelectedFlowNodeId] = useState("");
+  const [selectedSourceId, setSelectedSourceId] = useState(initial.dataSources[0]?.id ?? "");
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -498,6 +501,9 @@ function Editor({
     flow && selectedFlowNodeId && flow.nodes.some((node) => node.id === selectedFlowNodeId)
       ? inspectFlowNodeProgram(project, flow.id, selectedFlowNodeId)
       : undefined;
+  const selectedSource = project.dataSources.some((source) => source.id === selectedSourceId)
+    ? inspectDataSourceProgram(project, selectedSourceId)
+    : undefined;
 
   useEffect(() => {
     const components = currentPage?.components ?? [];
@@ -904,12 +910,13 @@ function Editor({
             date: "datetime",
           }
         : { id: "string", text: "string", date: "datetime" };
+    const id = crypto.randomUUID();
     change({
       ...project,
       dataSources: [
         ...project.dataSources,
         {
-          id: crypto.randomUUID(),
+          id,
           name: sourceName.trim(),
           provider: sourceProvider,
           collection: collection.trim(),
@@ -930,6 +937,7 @@ function Editor({
         },
       ],
     });
+    setSelectedSourceId(id);
     setFeedback(
       sourceProvider === "indexeddb"
         ? "Sorgente IndexedDB creata e schema validato"
@@ -1894,7 +1902,13 @@ function Editor({
                 </div>
               ) : (
                 project.dataSources.map((source) => (
-                  <article className="source-card" key={source.id}>
+                  <button
+                    type="button"
+                    className={`source-card ${selectedSourceId === source.id ? "selected" : ""}`}
+                    aria-pressed={selectedSourceId === source.id}
+                    key={source.id}
+                    onClick={() => setSelectedSourceId(source.id)}
+                  >
                     <span className="provider-icon">
                       {source.provider === "indexeddb"
                         ? "DB"
@@ -1914,8 +1928,23 @@ function Editor({
                       </small>
                     </div>
                     <span className="valid-chip">Valida</span>
-                  </article>
+                  </button>
                 ))
+              )}
+              {selectedSource && (
+                <DataSourceConnections
+                  view={selectedSource}
+                  onOpenComponent={(page, component) => {
+                    setPageId(page);
+                    setSelected([component]);
+                    setTab("design");
+                  }}
+                  onOpenFlow={(id) => {
+                    setFlowId(id);
+                    setSelectedFlowNodeId("");
+                    setTab("flow");
+                  }}
+                />
               )}
               <div className="asset-manager">
                 <div className="section-heading">
@@ -2233,6 +2262,60 @@ function FlowNodeConnections({
       </div>
       <details>
         <summary>Impatto nel codice generato</summary>
+        {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
+      </details>
+    </section>
+  );
+}
+
+function DataSourceConnections({
+  view,
+  onOpenComponent,
+  onOpenFlow,
+}: {
+  view: DataSourceProgramView;
+  onOpenComponent: (pageId: string, componentId: string) => void;
+  onOpenFlow: (flowId: string) => void;
+}) {
+  const provider = view.provider === "indexeddb" ? "Sul dispositivo" : view.provider === "generated" ? "Backend incluso" : "Servizio esterno";
+  const capabilityNames: Record<string, string> = {
+    get: "legge un record",
+    query: "carica elenchi",
+    insert: "crea",
+    update: "modifica",
+    delete: "elimina",
+    subscribe: "aggiorna in tempo reale",
+  };
+  return (
+    <section className="data-source-connections" aria-label="Impatto sorgente dati">
+      <div>
+        <p className="eyebrow">Grafo unificato</p>
+        <h3>{view.name}</h3>
+        <span>{provider} · archivio {view.collection}</span>
+      </div>
+      <div className="data-impact-counts">
+        <span><strong>{view.components.length}</strong> elementi</span>
+        <span><strong>{view.flows.length}</strong> flow</span>
+        <span><strong>{view.fields.length}</strong> campi</span>
+      </div>
+      <div className="capability-chips">
+        {view.capabilities.map((item) => <span key={item}>{capabilityNames[item] ?? item}</span>)}
+      </div>
+      {view.components.map((component) => (
+        <button className="secondary" key={component.id} onClick={() => onOpenComponent(component.pageId, component.id)}>
+          Apri {component.name} <small>{component.pageName}</small>
+        </button>
+      ))}
+      {view.flows.map((flow) => (
+        <button className="secondary" key={flow.id} onClick={() => onOpenFlow(flow.id)}>
+          Apri flow {flow.name} <small>{flow.nodes.join(" · ")}</small>
+        </button>
+      ))}
+      {!view.components.length && !view.flows.length && <p className="property-help">Questa sorgente è pronta ma non è ancora collegata a elementi o flow.</p>}
+      {view.warnings.map((warning) => <span className="requirement-warning" key={warning}>{warning}</span>)}
+      <details>
+        <summary>Campi e file generati</summary>
+        <p>{view.fields.map((field) => `${field.name}: ${field.type}`).join(" · ")}</p>
         {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
       </details>
     </section>

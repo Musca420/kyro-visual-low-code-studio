@@ -28,6 +28,19 @@ export type FlowNodeProgramView = {
   errors: string[];
 };
 
+export type DataSourceProgramView = {
+  sourceId: string;
+  name: string;
+  provider: string;
+  collection: string;
+  fields: { name: string; type: string }[];
+  capabilities: string[];
+  components: { id: string; name: string; type: string; pageId: string; pageName: string }[];
+  flows: { id: string; name: string; nodes: string[] }[];
+  generatedFiles: string[];
+  warnings: string[];
+};
+
 const containsAny = (value: string, words: string[]) =>
   words.some((word) => value.toLocaleLowerCase().includes(word));
 
@@ -205,6 +218,38 @@ export function inspectFlowNodeProgram(
       }),
     generatedFiles: generatedFiles(project),
     errors,
+  };
+}
+
+export function inspectDataSourceProgram(
+  project: Project,
+  sourceId: string,
+): DataSourceProgramView {
+  const source = project.dataSources.find((item) => item.id === sourceId);
+  if (!source) throw new Error("Sorgente non trovata nel grafo");
+  const warnings: string[] = [];
+  if (source.provider === "rest" && !source.environmentKey)
+    warnings.push("Dichiara il nome della variabile che conterrà la credenziale API.");
+  if (source.provider !== "indexeddb" && !source.endpoint)
+    warnings.push("Configura l'indirizzo del servizio dati.");
+  return {
+    sourceId,
+    name: source.name,
+    provider: source.provider,
+    collection: source.collection,
+    fields: Object.entries(source.schema).map(([name, type]) => ({ name, type })),
+    capabilities: source.capabilities,
+    components: project.pages.flatMap((page) =>
+      page.components
+        .filter((component) => component.binding?.sourceId === source.id)
+        .map(({ id, name, type }) => ({ id, name, type, pageId: page.id, pageName: page.name })),
+    ),
+    flows: project.flows.flatMap((flow) => {
+      const nodes = flow.nodes.filter((node) => node.config.sourceId === source.id);
+      return nodes.length ? [{ id: flow.id, name: flow.name, nodes: nodes.map((node) => node.label) }] : [];
+    }),
+    generatedFiles: generatedFiles(project),
+    warnings,
   };
 }
 

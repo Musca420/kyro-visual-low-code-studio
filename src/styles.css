@@ -1105,6 +1105,24 @@ label {
   color: var(--muted);
   font-size: 12px;
 }
+.source-card.selected { border-color: #6d5dfc; box-shadow: 0 0 0 2px #6d5dfc20; }
+.data-source-connections {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #d9d5f5;
+  border-radius: 12px;
+  background: #faf9ff;
+}
+.data-source-connections h3 { margin: 2px 0 3px; }
+.data-source-connections > div:first-child span { color: var(--muted); font-size: 12px; }
+.data-impact-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.data-impact-counts span { display: grid; padding: 8px; border-radius: 8px; background: #eeebff; text-align: center; font-size: 11px; }
+.capability-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.capability-chips span { padding: 4px 7px; border-radius: 999px; background: #e5f8ef; color: #17663c; font-size: 10px; font-weight: 700; }
+.data-source-connections > button { display: grid; gap: 2px; text-align: left; }
+.data-source-connections code { display: block; margin-top: 4px; }
 .provider-icon {
   display: grid;
   place-items: center;

@@ -60,4 +60,14 @@ test("dal nodo del flow risale a dati e componenti", async ({ page }) => {
   await dependencies.getByRole("button", { name: /Apri List/ }).click();
   await expect(page.locator(".right-panel")).toContainText("Programma collegato");
   await expect(page.getByTestId("component-list")).toHaveClass(/selected/);
+
+  await page.getByRole("button", { name: "Dati", exact: true }).click();
+  const sourceImpact = page.getByRole("region", { name: "Impatto sorgente dati" });
+  await expect(sourceImpact).toContainText("1 elementi");
+  await expect(sourceImpact).toContainText("1 flow");
+  await expect(sourceImpact).toContainText("carica elenchi");
+  await expect(sourceImpact).toContainText("src/main.ts");
+  await page.screenshot({ path: "artifacts/data-source-unified-graph.png", fullPage: true });
+  await sourceImpact.getByRole("button", { name: /Apri flow Aggiungi attività/ }).click();
+  await expect(page.getByRole("heading", { name: "Flow editor" })).toBeVisible();
 });

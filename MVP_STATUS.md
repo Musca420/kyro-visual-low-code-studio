@@ -16,6 +16,7 @@
 - installazione su dispositivo Android reale con verifica di avvio, tastiera, safe area, orientamento, tasto Indietro e persistenza;
 - import sicuro di cartelle Web/PWA/Capacitor con ripristino esatto del modello, conversione HTML, diagnosi e sorgente originale preservata nell'export;
 - grafo unificato interrogabile dal componente, intento semantico tipizzato e Capability Resolver condiviso da inspector, Live Bridge e contesto Codex;
+- impatto inverso selezionabile da nodo e sorgente verso componenti, pagine, flow, capability e file generati;
 - sito professionale multipagina con filtro, modal, navbar mobile, form persistente e flow visuale, creato e collaudato interamente dalla UI;
 - parità editor/preview/export verificata anche per stili personalizzati e applicazioni avviate simultaneamente su porte separate;
 - terminale locale persistente per progetto, con comando esplicito, output progressivo, ambiente privo di variabili-segreto e chiusura controllata;

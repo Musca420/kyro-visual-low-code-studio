@@ -36,7 +36,7 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   await expect(
     page.getByText("Sorgente IndexedDB creata e schema validato"),
   ).toBeVisible();
-  await expect(page.getByText("Attività locali")).toBeVisible();
+  await expect(page.locator(".source-card")).toContainText("Attività locali");
 
   await page.getByRole("button", { name: "Flow" }).click();
   await page.getByRole("button", { name: "Crea flow dati" }).click();
