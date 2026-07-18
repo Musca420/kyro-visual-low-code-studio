@@ -30,6 +30,10 @@ async function gitSnapshot() {
   } catch { return { status: '', diff: '' } }
 }
 
+function flattenComponentTree(tree: Record<string, unknown>[]): Record<string, unknown>[] {
+  return tree.flatMap((item) => [item, ...flattenComponentTree(Array.isArray(item.children) ? item.children as Record<string, unknown>[] : [])])
+}
+
 function liveBridge() {
   let latest: Record<string, unknown> | undefined
   const projects = new Map<string, Record<string, unknown>>()
@@ -55,16 +59,16 @@ function liveBridge() {
           if (url.pathname.startsWith('/api/live/tools/') && request.method === 'POST') {
             const tool = url.pathname.split('/').at(-1)!, input = await body(request), projectId = String(input.projectId ?? ''), state = projects.get(projectId)
             if (!state) return reply(response, 404, { error: 'Progetto live non trovato' })
-            const tree = Array.isArray(state.componentTree) ? state.componentTree as Record<string, unknown>[] : [], flows = Array.isArray(state.flows) ? state.flows as Record<string, unknown>[] : []
+            const tree = Array.isArray(state.componentTree) ? state.componentTree as Record<string, unknown>[] : [], flatTree = flattenComponentTree(tree), flows = Array.isArray(state.flows) ? state.flows as Record<string, unknown>[] : []
             const reads: Record<string, () => unknown> = {
               get_editor_status: () => ({ projectId: state.projectId, pageId: state.pageId, revision: state.revision, selectedComponentIds: state.selectedComponentIds, timestamp: state.timestamp, previewState: state.previewState, viewport: state.viewport }),
               get_active_project: () => state,
               get_active_page: () => ({ id: state.pageId, components: tree }),
-              get_current_selection: () => tree.filter((item) => (state.selectedComponentIds as unknown[]).includes(item.id)),
-              get_component: () => tree.find((item) => item.id === input.componentId),
+              get_current_selection: () => flatTree.filter((item) => (state.selectedComponentIds as unknown[]).includes(item.id)),
+              get_component: () => flatTree.find((item) => item.id === input.componentId),
               get_component_tree: () => tree,
               get_component_layout: () => (state.layouts as Record<string, unknown> | undefined)?.[String(input.componentId)],
-              get_computed_styles: () => tree.find((item) => item.id === input.componentId)?.styles,
+              get_computed_styles: () => flatTree.find((item) => item.id === input.componentId)?.styles,
               get_page_flows: () => flows,
               get_component_flows: () => flows.filter((flow) => Array.isArray(flow.nodes) && (flow.nodes as Record<string, unknown>[]).some((node) => (node.config as Record<string, unknown> | undefined)?.componentId === input.componentId)),
               get_data_sources: () => state.dataSources,
@@ -74,7 +78,7 @@ function liveBridge() {
               validate_project: () => ({ valid: !(state.validationErrors as unknown[])?.length, errors: state.validationErrors }),
             }
             if (reads[tool]) return reply(response, 200, reads[tool]())
-            const mutations = new Set(['move_component', 'resize_component', 'set_component_property', 'set_component_style', 'set_responsive_style', 'add_component', 'remove_component', 'reorder_component', 'create_flow', 'connect_nodes', 'bind_component_data', 'create_data_source', 'apply_editor_transaction', 'undo_last_transaction', 'open_preview', 'capture_canvas', 'capture_preview'])
+            const mutations = new Set(['move_component', 'resize_component', 'set_component_property', 'set_component_style', 'set_responsive_style', 'add_component', 'remove_component', 'reorder_component', 'wrap_component', 'create_flow', 'connect_nodes', 'bind_component_data', 'create_data_source', 'apply_editor_transaction', 'undo_last_transaction', 'open_preview', 'capture_canvas', 'capture_preview'])
             if (!mutations.has(tool)) return reply(response, 404, { error: `Tool non disponibile: ${tool}` })
             if (input.revision !== state.revision) return reply(response, 409, { error: 'Revisione obsoleta' })
             if (commands.some((item) => item.projectId === projectId && item.status === 'pending')) return reply(response, 409, { error: 'Una transazione è già in attesa' })

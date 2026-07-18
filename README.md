@@ -89,6 +89,6 @@ In questo ambiente è presente `C:\Users\david\AppData\Local\Android\Sdk`, ma `j
 - Il runtime MVP esegue i nodi del vertical slice; HTTP, autenticazione, database remoti e marketplace remoto sono contributi futuri, non simulati.
 - Snap/guide, componenti riutilizzabili avanzati, animazioni visuali e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
-- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo e viste conversazione/operazioni/file/diff/test reali. Restano da completare gerarchie annidate (`wrap_component`), terminale PTY interattivo, streaming continuo e ripristino dell’intera operazione Codex; non sono simulati.
+- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component` e viste conversazione/operazioni/file/diff/test reali. Restano da completare terminale PTY interattivo, streaming continuo e ripristino dell’intera operazione Codex; non sono simulati.
 
 Stato verificato e matrice dei requisiti: [MVP_STATUS.md](./MVP_STATUS.md).

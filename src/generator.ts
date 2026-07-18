@@ -2,11 +2,12 @@ import JSZip from 'jszip'
 import type { Breakpoint, EditorComponent, Project } from './model'
 import { parseProject, serializeProject } from './model'
 import { buildExperienceAssets } from './PreviewFrame'
+import { canContain, componentTree, type ComponentBranch } from './hierarchy'
 
 const htmlEscape = (value: unknown) => String(value ?? '').replace(/[&<>"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]!)
 const cssEscape = (value: unknown) => String(value ?? '').replace(/[{};]/g, '')
 
-function componentHtml(component: EditorComponent) {
+function componentHtml(component: EditorComponent, children = '') {
   const label = htmlEscape(component.props.label || component.name)
   if (component.type === 'input') return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" placeholder="${htmlEscape(component.props.placeholder)}" /></label>`
   if (component.type === 'button') return `<button id="${component.id}" type="button">${label}</button>`
@@ -14,8 +15,11 @@ function componentHtml(component: EditorComponent) {
   if (component.type === 'title') return `<h1 id="${component.id}">${label}</h1>`
   if (component.type === 'textarea') return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}"></textarea></label>`
   if (component.type === 'checkbox') return `<label><input id="${component.id}" type="checkbox" /> ${label}</label>`
+  if (canContain(component)) return `<div id="${component.id}" class="generated-container generated-${component.type}" role="${htmlEscape(component.accessibility.role || 'group')}">${children}</div>`
   return `<div id="${component.id}" role="${htmlEscape(component.accessibility.role || 'group')}">${label}</div>`
 }
+
+const branchHtml = ({ component, children }: ComponentBranch): string => componentHtml(component, children.map(branchHtml).join('\n'))
 
 function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
   const style = { ...component.styles.desktop, ...(breakpoint === 'desktop' ? {} : component.styles[breakpoint]) }
@@ -86,7 +90,7 @@ export function generateFiles(input: Project): Record<string, string> {
   const button = page.components.find((component) => component.type === 'button')
   const list = page.components.find((component) => component.type === 'list')
   const source = project.dataSources[0]
-  const body = `<nav aria-label="Pagine">${project.pages.map((item) => `<a href="#${htmlEscape(item.path)}">${htmlEscape(item.name)}</a>`).join('')}</nav>${project.pages.map((item) => `<section data-route="${htmlEscape(item.path)}">${item.components.map(componentHtml).join('\n')}</section>`).join('')}`
+  const body = `<nav aria-label="Pagine">${project.pages.map((item) => `<a href="#${htmlEscape(item.path)}">${htmlEscape(item.name)}</a>`).join('')}</nav>${project.pages.map((item) => `<section data-route="${htmlEscape(item.path)}">${componentTree(item.components).map(branchHtml).join('\n')}</section>`).join('')}`
   const allComponents = project.pages.flatMap((item) => item.components)
   const desktop = allComponents.map((component) => componentCss(component, 'desktop')).join('\n')
   const tablet = allComponents.map((component) => componentCss(component, 'tablet')).join('\n')
@@ -130,7 +134,7 @@ void refresh()
     'package.json': JSON.stringify({ name: project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'generated-app', private: true, version: '1.0.0', type: 'module', scripts: { dev: 'vite', build: 'tsc && vite build', preview: 'vite preview' }, devDependencies: { typescript: '^5.8.3', vite: '^7.1.4' } }, null, 2),
     'index.html': `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body><main>${body}</main><script type="module" src="/src/main.ts"></script></body></html>`,
     'src/main.ts': main,
-    'src/style.css': `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
+    'src/style.css': `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
     'tsconfig.json': JSON.stringify({ compilerOptions: { target: 'ES2022', lib: ['ES2022', 'DOM'], module: 'ESNext', moduleResolution: 'Bundler', strict: true, noEmit: true }, include: ['src'] }, null, 2),
     'capacitor.config.ts': `export default { appId: 'com.frontendeditor.${project.id.replace(/-/g, '').slice(0, 12)}', appName: ${JSON.stringify(project.name)}, webDir: 'dist' }`,
     'project.frontend-editor.json': serializeProject(project),

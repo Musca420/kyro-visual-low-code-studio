@@ -22,4 +22,16 @@ describe('structured editor operations', () => {
     project.pages.push({ id: 'page', name: 'Home', path: '/', components: [component] })
     expect(() => applyEditorOperation(project, 'page', { type: 'remove_component', args: { componentId: component.id } })).toThrow('confirmed=true')
   })
+
+  it('raggruppa, sposta e rimuove un sottoalbero senza creare cicli', () => {
+    const project = createProject('Hierarchy')
+    const button = makeComponent('button')
+    project.pages.push({ id: 'page', name: 'Home', path: '/', components: [button] })
+    const wrapped = applyEditorOperation(project, 'page', { type: 'wrap_component', args: { componentId: button.id, componentType: 'stack', name: 'Azioni' } })
+    const stack = wrapped.pages[0].components.find((item) => item.type === 'stack')!
+    expect(wrapped.pages[0].components.find((item) => item.id === button.id)?.parentId).toBe(stack.id)
+    expect(() => applyEditorOperation(wrapped, 'page', { type: 'move_component', args: { componentId: stack.id, parentId: button.id } })).toThrow('creerebbe un ciclo')
+    const removed = applyEditorOperation(wrapped, 'page', { type: 'remove_component', args: { componentId: stack.id, confirmed: true } })
+    expect(removed.pages[0].components).toHaveLength(0)
+  })
 })

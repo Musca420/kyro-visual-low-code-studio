@@ -22,11 +22,13 @@ export const componentTypes = [
   'button', 'input', 'textarea', 'select', 'checkbox', 'radio', 'form', 'card',
   'list', 'table', 'navbar', 'tabs', 'modal', 'loader', 'empty', 'alert', 'toast',
 ] as const
+export const containerTypes = ['container', 'stack', 'grid', 'form', 'card', 'navbar', 'tabs', 'modal'] as const
 
 export const componentSchema = z.object({
   id: z.string().min(1),
   type: z.enum(componentTypes),
   name: z.string().min(1),
+  parentId: z.string().min(1).optional(),
   props: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
   styles: z.object({ desktop: styleSchema, tablet: styleSchema.partial(), mobile: styleSchema.partial() }),
   events: z.record(z.string(), z.string()),
@@ -151,9 +153,17 @@ export function validateReferences(project: Project) {
   const componentIds = new Set(project.pages.flatMap((page) => page.components.map((component) => component.id)))
   const flowIds = new Set(project.flows.map((flow) => flow.id))
   const sourceIds = new Set(project.dataSources.map((source) => source.id))
-  for (const page of project.pages) for (const component of page.components) {
-    for (const flowId of Object.values(component.events)) if (!flowIds.has(flowId)) throw new Error(`Flow mancante ${flowId} in ${component.id}`)
-    if (component.binding && !sourceIds.has(component.binding.sourceId)) throw new Error(`Sorgente mancante ${component.binding.sourceId}`)
+  for (const page of project.pages) {
+    const pageIds = new Set(page.components.map((component) => component.id))
+    if (pageIds.size !== page.components.length) throw new Error(`ID componente duplicato nella pagina ${page.id}`)
+    for (const component of page.components) {
+      if (component.parentId && !pageIds.has(component.parentId)) throw new Error(`Contenitore mancante ${component.parentId} in ${component.id}`)
+      if (component.parentId === component.id) throw new Error(`Un componente non può contenere sé stesso: ${component.id}`)
+      const visited = new Set([component.id]); let parentId = component.parentId
+      while (parentId) { if (visited.has(parentId)) throw new Error(`Gerarchia ciclica in ${component.id}`); visited.add(parentId); parentId = page.components.find((item) => item.id === parentId)?.parentId }
+      for (const flowId of Object.values(component.events)) if (!flowIds.has(flowId)) throw new Error(`Flow mancante ${flowId} in ${component.id}`)
+      if (component.binding && !sourceIds.has(component.binding.sourceId)) throw new Error(`Sorgente mancante ${component.binding.sourceId}`)
+    }
   }
   for (const flow of project.flows) {
     const nodes = new Set(flow.nodes.map((node) => node.id))

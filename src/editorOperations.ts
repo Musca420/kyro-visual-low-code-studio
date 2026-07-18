@@ -1,4 +1,5 @@
 import { componentTypes, makeComponent, parseProject, type Breakpoint, type EditorComponent, type Flow, type Project } from './model'
+import { canContain, descendantIds } from './hierarchy'
 
 export type EditorOperation = { type: string; args?: Record<string, unknown> }
 
@@ -21,6 +22,11 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     if (!componentTypes.includes(type)) throw new Error(`Tipo componente non valido: ${type}`)
     const component = makeComponent(type)
     if (typeof args.name === 'string' && args.name.trim()) component.name = args.name.trim()
+    if (typeof args.parentId === 'string') {
+      const parent = componentIn(project, pageId, args.parentId).component
+      if (!canContain(parent)) throw new Error(`${parent.name} non può contenere altri elementi`)
+      component.parentId = parent.id
+    }
     return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: [...page.components, component] } : page) })
   }
   if (operation.type === 'create_flow') {
@@ -48,18 +54,40 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     if (!['desktop', 'tablet', 'mobile'].includes(breakpoint)) throw new Error('Breakpoint non valido')
     nextComponent = { ...component, styles: { ...component.styles, [breakpoint]: { ...component.styles[breakpoint], [String(args.property)]: String(args.value) } } }
   } else if (operation.type === 'move_component') {
-    nextComponent = { ...component, styles: { ...component.styles, desktop: { ...component.styles.desktop, marginLeft: String(args.x ?? component.styles.desktop.marginLeft), marginTop: String(args.y ?? component.styles.desktop.marginTop) } } }
+    let parentId = component.parentId
+    if ('parentId' in args) {
+      parentId = typeof args.parentId === 'string' ? args.parentId : undefined
+      if (parentId) {
+        const parent = componentIn(project, pageId, parentId).component
+        if (parent.id === component.id || descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id).has(parent.id)) throw new Error('Spostamento non valido: creerebbe un ciclo')
+        if (!canContain(parent)) throw new Error(`${parent.name} non può contenere altri elementi`)
+      }
+    }
+    nextComponent = { ...component, parentId, styles: { ...component.styles, desktop: { ...component.styles.desktop, marginLeft: String(args.x ?? component.styles.desktop.marginLeft), marginTop: String(args.y ?? component.styles.desktop.marginTop) } } }
   } else if (operation.type === 'resize_component') {
     nextComponent = { ...component, styles: { ...component.styles, desktop: { ...component.styles.desktop, width: String(args.width ?? component.styles.desktop.width), minHeight: String(args.height ?? component.styles.desktop.minHeight) } } }
   } else if (operation.type === 'bind_component_data') {
     nextComponent = { ...component, binding: { sourceId: String(args.sourceId), state: args.state === 'loading' || args.state === 'error' || args.state === 'empty' ? args.state : 'data' } }
   } else if (operation.type === 'remove_component') {
     if (args.confirmed !== true) throw new Error('La rimozione richiede confirmed=true')
-    return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.filter((item) => item.id !== component.id) } : page) })
+    const removed = descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id); removed.add(component.id)
+    return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.filter((item) => !removed.has(item.id)) } : page) })
   } else if (operation.type === 'reorder_component') {
-    const page = project.pages.find((item) => item.id === pageId)!, from = page.components.findIndex((item) => item.id === component.id), to = Number(args.index)
-    if (!Number.isInteger(to) || to < 0 || to >= page.components.length) throw new Error('Indice non valido')
-    const components = [...page.components], [moved] = components.splice(from, 1); components.splice(to, 0, moved)
+    const page = project.pages.find((item) => item.id === pageId)!, siblings = page.components.filter((item) => item.parentId === component.parentId), from = siblings.findIndex((item) => item.id === component.id), to = Number(args.index)
+    if (!Number.isInteger(to) || to < 0 || to >= siblings.length) throw new Error('Indice non valido')
+    const ordered = [...siblings], [moved] = ordered.splice(from, 1); ordered.splice(to, 0, moved)
+    let siblingIndex = 0; const components = page.components.map((item) => item.parentId === component.parentId ? ordered[siblingIndex++] : item)
+    return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components } : item) })
+  } else if (operation.type === 'wrap_component') {
+    const wrapperType = String(args.componentType ?? 'container') as EditorComponent['type']
+    if (!componentTypes.includes(wrapperType)) throw new Error(`Tipo contenitore non valido: ${wrapperType}`)
+    const wrapper = makeComponent(wrapperType)
+    if (!canContain(wrapper)) throw new Error(`${wrapperType} non può contenere altri elementi`)
+    wrapper.name = typeof args.name === 'string' && args.name.trim() ? args.name.trim() : `Gruppo di ${component.name}`
+    wrapper.parentId = component.parentId
+    const wrapped = { ...component, parentId: wrapper.id }
+    const page = project.pages.find((item) => item.id === pageId)!, index = page.components.findIndex((item) => item.id === component.id), components = [...page.components]
+    components.splice(index, 1, wrapper, wrapped)
     return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components } : item) })
   } else throw new Error(`Operazione non supportata: ${operation.type}`)
   return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.map((item) => item.id === component.id ? nextComponent : item) } : page) })

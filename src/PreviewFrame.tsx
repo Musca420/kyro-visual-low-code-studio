@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { Breakpoint, EditorComponent, Project } from './model'
 import type { LocalRecord } from './db'
+import { canContain, componentTree, type ComponentBranch } from './hierarchy'
 
 type Props = {
   project: Project
@@ -37,7 +38,7 @@ async function rasterizePreview(html: string, width: number, height: number) {
   } finally { copy.remove() }
 }
 
-function renderComponent(component: EditorComponent) {
+function renderComponent(component: EditorComponent, children = '') {
   const text = label(component)
   const common = `data-component="${component.id}" id="preview-${component.id}"`
   if (component.type === 'input') return `<label>${escapeHtml(component.accessibility.label)}<input ${common} data-kind="input" placeholder="${escapeHtml(component.props.placeholder)}"></label>`
@@ -48,8 +49,11 @@ function renderComponent(component: EditorComponent) {
   if (component.type === 'select') return `<label>${escapeHtml(component.accessibility.label)}<select ${common}><option>${text}</option></select></label>`
   if (component.type === 'checkbox' || component.type === 'radio') return `<label><input ${common} type="${component.type}"> ${text}</label>`
   if (component.type === 'image') return `<img ${common} src="${escapeHtml(component.props.src || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22160%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e8eaf2%22/%3E%3C/svg%3E')}" alt="${escapeHtml(component.accessibility.label)}">`
+  if (canContain(component)) return `<div ${common} class="preview-container preview-${component.type}" role="${escapeHtml(component.accessibility.role || 'group')}">${children}</div>`
   return `<div ${common} role="${escapeHtml(component.accessibility.role || 'group')}">${text}</div>`
 }
+
+const renderBranch = ({ component, children }: ComponentBranch): string => renderComponent(component, children.map(renderBranch).join('\n'))
 
 function styleFor(component: EditorComponent, breakpoint: Breakpoint) {
   const style = { ...component.styles.desktop, ...(breakpoint === 'desktop' ? {} : component.styles[breakpoint]) }
@@ -94,11 +98,11 @@ export function PreviewFrame({ project, pageId, breakpoint, interactive, onAdd, 
   const experience = project.state.experience
   const srcDoc = useMemo(() => {
     const components = page?.components ?? []
-    const markup = experience === 'landing' ? landingMarkup(components) : experience === 'dashboard' ? dashboardMarkup(components) : `<main>${components.map(renderComponent).join('\n')}</main>`
+    const markup = experience === 'landing' ? landingMarkup(components) : experience === 'dashboard' ? dashboardMarkup(components) : `<main>${componentTree(components).map(renderBranch).join('\n')}</main>`
     const css = experience === 'landing' ? landingCss() : experience === 'dashboard' ? dashboardCss() : 'body{padding:24px}main{display:grid;gap:14px;width:min(680px,100%);margin:auto}'
     const behavior = experience === 'landing' ? landingScript(interactive) : experience === 'dashboard' ? dashboardScript(interactive) + dashboardValidationScript() : todoScript(interactive)
     const capture = `addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-capture')return;try{const width=Math.min(2400,Math.max(1,document.documentElement.scrollWidth)),height=Math.min(2400,Math.max(1,document.documentElement.scrollHeight)),copy=document.documentElement.cloneNode(true);copy.querySelectorAll('script').forEach((node)=>node.remove());send('CAPTURE_HTML',{html:'<!doctype html>'+copy.outerHTML,width,height})}catch(error){send('CAPTURE_ERROR',{error:String(error)})}});`
-    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join('\n')}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${capture}${behavior}</script></body></html>`
+    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join('\n')}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${capture}${behavior}</script></body></html>`
   }, [page, breakpoint, interactive, experience])
 
   useEffect(() => {

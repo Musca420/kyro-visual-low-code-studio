@@ -49,6 +49,18 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   await expect(component).not.toHaveCSS('background-color', 'rgb(255, 0, 0)')
   await expect.poll(async () => (await (await request.get(`/api/live/status?projectId=${projectId}`)).json()).revision).toBe(live.revision + 2)
 
+  const beforeWrap = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
+  const wrap = await request.post('/api/live/tools/wrap_component', { data: { projectId: live.projectId, pageId: live.pageId, revision: beforeWrap.revision, args: { componentId: live.selectedComponentIds[0], componentType: 'stack', name: 'Azioni' } } })
+  expect(wrap.status()).toBe(202)
+  const wrapId = (await wrap.json()).transactionId
+  await expect.poll(async () => (await (await request.get(`/api/live/transactions/${wrapId}`)).json()).status).toBe('applied')
+  const nestedState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
+  const wrapper = nestedState.componentTree.find((item: { name: string }) => item.name === 'Azioni')
+  expect(wrapper.children.map((item: { id: string }) => item.id)).toContain(live.selectedComponentIds[0])
+  await expect(page.locator(`[data-component-id="${wrapper.id}"] [data-component-id="${live.selectedComponentIds[0]}"]`)).toBeVisible()
+  await page.getByRole('button', { name: 'Preview' }).click()
+  await expect(page.frameLocator('.preview-frame').locator(`[data-component="${wrapper.id}"] [data-component="${live.selectedComponentIds[0]}"]`)).toBeVisible()
+
   const captureState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
   for (const tool of ['capture_canvas', 'capture_preview']) {
     const capture = await request.post(`/api/live/tools/${tool}`, { data: { projectId: live.projectId, pageId: live.pageId, revision: captureState.revision, args: {} } })

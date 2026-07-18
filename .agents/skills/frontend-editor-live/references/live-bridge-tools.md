@@ -23,4 +23,4 @@ Usare `scripts/invoke_live_tool.ps1 <tool> '<args-json>'`. Lo script legge autom
 - `POST /api/codex/run`: `{mode:"plan"|"apply",prompt,context,projectId,revision}`. `plan` usa sandbox read-only; `apply` usa workspace-write. Una revisione obsoleta restituisce `409`.
 - `POST /api/codex/cancel`: termina l’operazione corrente.
 
-Non esiste un endpoint shell generico. Gerarchie annidate e `wrap_component` non sono ancora esposti: segnalarli come non disponibili invece di simulare il risultato.
+Non esiste un endpoint shell generico. Le gerarchie annidate sono restituite da `get_component_tree`; usa `move_component` con `parentId`, `add_component` con `parentId` o `wrap_component` per modificarle. Il bridge rifiuta contenitori non validi e cicli.

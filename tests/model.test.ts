@@ -9,6 +9,18 @@ describe('project model', () => {
     delete legacy.revision
     expect(parseProject(legacy).revision).toBe(0)
   })
+
+  it('valida parent mancanti e gerarchie cicliche', () => {
+    const project = createProject('Tree')
+    const parent = makeComponent('container'), child = makeComponent('button')
+    child.parentId = parent.id
+    project.pages.push({ id: 'page', name: 'Home', path: '/', components: [parent, child] })
+    expect(parseProject(project).pages[0].components[1].parentId).toBe(parent.id)
+    parent.parentId = child.id
+    expect(() => parseProject(project)).toThrow('Gerarchia ciclica')
+    parent.parentId = undefined; child.parentId = 'missing'
+    expect(() => parseProject(project)).toThrow('Contenitore mancante')
+  })
   it('round-trips deterministically and preserves stable ids', () => {
     const project = createProject('Demo')
     const component = makeComponent('input')
