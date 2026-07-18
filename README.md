@@ -44,8 +44,24 @@ Da “Progetto vuoto”: crea una pagina, trascina input, button e list, modific
 - `src/PreviewFrame.tsx`: preview in iframe sandbox senza accesso al contesto editor; usa messaggi e DOM sicuro (`textContent`).
 - `src/generator.ts`: ZIP TypeScript/Vite con routing hash, responsive CSS, IndexedDB e configurazione Capacitor.
 - `src/PluginManager.tsx`: catalogo locale; valida manifest, impedisce collisioni ed evita esecuzione di codice plugin.
+- `vite.config.ts`: Live Bridge locale vincolato al workspace; sincronizza stato/revision ed espone operazioni visuali tipizzate senza shell generica.
+- `src/editorOperations.ts`: transazioni validate per proprietà, stili, responsive, componenti, flow, binding e sorgenti dati.
+- `src/CodexPanel.tsx`: contesto certo del componente, Codex CLI ufficiale, analisi read-only e approvazione prima dell’applicazione.
 
 Il modello visuale è la source of truth; il codice è un derivato. Non esiste sincronizzazione bidirezionale con codice arbitrario.
+
+## Esperienza guidata e Codex live
+
+Ogni controllo mostra una spiegazione al passaggio del mouse o al focus. La barra “Prossimo passo” accompagna dalla pagina alla preview. Il clic destro su un componente offre azioni Codex per comportamento, dati, correzione, miglioramento e spiegazione.
+
+Il pannello inferiore mostra target, ID stabile, pagina, revisione, flow, dati e workspace. `Analizza richiesta` esegue `codex exec` in sandbox read-only; solo “Approva e applica” abilita workspace-write. Il login resta quello ufficiale della CLI (`codex login`): l’app non legge o salva token.
+
+La skill repo-specific è in `.agents/skills/frontend-editor-live`. Verifica bridge e contesto con:
+
+```powershell
+.\.agents\skills\frontend-editor-live\scripts\check_live_bridge.ps1
+.\.agents\skills\frontend-editor-live\scripts\invoke_live_tool.ps1 get_editor_status
+```
 
 ## Modello e sicurezza
 
@@ -72,6 +88,6 @@ In questo ambiente è presente `C:\Users\david\AppData\Local\Android\Sdk`, ma `j
 - Il runtime MVP esegue i nodi del vertical slice; HTTP, autenticazione, database remoti e marketplace remoto sono contributi futuri, non simulati.
 - Snap/guide, componenti riutilizzabili avanzati, animazioni visuali e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
+- La v2 Codex live ha stato, contesto, revision lock, operazioni strutturate e undo reali. Restano da completare cattura canvas/preview via bridge, gerarchie annidate (`wrap_component`), terminale PTY, streaming continuo e viste diff/file/test strutturate; non sono simulate.
 
 Stato verificato e matrice dei requisiti: [MVP_STATUS.md](./MVP_STATUS.md).
-

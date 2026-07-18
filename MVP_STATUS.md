@@ -1,5 +1,16 @@
 # Stato MVP e prove
 
+## Incremento v2 verificato
+
+- guida hover/focus e percorso “Prossimo passo”;
+- menu contestuale completo e context package con ID, revisione, bounds, stili, flow e dati;
+- Live Bridge isolato per progetto con rifiuto delle revisioni obsolete;
+- letture e mutazioni tipizzate, transazioni atomiche e undo con revisione monotona;
+- Codex CLI ufficiale, analisi read-only reale e approvazione prima di workspace-write;
+- skill `frontend-editor-live` validata con script reali.
+
+Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-panel.png`.
+
 ## Definition of Done
 
 | Requisito | Implementazione | Prova riproducibile |

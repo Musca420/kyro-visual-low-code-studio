@@ -7,6 +7,7 @@ import { PluginManager } from './PluginManager'
 import { PreviewFrame } from './PreviewFrame'
 import { createDashboardProject, createLandingProject } from './templates'
 import { CodexPanel, type CodexContext } from './CodexPanel'
+import { applyEditorOperation } from './editorOperations'
 
 type WorkspaceTab = 'design' | 'flow' | 'data' | 'preview' | 'plugins'
 const FlowEditor = lazy(() => import('./FlowEditor'))
@@ -91,7 +92,8 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
 
   useEffect(() => {
     if (!currentPage) return
-    const state = { projectId: project.id, pageId: currentPage.id, revision: project.revision, selectedComponentIds: selected, viewport: breakpoint, previewState: tab === 'preview' ? 'open' : 'closed', componentTree: currentPage.components, flows: project.flows, dataSources: project.dataSources, validationErrors: [], consoleErrors: [] }
+    const layouts = Object.fromEntries(currentPage.components.map((component) => { const element = document.querySelector<HTMLElement>(`[data-component-id="${component.id}"]`), box = element?.getBoundingClientRect(); return [component.id, box ? { x: box.x, y: box.y, width: box.width, height: box.height } : null] }))
+    const state = { projectId: project.id, pageId: currentPage.id, revision: project.revision, selectedComponentIds: selected, viewport: breakpoint, previewState: tab === 'preview' ? 'open' : 'closed', componentTree: currentPage.components, layouts, flows: project.flows, dataSources: project.dataSources, validationErrors: [], consoleErrors: [] }
     void fetch('/api/live/state', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(state) }).catch(() => undefined)
   }, [project, currentPage, selected, breakpoint, tab])
 
@@ -128,16 +130,16 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
     return () => clearTimeout(timer)
   }, [project])
 
-  const undo = () => {
+  const undo = useCallback(() => {
     const previous = history.at(-1)
     if (!previous) return
-    setFuture((items) => [project, ...items]); setHistory((items) => items.slice(0, -1)); setProject(previous); setSaveState('Modifiche non salvate')
-  }
-  const redo = () => {
+    setFuture((items) => [project, ...items]); setHistory((items) => items.slice(0, -1)); setProject({ ...previous, revision: project.revision + 1, updatedAt: new Date().toISOString() }); setSaveState('Modifiche non salvate')
+  }, [history, project])
+  const redo = useCallback(() => {
     const next = future[0]
     if (!next) return
-    setHistory((items) => [...items, project]); setFuture((items) => items.slice(1)); setProject(next); setSaveState('Modifiche non salvate')
-  }
+    setHistory((items) => [...items, project]); setFuture((items) => items.slice(1)); setProject({ ...next, revision: project.revision + 1, updatedAt: new Date().toISOString() }); setSaveState('Modifiche non salvate')
+  }, [future, project])
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return
@@ -147,6 +149,24 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
     window.addEventListener('keydown', keys)
     return () => window.removeEventListener('keydown', keys)
   })
+
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      try {
+        const commands = await fetch(`/api/live/commands?projectId=${project.id}`).then((response) => response.json()) as { id: string; tool: string; args: Record<string, unknown> }[]
+        for (const command of commands) {
+          try {
+            if (command.tool === 'undo_last_transaction') undo()
+            else if (command.tool === 'open_preview') setTab('preview')
+            else change((value) => applyEditorOperation(value, pageId, { type: command.tool, args: command.args }))
+            await fetch(`/api/live/commands/${command.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true }) })
+            setFeedback(`Modifica Codex applicata · transazione ${command.id.slice(0, 8)}`)
+          } catch (error) { await fetch(`/api/live/commands/${command.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }) }) }
+        }
+      } catch { /* Il bridge non esiste nella build statica. */ }
+    }, 600)
+    return () => clearInterval(timer)
+  }, [project.id, pageId, change, undo])
 
   const patchPage = (update: (components: EditorComponent[]) => EditorComponent[]) => change((value) => ({ ...value, pages: value.pages.map((page) => page.id === pageId ? { ...page, components: update(page.components) } : page) }))
   const addComponent = (type: EditorComponent['type']) => {
@@ -294,7 +314,7 @@ function HelpOverlay({ children }: { children: React.ReactNode }) {
 function DesignComponent({ component, breakpoint, selected, onSelect, onMove, onContextMenu }: { component: EditorComponent; breakpoint: Breakpoint; selected: boolean; onSelect: (multi: boolean) => void; onMove: (direction: number) => void; onContextMenu: (bounds: CodexContext['bounds'], point: { x: number; y: number }) => void }) {
   const style = { ...component.styles.desktop, ...(breakpoint === 'desktop' ? {} : component.styles[breakpoint]) }
   const content = component.type === 'input' ? <input tabIndex={-1} placeholder={String(component.props.placeholder)} /> : component.type === 'button' ? <button tabIndex={-1}>{String(component.props.label)}</button> : component.type === 'list' ? <ul><li>Elemento dinamico</li><li>Stato vuoto e loading collegati</li></ul> : component.type === 'title' ? <h2>{String(component.props.label)}</h2> : <div>{String(component.props.label || component.type)}</div>
-  return <article className={`canvas-component ${selected ? 'selected' : ''}`} style={style} onClick={(event) => { event.stopPropagation(); onSelect(event.ctrlKey || event.metaKey) }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); onContextMenu({ x: box.x, y: box.y, width: box.width, height: box.height }, { x: event.clientX, y: event.clientY }) }} data-testid={`component-${component.type}`}><span className="component-tag">{component.type}</span>{content}{selected && <div className="component-tools"><button aria-label="Sposta indietro" onClick={(event) => { event.stopPropagation(); onMove(-1) }}>↑</button><button aria-label="Sposta avanti" onClick={(event) => { event.stopPropagation(); onMove(1) }}>↓</button></div>}</article>
+  return <article className={`canvas-component ${selected ? 'selected' : ''}`} data-component-id={component.id} style={style} onClick={(event) => { event.stopPropagation(); onSelect(event.ctrlKey || event.metaKey) }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); onContextMenu({ x: box.x, y: box.y, width: box.width, height: box.height }, { x: event.clientX, y: event.clientY }) }} data-testid={`component-${component.type}`}><span className="component-tag">{component.type}</span>{content}{selected && <div className="component-tools"><button aria-label="Sposta indietro" onClick={(event) => { event.stopPropagation(); onMove(-1) }}>↑</button><button aria-label="Sposta avanti" onClick={(event) => { event.stopPropagation(); onMove(1) }}>↓</button></div>}</article>
 }
 
 function Properties({ component, breakpoint, onUpdate, onDuplicate, onDelete }: { component: EditorComponent; breakpoint: Breakpoint; onUpdate: (update: (component: EditorComponent) => EditorComponent) => void; onDuplicate: () => void; onDelete: () => void }) {

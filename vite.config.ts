@@ -26,6 +26,7 @@ function reply(response: ServerResponse, status: number, value: unknown) {
 function liveBridge() {
   let latest: Record<string, unknown> | undefined
   const projects = new Map<string, Record<string, unknown>>()
+  const commands: { id: string; projectId: string; pageId: string; revision: number; tool: string; args: Record<string, unknown>; status: 'pending' | 'applied' | 'error'; error?: string }[] = []
   let agent: ChildProcessWithoutNullStreams | undefined
   return {
     name: 'frontend-editor-live-bridge',
@@ -37,12 +38,53 @@ function liveBridge() {
             const state = url.searchParams.get('projectId') ? projects.get(url.searchParams.get('projectId')!) : latest
             return reply(response, state ? 200 : 503, state ?? { error: 'Editor non ancora collegato' })
           }
-          if (request.url === '/api/live/state' && request.method === 'POST') {
+          if (url.pathname === '/api/live/state' && request.method === 'POST') {
             const state = await body(request)
             if (!state.projectId || !state.pageId || !Number.isInteger(state.revision)) return reply(response, 400, { error: 'Stato live non valido' })
             latest = { ...state, timestamp: new Date().toISOString(), workspace: process.cwd() }
             projects.set(String(state.projectId), latest)
             return reply(response, 200, { ok: true })
+          }
+          if (url.pathname.startsWith('/api/live/tools/') && request.method === 'POST') {
+            const tool = url.pathname.split('/').at(-1)!, input = await body(request), projectId = String(input.projectId ?? ''), state = projects.get(projectId)
+            if (!state) return reply(response, 404, { error: 'Progetto live non trovato' })
+            const tree = Array.isArray(state.componentTree) ? state.componentTree as Record<string, unknown>[] : [], flows = Array.isArray(state.flows) ? state.flows as Record<string, unknown>[] : []
+            const reads: Record<string, () => unknown> = {
+              get_editor_status: () => ({ projectId: state.projectId, pageId: state.pageId, revision: state.revision, selectedComponentIds: state.selectedComponentIds, timestamp: state.timestamp, previewState: state.previewState, viewport: state.viewport }),
+              get_active_project: () => state,
+              get_active_page: () => ({ id: state.pageId, components: tree }),
+              get_current_selection: () => tree.filter((item) => (state.selectedComponentIds as unknown[]).includes(item.id)),
+              get_component: () => tree.find((item) => item.id === input.componentId),
+              get_component_tree: () => tree,
+              get_component_layout: () => (state.layouts as Record<string, unknown> | undefined)?.[String(input.componentId)],
+              get_computed_styles: () => tree.find((item) => item.id === input.componentId)?.styles,
+              get_page_flows: () => flows,
+              get_component_flows: () => flows.filter((flow) => Array.isArray(flow.nodes) && (flow.nodes as Record<string, unknown>[]).some((node) => (node.config as Record<string, unknown> | undefined)?.componentId === input.componentId)),
+              get_data_sources: () => state.dataSources,
+              get_runtime_state: () => ({ previewState: state.previewState, viewport: state.viewport }),
+              get_validation_errors: () => state.validationErrors,
+              get_console_errors: () => state.consoleErrors,
+              validate_project: () => ({ valid: !(state.validationErrors as unknown[])?.length, errors: state.validationErrors }),
+            }
+            if (reads[tool]) return reply(response, 200, reads[tool]())
+            const mutations = new Set(['move_component', 'resize_component', 'set_component_property', 'set_component_style', 'set_responsive_style', 'add_component', 'remove_component', 'reorder_component', 'create_flow', 'connect_nodes', 'bind_component_data', 'create_data_source', 'apply_editor_transaction', 'undo_last_transaction', 'open_preview'])
+            if (!mutations.has(tool)) return reply(response, 404, { error: `Tool non disponibile: ${tool}` })
+            if (input.revision !== state.revision) return reply(response, 409, { error: 'Revisione obsoleta' })
+            if (commands.some((item) => item.projectId === projectId && item.status === 'pending')) return reply(response, 409, { error: 'Una transazione è già in attesa' })
+            const command = { id: crypto.randomUUID(), projectId, pageId: String(input.pageId ?? state.pageId), revision: Number(input.revision), tool, args: (input.args ?? {}) as Record<string, unknown>, status: 'pending' as const }
+            commands.push(command)
+            return reply(response, 202, { transactionId: command.id, status: command.status })
+          }
+          if (url.pathname === '/api/live/commands' && request.method === 'GET') return reply(response, 200, commands.filter((item) => item.projectId === url.searchParams.get('projectId') && item.status === 'pending'))
+          if (url.pathname.startsWith('/api/live/commands/') && request.method === 'POST') {
+            const command = commands.find((item) => item.id === url.pathname.split('/').at(-1)), result = await body(request)
+            if (!command) return reply(response, 404, { error: 'Transazione non trovata' })
+            command.status = result.ok === true ? 'applied' : 'error'; command.error = result.error ? String(result.error) : undefined
+            return reply(response, 200, command)
+          }
+          if (url.pathname.startsWith('/api/live/transactions/') && request.method === 'GET') {
+            const command = commands.find((item) => item.id === url.pathname.split('/').at(-1))
+            return reply(response, command ? 200 : 404, command ?? { error: 'Transazione non trovata' })
           }
           if (request.url === '/api/codex/status' && request.method === 'GET') {
             try { const result = await run(codexCommand, [...codexPrefix, 'login', 'status'], { cwd: process.cwd(), timeout: 10_000 }); return reply(response, 200, { authenticated: true, message: result.stdout.trim() || result.stderr.trim(), workspace: process.cwd() }) }
