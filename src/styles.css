@@ -877,6 +877,28 @@ label {
   background: var(--purple);
   color: #062f34;
 }
+.plugin-contribution-bar,
+.plugin-provider-presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--data);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--data) 10%, var(--surface-raised));
+}
+.plugin-contribution-bar > span,
+.plugin-provider-presets > strong {
+  color: var(--data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.plugin-provider-presets {
+  align-items: flex-start;
+  flex-direction: column;
+}
 .segmented {
   display: flex;
   background: #e9ebf1;

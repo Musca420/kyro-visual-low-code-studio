@@ -208,25 +208,27 @@ export const componentSchema = z.object({
 
 export type EditorComponent = z.infer<typeof componentSchema>;
 
+const nodeTypeSchema = z.enum([
+  "event",
+  "readInput",
+  "validate",
+  "insert",
+  "query",
+  "update",
+  "delete",
+  "filter",
+  "sort",
+  "kpi",
+  "refresh",
+  "navigate",
+  "openModal",
+  "notify",
+  "log",
+]);
+
 const nodeSchema = z.object({
   id: z.string(),
-  type: z.enum([
-    "event",
-    "readInput",
-    "validate",
-    "insert",
-    "query",
-    "update",
-    "delete",
-    "filter",
-    "sort",
-    "kpi",
-    "refresh",
-    "navigate",
-    "openModal",
-    "notify",
-    "log",
-  ]),
+  type: nodeTypeSchema,
   label: z.string(),
   position: z.object({ x: z.number(), y: z.number() }),
   config: z.record(z.string(), z.string()),
@@ -239,6 +241,40 @@ const edgeSchema = z.object({
   path: z.enum(["success", "error"]).default("success"),
 });
 
+export const pluginContributionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("component"),
+    id: z.string().regex(/^[a-z][a-z0-9.-]+$/),
+    label: z.string().min(1),
+    componentType: z.enum(componentTypes),
+    props: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+      .default({}),
+    styles: styleSchema.partial().default({}),
+  }),
+  z.object({
+    kind: z.literal("node"),
+    id: z.string().regex(/^[a-z][a-z0-9.-]+$/),
+    label: z.string().min(1),
+    nodeType: nodeTypeSchema,
+    config: z.record(z.string(), z.string()).default({}),
+  }),
+  z.object({
+    kind: z.literal("provider"),
+    id: z.string().regex(/^[a-z][a-z0-9.-]+$/),
+    label: z.string().min(1),
+    endpoint: z.string().url(),
+  }),
+  z.object({
+    kind: z.literal("theme"),
+    id: z.string().regex(/^[a-z][a-z0-9.-]+$/),
+    label: z.string().min(1),
+    tokens: z.record(z.string(), z.string()),
+  }),
+]);
+
+export type PluginContribution = z.infer<typeof pluginContributionSchema>;
+
 export const pluginManifestSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9.-]+$/),
   name: z.string().min(1),
@@ -249,8 +285,27 @@ export const pluginManifestSchema = z.object({
   permissions: z
     .array(z.enum(["components", "flows", "data", "themes"]))
     .default([]),
-  contributions: z.array(z.string()).default([]),
+  contributions: z
+    .array(z.union([z.string(), pluginContributionSchema]))
+    .default([]),
   configuration: z.record(z.string(), z.string()).default({}),
+}).superRefine((manifest, context) => {
+  const permissionFor = {
+    component: "components",
+    node: "flows",
+    provider: "data",
+    theme: "themes",
+  } as const;
+  manifest.contributions.forEach((contribution, index) => {
+    if (typeof contribution === "string") return;
+    const permission = permissionFor[contribution.kind];
+    if (!manifest.permissions.includes(permission))
+      context.addIssue({
+        code: "custom",
+        path: ["contributions", index],
+        message: `Il contributo ${contribution.id} richiede il permesso ${permission}`,
+      });
+  });
 });
 
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;

@@ -12,6 +12,7 @@ import {
   getProject,
   insertProjectRecord,
   insertRecord,
+  listPlugins,
   listProjects,
   queryRecords,
   saveProject,
@@ -29,6 +30,8 @@ import {
   type Breakpoint,
   type EditorComponent,
   type Flow,
+  type PluginContribution,
+  type PluginManifest,
   type Project,
 } from "./model";
 import { PluginManager } from "./PluginManager";
@@ -552,6 +555,7 @@ function Editor({
   onToggleTheme: () => void;
 }) {
   const [project, setProject] = useState(initial);
+  const [installedPlugins, setInstalledPlugins] = useState<PluginManifest[]>([]);
   const [pageId, setPageId] = useState(initial.pages[0]?.id ?? "");
   const [selected, setSelected] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<{
@@ -599,6 +603,13 @@ function Editor({
   }>();
   const processingCommands = useRef(new Set<string>());
   const assetInput = useRef<HTMLInputElement>(null);
+  const refreshPlugins = useCallback(
+    () => listPlugins().then(setInstalledPlugins),
+    [],
+  );
+  useEffect(() => {
+    void refreshPlugins();
+  }, [refreshPlugins]);
   const currentPage = project.pages.find((page) => page.id === pageId);
   const activeComponent = currentPage?.components.find(
     (component) => component.id === selected[0],
@@ -606,6 +617,35 @@ function Editor({
   const selectedComponents = currentPage?.components.filter((component) =>
     selected.includes(component.id),
   ) ?? [];
+  const enabledPluginIds = new Set(
+    project.plugins.filter((plugin) => plugin.enabled).map((plugin) => plugin.id),
+  );
+  const pluginContributions = installedPlugins
+    .filter((plugin) => enabledPluginIds.has(plugin.id))
+    .flatMap((plugin) =>
+      plugin.contributions.filter(
+        (contribution): contribution is PluginContribution =>
+          typeof contribution !== "string",
+      ),
+    );
+  const pluginComponents = pluginContributions.filter(
+    (contribution): contribution is Extract<
+      PluginContribution,
+      { kind: "component" }
+    > =>
+      contribution.kind === "component" &&
+      `${contribution.label} ${contribution.id}`
+        .toLowerCase()
+        .includes(paletteQuery.toLowerCase()),
+  );
+  const pluginNodes = pluginContributions.filter(
+    (contribution): contribution is Extract<PluginContribution, { kind: "node" }> =>
+      contribution.kind === "node",
+  );
+  const pluginProviders = pluginContributions.filter(
+    (contribution): contribution is Extract<PluginContribution, { kind: "provider" }> =>
+      contribution.kind === "provider",
+  );
   const activeProgram =
     currentPage && activeComponent
       ? inspectComponentProgram(project, currentPage.id, activeComponent.id)
@@ -905,6 +945,22 @@ function Editor({
     if (parentId) component.parentId = parentId;
     patchPage((components) => [...components, component]);
     setSelected([component.id]);
+  };
+  const addPluginComponent = (
+    contribution: Extract<PluginContribution, { kind: "component" }>,
+  ) => {
+    if (!currentPage) return setFeedback("Crea prima una pagina");
+    const component = makeComponent(contribution.componentType);
+    component.name = contribution.label;
+    component.props = { ...component.props, ...contribution.props };
+    component.styles.desktop = {
+      ...component.styles.desktop,
+      ...contribution.styles,
+    };
+    component.accessibility.label = contribution.label;
+    patchPage((components) => [...components, component]);
+    setSelected([component.id]);
+    setFeedback(`Componente plugin aggiunto: ${contribution.label}`);
   };
   const updateComponent = (
     update: (component: EditorComponent) => EditorComponent,
@@ -1433,6 +1489,37 @@ function Editor({
     setFlowId(newFlow.id);
     setFeedback("Flow collegato al click e lista collegata alla sorgente");
   };
+  const addPluginNode = (
+    contribution: Extract<PluginContribution, { kind: "node" }>,
+  ) => {
+    if (!flow) return setFeedback("Crea prima un flow, poi aggiungi il nodo plugin");
+    const id = crypto.randomUUID();
+    change({
+      ...project,
+      flows: project.flows.map((item) =>
+        item.id === flow.id
+          ? {
+              ...item,
+              nodes: [
+                ...item.nodes,
+                {
+                  id,
+                  type: contribution.nodeType,
+                  label: contribution.label,
+                  position: {
+                    x: 120 + (item.nodes.length % 4) * 190,
+                    y: 260 + Math.floor(item.nodes.length / 4) * 120,
+                  },
+                  config: contribution.config,
+                },
+              ],
+            }
+          : item,
+      ),
+    });
+    setSelectedFlowNodeId(id);
+    setFeedback(`Nodo plugin aggiunto in isolamento: ${contribution.label}`);
+  };
 
   const refreshRecords = useCallback(async (): Promise<LocalRecord[]> => {
     const source = project.dataSources[0];
@@ -1841,7 +1928,17 @@ function Editor({
                     {componentNames[type] ?? type}
                   </button>
                 ))}
-              {!componentTypes.some((type) =>
+              {pluginComponents.map((contribution) => (
+                <button
+                  key={`plugin-${contribution.id}`}
+                  data-help={`Componente isolato fornito dal plugin: ${contribution.label}`}
+                  onClick={() => addPluginComponent(contribution)}
+                >
+                  <span>PL</span>
+                  {contribution.label}
+                </button>
+              ))}
+              {!pluginComponents.length && !componentTypes.some((type) =>
                 `${type} ${componentHelp[type]} ${componentAliases[type] ?? ""}`
                   .toLowerCase()
                   .includes(paletteQuery.toLowerCase()),
@@ -2126,6 +2223,20 @@ function Editor({
                   : "Crea flow dati"}
             </button>
           </div>
+          {pluginNodes.length > 0 && (
+            <div className="plugin-contribution-bar" aria-label="Nodi forniti dai plugin">
+              <span>Plugin</span>
+              {pluginNodes.map((contribution) => (
+                <button
+                  key={contribution.id}
+                  className="secondary"
+                  onClick={() => addPluginNode(contribution)}
+                >
+                  + {contribution.label}
+                </button>
+              ))}
+            </div>
+          )}
           <Suspense
             fallback={
               <div className="flow-canvas">Caricamento editor flow…</div>
@@ -2223,6 +2334,26 @@ function Editor({
                   </label>
                 ))}
               </fieldset>
+              {pluginProviders.length > 0 && (
+                <div className="plugin-provider-presets" aria-label="Provider forniti dai plugin">
+                  <strong>Provider plugin isolati</strong>
+                  {pluginProviders.map((contribution) => (
+                    <button
+                      type="button"
+                      className="secondary"
+                      key={contribution.id}
+                      onClick={() => {
+                        setSourceProvider("rest");
+                        setSourceEndpoint(contribution.endpoint);
+                        setSourceName(contribution.label);
+                        setFeedback(`Preset provider caricato: ${contribution.label}`);
+                      }}
+                    >
+                      Usa {contribution.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <label>
                 Nome
                 <input
@@ -2463,7 +2594,11 @@ function Editor({
       )}
       {tab === "plugins" && (
         <main className="wide-workspace">
-          <PluginManager project={project} onChange={change} />
+          <PluginManager
+            project={project}
+            onChange={change}
+            onCatalogChange={refreshPlugins}
+          />
         </main>
       )}
       {tab === "terminal" && <TerminalPanel projectId={project.id} />}

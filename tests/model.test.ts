@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createProject, makeComponent, parseProject, serializeProject } from '../src/model'
+import { createProject, makeComponent, parseProject, pluginManifestSchema, serializeProject } from '../src/model'
 
 describe('project model', () => {
   it('assegna una revisione iniziale e migra i documenti senza revisione', () => {
@@ -49,5 +49,16 @@ describe('project model', () => {
     const migrated = parseProject(legacy)
     expect(migrated.formatVersion).toBe(1)
     expect(migrated.exportConfig).toEqual({ target: 'web', capacitor: false })
+  })
+
+  it('isola i contributi plugin dietro permessi dichiarati', () => {
+    const manifest = {
+      id: 'test.visual', name: 'Visual', version: '1.0.0', author: 'Test', compatibility: '1.x' as const,
+      dependencies: [], permissions: ['components'] as const,
+      contributions: [{ kind: 'component' as const, id: 'visual-card', label: 'Visual card', componentType: 'card' as const, props: {}, styles: { background: '#112233' } }],
+      configuration: {},
+    }
+    expect(pluginManifestSchema.parse(manifest).contributions).toHaveLength(1)
+    expect(() => pluginManifestSchema.parse({ ...manifest, permissions: [] })).toThrow('richiede il permesso components')
   })
 })

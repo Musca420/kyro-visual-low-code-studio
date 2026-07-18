@@ -135,7 +135,7 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   ).toBeVisible();
 });
 
-test("plugin manager installa, disabilita, abilita e rimuove il plugin validato", async ({
+test("plugin dichiarativo contribuisce componenti, nodi, provider e tema in isolamento", async ({
   page,
 }) => {
   await page.goto("/");
@@ -154,10 +154,47 @@ test("plugin manager installa, disabilita, abilita e rimuove il plugin validato"
     .getByRole("button", { name: "Installa plugin di esempio" })
     .click();
   await expect(page.getByText("Plugin installato e abilitato")).toBeVisible();
+
+  await page.getByRole("button", { name: "Design" }).click();
+  const focusCard = page.locator(".palette").getByRole("button", { name: /Focus card/ });
+  await expect(focusCard).toBeVisible();
+  await focusCard.click();
+  await expect(page.getByTestId("component-card").last()).toHaveCSS("background-color", "rgb(16, 42, 47)");
+
+  await page.getByRole("button", { name: "Dati" }).click();
+  await page.getByRole("button", { name: "Usa Focus API locale" }).click();
+  await expect(page.locator('input[type="url"]')).toHaveValue("http://127.0.0.1:8787/records");
+  await expect(page.getByText("Preset provider caricato: Focus API locale")).toBeVisible();
+  await page.getByRole("button", { name: "Collega API REST" }).click();
+  await expect(page.getByText("Focus API locale").last()).toBeVisible();
+
+  await page.getByRole("button", { name: "Flow" }).click();
+  await page.getByRole("button", { name: "Crea flow dati" }).click();
+  await expect(page.getByText("Flow collegato al click e lista collegata alla sorgente")).toBeVisible();
+  await expect(page.getByLabel("Nodi forniti dai plugin")).toBeVisible();
+  await page.getByRole("button", { name: "+ Notifica focus" }).click();
+  await expect(page.locator(".flow-node").filter({ hasText: "Notifica focus" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Plugin" }).click();
+  await page.getByRole("button", { name: "Applica Tema Focus" }).click();
+  await expect(page.getByText("Tema plugin applicato: Tema Focus")).toBeVisible();
+  await page.getByRole("button", { name: "Design" }).click();
+  await expect(page.locator(".design-canvas")).toHaveCSS("background-color", "rgb(7, 24, 28)");
+  await page.getByTestId("component-card").last().scrollIntoViewIfNeeded();
+  await page.mouse.move(800, 650);
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: "artifacts/frontend-editor-plugin-contributions.png", fullPage: true });
+
+  await page.getByRole("button", { name: "Plugin" }).click();
   await page.getByRole("button", { name: "Disabilita" }).click();
   await expect(page.getByText("Plugin disabilitato")).toBeVisible();
+  await page.getByRole("button", { name: "Design" }).click();
+  await expect(page.locator(".palette").getByRole("button", { name: /Focus card/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Plugin" }).click();
   await page.getByRole("button", { name: "Abilita" }).click();
   await expect(page.getByText("Plugin abilitato")).toBeVisible();
   await page.getByRole("button", { name: "Rimuovi" }).click();
   await expect(page.getByText("Plugin rimosso")).toBeVisible();
+  await page.getByRole("button", { name: "Design" }).click();
+  await expect(page.getByTestId("component-card").last()).toHaveCSS("background-color", "rgb(16, 42, 47)");
 });

@@ -4,6 +4,10 @@ Editor visuale low-code locale per creare UI responsive, collegare flow determin
 
 Il confronto funzionale aggiornato con i visual builder e la roadmap verificabile sono in [BENCHMARK_ROADMAP.md](./BENCHMARK_ROADMAP.md). Il modello include anche l'intento semantico degli elementi; il pannello **Programma collegato** attraversa eventi, flow, dati e file generati e segnala le capability mancanti allo stesso Live Bridge usato da Codex.
 
+I plugin seguono l'[SDK dichiarativo](./PLUGIN_SDK.md): possono contribuire preset di componenti, nodi, provider REST e temi con permessi espliciti, senza eseguire codice di terzi nell'editor. Una volta applicato, ogni contributo diventa parte del formato aperto e continua a funzionare anche se il plugin viene disabilitato o nell'export standalone.
+
+Le cinque prove browser per persona visuale e i limiti della simulazione sono registrati in [PERSONA_TEST_REPORT.md](./PERSONA_TEST_REPORT.md).
+
 Il refactoring UI e la trasformazione in prodotto desktop installabile fanno parte della Definition of Done in [DESKTOP_PRODUCT_ROADMAP.md](./DESKTOP_PRODUCT_ROADMAP.md). La shell scelta è Electron perché riusa i servizi Node locali già necessari a Live Bridge, Codex, terminale, import ed export; formato ed applicazioni esportate restano aperti e indipendenti.
 
 Per chi arriva da Canva, il pannello proprietà parte in modalità **Essenziale**: palette, colori, gradienti, immagini di sfondo, font, allineamento, angoli, spaziatura, ombre e animazioni aggiornano subito canvas e preview. Senza selezione, lo stesso pannello modifica lo sfondo globale di pagina. **Avanzata** espone tutti i valori precisi senza cambiare modello.
