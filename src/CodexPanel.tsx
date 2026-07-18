@@ -12,12 +12,14 @@ export type CodexContext = {
   properties: Record<string, unknown>;
   styles: Record<string, unknown>;
   events: Record<string, string>;
+  intent: Record<string, unknown>;
   binding?: Record<string, unknown>;
   dataSources: unknown[];
   flows: unknown[];
   nearbyComponents: { id: string; name: string; type: string }[];
   generatedFiles: string[];
   errors: string[];
+  capabilities: unknown[];
 };
 
 type Trace = {

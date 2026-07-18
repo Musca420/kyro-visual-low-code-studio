@@ -185,6 +185,25 @@ export const componentSchema = z.object({
     })
     .optional(),
   accessibility: z.object({ label: z.string(), role: z.string().optional() }),
+  intent: z
+    .object({
+      role: z.string().default(""),
+      action: z.string().default(""),
+      entity: z.string().default(""),
+      expectedResult: z.string().default(""),
+      requiredStates: z
+        .array(z.enum(["loading", "success", "error"]))
+        .default([]),
+      permissions: z.array(z.string()).default([]),
+    })
+    .default({
+      role: "",
+      action: "",
+      entity: "",
+      expectedResult: "",
+      requiredStates: [],
+      permissions: [],
+    }),
 });
 
 export type EditorComponent = z.infer<typeof componentSchema>;

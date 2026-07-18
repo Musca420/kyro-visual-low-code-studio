@@ -4,7 +4,7 @@
 
 - `project.id` e `page.id` identificano progetto e pagina.
 - `project.revision` cresce a ogni modifica del modello.
-- `pages[].components[]` contiene ID stabile, tipo, nome, proprietà, stili desktop/tablet/mobile, eventi, binding e accessibilità.
+- `pages[].components[]` contiene ID stabile, tipo, nome, proprietà, stili desktop/tablet/mobile, eventi, binding, accessibilità e `intent` semantico (ruolo, azione, entità, risultato, stati e permessi).
 - `flows[]` contiene nodi ed edge con percorsi success/error.
 - `dataSources[]` dichiara provider, schema e capability; i segreti non appartengono al modello.
 

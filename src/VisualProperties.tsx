@@ -144,6 +144,79 @@ export function VisualProperties({
           }
         />
       </label>
+      <details className="intent-properties">
+        <summary>Significato nel programma</summary>
+        <div className="property-section">
+          <p className="property-help">
+            Descrivi il risultato, non il codice. Flow, dati e Codex useranno
+            questo significato per mantenere coerente l'elemento.
+          </p>
+          {(
+            [
+              ["Ruolo", "role", "Esempio: azione primaria"],
+              ["Azione", "action", "Esempio: crea atleta"],
+              ["Entità", "entity", "Esempio: Athlete"],
+              ["Risultato atteso", "expectedResult", "Esempio: nuovo atleta nella lista"],
+            ] as const
+          ).map(([label, key, placeholder]) => (
+            <label key={key}>
+              {label}
+              <input
+                value={component.intent[key]}
+                placeholder={placeholder}
+                onChange={(event) =>
+                  onUpdate((item) => ({
+                    ...item,
+                    intent: { ...item.intent, [key]: event.target.value },
+                  }))
+                }
+              />
+            </label>
+          ))}
+          <fieldset className="intent-states">
+            <legend>Stati richiesti</legend>
+            {(["loading", "success", "error"] as const).map((value) => (
+              <label className="check-row" key={value}>
+                <input
+                  type="checkbox"
+                  checked={component.intent.requiredStates.includes(value)}
+                  onChange={(event) =>
+                    onUpdate((item) => ({
+                      ...item,
+                      intent: {
+                        ...item.intent,
+                        requiredStates: event.target.checked
+                          ? [...item.intent.requiredStates, value]
+                          : item.intent.requiredStates.filter((state) => state !== value),
+                      },
+                    }))
+                  }
+                />
+                {value}
+              </label>
+            ))}
+          </fieldset>
+          <label>
+            Permessi richiesti
+            <input
+              value={component.intent.permissions.join(", ")}
+              placeholder="Esempio: fotocamera, notifiche"
+              onChange={(event) =>
+                onUpdate((item) => ({
+                  ...item,
+                  intent: {
+                    ...item.intent,
+                    permissions: event.target.value
+                      .split(",")
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                  },
+                }))
+              }
+            />
+          </label>
+        </div>
+      </details>
       {["image", "audio", "video"].includes(component.type) && (
         <label>
           File del progetto

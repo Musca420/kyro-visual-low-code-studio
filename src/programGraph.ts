@@ -1,0 +1,218 @@
+import type { EditorComponent, Project } from "./model";
+
+export type CapabilityIssue = {
+  id: string;
+  kind: "interaction" | "data" | "backend" | "authentication" | "storage" | "native" | "state";
+  title: string;
+  explanation: string;
+  target: "flow" | "data" | "settings" | "codex";
+};
+
+export type ComponentProgramView = {
+  componentId: string;
+  events: { event: string; flowId: string; flowName: string }[];
+  dataSources: { id: string; name: string; provider: string }[];
+  dependentFlows: { id: string; name: string }[];
+  generatedFiles: string[];
+  issues: CapabilityIssue[];
+};
+
+export type FlowNodeProgramView = {
+  nodeId: string;
+  nodeLabel: string;
+  components: { id: string; name: string; type: string }[];
+  dataSources: { id: string; name: string; provider: string }[];
+  incoming: { id: string; label: string; path: string }[];
+  outgoing: { id: string; label: string; path: string }[];
+  generatedFiles: string[];
+  errors: string[];
+};
+
+const containsAny = (value: string, words: string[]) =>
+  words.some((word) => value.toLocaleLowerCase().includes(word));
+
+export function inspectComponentProgram(
+  project: Project,
+  pageId: string,
+  componentId: string,
+): ComponentProgramView {
+  const page = project.pages.find((item) => item.id === pageId);
+  const component = page?.components.find((item) => item.id === componentId);
+  if (!page || !component) throw new Error("Componente non trovato nel grafo");
+
+  const events = Object.entries(component.events).flatMap(([event, flowId]) => {
+    const flow = project.flows.find((item) => item.id === flowId);
+    return flow ? [{ event, flowId, flowName: flow.name }] : [];
+  });
+  const dependentFlows = project.flows
+    .filter(
+      (flow) =>
+        events.some((event) => event.flowId === flow.id) ||
+        flow.nodes.some((node) => node.config.componentId === component.id),
+    )
+    .map(({ id, name }) => ({ id, name }));
+  const dataSources = component.binding
+    ? project.dataSources
+        .filter((source) => source.id === component.binding?.sourceId)
+        .map(({ id, name, provider }) => ({ id, name, provider }))
+    : [];
+
+  return {
+    componentId,
+    events,
+    dataSources,
+    dependentFlows,
+    generatedFiles: generatedFiles(project),
+    issues: resolveCapabilities(project, page.components, component),
+  };
+}
+
+export function resolveCapabilities(
+  project: Project,
+  components: EditorComponent[],
+  component: EditorComponent,
+): CapabilityIssue[] {
+  const issues: CapabilityIssue[] = [];
+  const meaning = [
+    component.intent.role,
+    component.intent.action,
+    component.intent.entity,
+    component.intent.expectedResult,
+  ].join(" ");
+  const dataVisual = ["list", "table", "chart", "calendar"].includes(component.type);
+  const interactive = ["button", "form", "upload"].includes(component.type);
+
+  if (interactive && Object.keys(component.events).length === 0)
+    issues.push({
+      id: "interaction",
+      kind: "interaction",
+      title: "Azione non ancora collegata",
+      explanation: "L'elemento può essere premuto, ma non avvia ancora alcun flow.",
+      target: "flow",
+    });
+  if ((dataVisual || component.intent.entity) && !component.binding)
+    issues.push({
+      id: "data-binding",
+      kind: "data",
+      title: "Dati non collegati",
+      explanation: project.dataSources.length
+        ? "Scegli una sorgente esistente oppure creane una nuova e collega questo elemento."
+        : "Per mostrare dati serve una sorgente. Puoi salvarli sul dispositivo, collegare un servizio o generare un backend.",
+      target: "data",
+    });
+  if (component.type === "upload" && project.dataSources.every((source) => source.provider !== "generated"))
+    issues.push({
+      id: "storage",
+      kind: "storage",
+      title: "Spazio file da scegliere",
+      explanation: "Il caricamento richiede uno storage o un backend: i file non devono essere simulati nel solo browser.",
+      target: "codex",
+    });
+  if (containsAny(meaning, ["login", "accesso", "autentic"]) && project.appConfig.authentication.mode === "none")
+    issues.push({
+      id: "authentication",
+      kind: "authentication",
+      title: "Accesso utenti non configurato",
+      explanation: "Scegli un accesso gestito oppure collega il provider di identità già usato dal progetto.",
+      target: "settings",
+    });
+  if (containsAny(meaning, ["pagamento", "payment", "checkout"]))
+    issues.push({
+      id: "payment-provider",
+      kind: "backend",
+      title: "Provider di pagamento necessario",
+      explanation: "Pagamenti e segreti richiedono un servizio esterno e operazioni sicure lato server.",
+      target: "codex",
+    });
+  if (
+    containsAny(meaning, ["notifica", "notification"]) &&
+    project.exportConfig.target === "android" &&
+    !project.exportConfig.android?.permissions.includes("POST_NOTIFICATIONS")
+  )
+    issues.push({
+      id: "notification-permission",
+      kind: "native",
+      title: "Permesso Android mancante",
+      explanation: "Le notifiche Android richiedono il permesso POST_NOTIFICATIONS e una richiesta comprensibile all'utente.",
+      target: "settings",
+    });
+  for (const state of component.intent.requiredStates) {
+    const types: Record<typeof state, EditorComponent["type"][]> = {
+      loading: ["loader", "skeleton"],
+      success: ["toast", "alert"],
+      error: ["alert", "toast"],
+    };
+    if (!components.some((item) => types[state].includes(item.type)))
+      issues.push({
+        id: `state-${state}`,
+        kind: "state",
+        title: `Stato ${state} non rappresentato`,
+        explanation: `L'intento richiede lo stato ${state}, ma nella pagina non esiste ancora un elemento visuale adatto.`,
+        target: "codex",
+      });
+  }
+  return issues;
+}
+
+export function inspectFlowNodeProgram(
+  project: Project,
+  flowId: string,
+  nodeId: string,
+): FlowNodeProgramView {
+  const flow = project.flows.find((item) => item.id === flowId);
+  const node = flow?.nodes.find((item) => item.id === nodeId);
+  if (!flow || !node) throw new Error("Nodo non trovato nel grafo");
+  const componentIds = new Set<string>();
+  if (node.config.componentId) componentIds.add(node.config.componentId);
+  if (node.type === "event")
+    for (const component of project.pages.flatMap((page) => page.components))
+      if (Object.values(component.events).includes(flow.id)) componentIds.add(component.id);
+  const sourceIds = new Set<string>();
+  if (node.config.sourceId) sourceIds.add(node.config.sourceId);
+  const linkedSource = project.dataSources.find((source) => sourceIds.has(source.id));
+  if (linkedSource)
+    for (const component of project.pages.flatMap((page) => page.components))
+      if (component.binding?.sourceId === linkedSource.id) componentIds.add(component.id);
+  const errors: string[] = [];
+  if (["event", "readInput", "refresh"].includes(node.type) && !node.config.componentId)
+    errors.push("Scegli il componente usato da questo nodo.");
+  if (["insert", "query", "update", "delete"].includes(node.type) && !node.config.sourceId)
+    errors.push("Scegli la sorgente dati usata da questo nodo.");
+  if (node.type === "validate" && !node.config.message)
+    errors.push("Scrivi il messaggio mostrato quando la validazione fallisce.");
+  const nodeById = (id: string) => flow.nodes.find((item) => item.id === id);
+  return {
+    nodeId,
+    nodeLabel: node.label,
+    components: project.pages
+      .flatMap((page) => page.components)
+      .filter((component) => componentIds.has(component.id))
+      .map(({ id, name, type }) => ({ id, name, type })),
+    dataSources: project.dataSources
+      .filter((source) => sourceIds.has(source.id))
+      .map(({ id, name, provider }) => ({ id, name, provider })),
+    incoming: flow.edges
+      .filter((edge) => edge.target === node.id)
+      .flatMap((edge) => {
+        const source = nodeById(edge.source);
+        return source ? [{ id: source.id, label: source.label, path: edge.path }] : [];
+      }),
+    outgoing: flow.edges
+      .filter((edge) => edge.source === node.id)
+      .flatMap((edge) => {
+        const target = nodeById(edge.target);
+        return target ? [{ id: target.id, label: target.label, path: edge.path }] : [];
+      }),
+    generatedFiles: generatedFiles(project),
+    errors,
+  };
+}
+
+function generatedFiles(project: Project) {
+  const files = ["project.frontend-editor.json", "src/main.ts", "src/style.css"];
+  if (project.dataSources.some((source) => source.provider === "generated"))
+    files.push("server/index.mjs");
+  if (project.exportConfig.target === "pwa") files.push("manifest.webmanifest", "sw.js");
+  if (project.exportConfig.target === "android") files.push("capacitor.config.ts", "android/");
+  return files;
+}

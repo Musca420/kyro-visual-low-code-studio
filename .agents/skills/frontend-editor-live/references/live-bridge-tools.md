@@ -4,7 +4,7 @@ Base URL predefinito: `http://127.0.0.1:4173`. Tutte le risposte sono JSON e `no
 
 ## Stato live
 
-- `GET /api/live/status`: progetto/pagina attivi, revision, selezione, viewport, preview, albero componenti, flow, sorgenti ed errori.
+- `GET /api/live/status`: progetto/pagina attivi, revision, selezione, viewport, preview, albero componenti, flow, sorgenti, capability mancanti ed errori.
 - `POST /api/live/state`: usato dall’editor per sincronizzare lo stato; non usarlo per simulare selezioni o progetti.
 
 ## Tool tipizzati

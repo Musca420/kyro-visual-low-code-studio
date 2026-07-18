@@ -51,6 +51,13 @@ import {
 import { VisualProperties } from "./VisualProperties";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
+import {
+  inspectComponentProgram,
+  inspectFlowNodeProgram,
+  type ComponentProgramView,
+  type CapabilityIssue,
+  type FlowNodeProgramView,
+} from "./programGraph";
 
 type WorkspaceTab =
   "design" | "flow" | "data" | "preview" | "plugins" | "terminal" | "settings";
@@ -458,6 +465,7 @@ function Editor({
   );
   const [feedback, setFeedback] = useState("");
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? "");
+  const [selectedFlowNodeId, setSelectedFlowNodeId] = useState("");
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -478,9 +486,17 @@ function Editor({
   const activeComponent = currentPage?.components.find(
     (component) => component.id === selected[0],
   );
+  const activeProgram =
+    currentPage && activeComponent
+      ? inspectComponentProgram(project, currentPage.id, activeComponent.id)
+      : undefined;
   const branches = currentPage ? componentTree(currentPage.components) : [];
   const flow =
     project.flows.find((item) => item.id === flowId) ?? project.flows[0];
+  const selectedFlowNode =
+    flow && selectedFlowNodeId && flow.nodes.some((node) => node.id === selectedFlowNodeId)
+      ? inspectFlowNodeProgram(project, flow.id, selectedFlowNodeId)
+      : undefined;
 
   useEffect(() => {
     const components = currentPage?.components ?? [];
@@ -509,6 +525,15 @@ function Editor({
       layouts,
       flows: project.flows,
       dataSources: project.dataSources,
+      capabilities: selected.flatMap((componentId) =>
+        components.some((component) => component.id === componentId)
+          ? inspectComponentProgram(
+              project,
+              currentPage?.id ?? "no-page",
+              componentId,
+            ).issues
+          : [],
+      ),
       validationErrors: [],
       consoleErrors: [],
     };
@@ -539,6 +564,7 @@ function Editor({
       properties: component.props,
       styles: component.styles,
       events: component.events,
+      intent: component.intent,
       binding: component.binding,
       dataSources: project.dataSources,
       flows: project.flows.filter((item) =>
@@ -554,6 +580,7 @@ function Editor({
         "project.frontend-editor.json",
       ],
       errors: [],
+      capabilities: inspectComponentProgram(project, currentPage.id, component.id).issues,
     };
     const prompts: Record<string, string> = {
       "Chiedi a Codex": "",
@@ -1569,32 +1596,62 @@ function Editor({
               }
             />
             {activeComponent ? (
-              <Properties
-                component={activeComponent}
-                components={currentPage!.components}
-                assets={project.assets}
-                breakpoint={breakpoint}
-                onUpdate={updateComponent}
-                onReparent={(parentId) =>
-                  reparent(activeComponent.id, parentId)
-                }
-                onWrap={() => wrap(activeComponent.id)}
-                onDuplicate={() => {
-                  const copies = selected
-                    .map((id) =>
-                      currentPage!.components.find((item) => item.id === id),
-                    )
-                    .filter(Boolean)
-                    .map((item) => ({
-                      ...item!,
-                      id: crypto.randomUUID(),
-                      name: `${item!.name} copia`,
-                    }));
-                  patchPage((items) => [...items, ...copies]);
-                  setSelected(copies.map((item) => item.id));
-                }}
-                onDelete={removeSelected}
-              />
+              <>
+                {activeProgram && (
+                  <ProgramConnections
+                    view={activeProgram}
+                    onResolve={(issue) => {
+                      if (issue.target !== "codex") return setTab(issue.target);
+                      const element = document.querySelector<HTMLElement>(
+                        `[data-component-id="${activeComponent.id}"]`,
+                      );
+                      const bounds = element?.getBoundingClientRect() ?? {
+                        x: 24,
+                        y: 120,
+                        width: 0,
+                        height: 0,
+                      };
+                      setContextMenu({
+                        component: activeComponent,
+                        bounds: {
+                          x: bounds.x,
+                          y: bounds.y,
+                          width: bounds.width,
+                          height: bounds.height,
+                        },
+                        x: Math.min(bounds.x + bounds.width, window.innerWidth - 250),
+                        y: Math.min(bounds.y, window.innerHeight - 330),
+                      });
+                    }}
+                  />
+                )}
+                <Properties
+                  component={activeComponent}
+                  components={currentPage!.components}
+                  assets={project.assets}
+                  breakpoint={breakpoint}
+                  onUpdate={updateComponent}
+                  onReparent={(parentId) =>
+                    reparent(activeComponent.id, parentId)
+                  }
+                  onWrap={() => wrap(activeComponent.id)}
+                  onDuplicate={() => {
+                    const copies = selected
+                      .map((id) =>
+                        currentPage!.components.find((item) => item.id === id),
+                      )
+                      .filter(Boolean)
+                      .map((item) => ({
+                        ...item!,
+                        id: crypto.randomUUID(),
+                        name: `${item!.name} copia`,
+                      }));
+                    patchPage((items) => [...items, ...copies]);
+                    setSelected(copies.map((item) => item.id));
+                  }}
+                  onDelete={removeSelected}
+                />
+              </>
             ) : (
               <div className="empty-panel compact">
                 <strong>Nessuna selezione</strong>
@@ -1632,7 +1689,10 @@ function Editor({
                   <select
                     aria-label="Flow attivo"
                     value={flow?.id}
-                    onChange={(event) => setFlowId(event.target.value)}
+                    onChange={(event) => {
+                      setFlowId(event.target.value);
+                      setSelectedFlowNodeId("");
+                    }}
                   >
                     {project.flows.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -1658,6 +1718,7 @@ function Editor({
           >
             <FlowEditor
               flow={flow}
+              onNodeSelect={setSelectedFlowNodeId}
               onChange={(updated) =>
                 change({
                   ...project,
@@ -1668,6 +1729,21 @@ function Editor({
               }
             />
           </Suspense>
+          {selectedFlowNode && (
+            <FlowNodeConnections
+              view={selectedFlowNode}
+              onOpenComponent={(componentId) => {
+                const owner = project.pages.find((page) =>
+                  page.components.some((component) => component.id === componentId),
+                );
+                if (!owner) return;
+                setPageId(owner.id);
+                setSelected([componentId]);
+                setTab("design");
+              }}
+              onOpenData={() => setTab("data")}
+            />
+          )}
           <LogConsole logs={logs} />
         </main>
       )}
@@ -2005,6 +2081,99 @@ function PanelTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
       <p className="eyebrow">{eyebrow}</p>
       <h2>{title}</h2>
     </div>
+  );
+}
+
+function ProgramConnections({
+  view,
+  onResolve,
+}: {
+  view: ComponentProgramView;
+  onResolve: (issue: CapabilityIssue) => void;
+}) {
+  return (
+    <details className="program-connections" open>
+      <summary>Programma collegato</summary>
+      <div className="connection-summary">
+        <span><strong>{view.events.length}</strong> eventi</span>
+        <span><strong>{view.dependentFlows.length}</strong> flow</span>
+        <span><strong>{view.dataSources.length}</strong> dati</span>
+      </div>
+      {view.events.map((event) => (
+        <p key={`${event.event}-${event.flowId}`}>
+          <code>{event.event}</code> → {event.flowName}
+        </p>
+      ))}
+      {view.dataSources.map((source) => (
+        <p key={source.id}>
+          <code>{source.provider}</code> → {source.name}
+        </p>
+      ))}
+      {view.issues.length ? (
+        <div className="capability-issues" aria-label="Capacità mancanti">
+          {view.issues.map((issue) => (
+            <article key={issue.id}>
+              <strong>{issue.title}</strong>
+              <span>{issue.explanation}</span>
+              <button className="secondary" onClick={() => onResolve(issue)}>
+                {issue.target === "data"
+                  ? "Configura archivio"
+                  : issue.target === "flow"
+                    ? "Configura interazione"
+                    : issue.target === "settings"
+                      ? "Configura pubblicazione"
+                      : "Chiedi a Codex"}
+              </button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <span className="capability-ready">Capacità collegate</span>
+      )}
+      <details>
+        <summary>File generati</summary>
+        {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
+      </details>
+    </details>
+  );
+}
+
+function FlowNodeConnections({
+  view,
+  onOpenComponent,
+  onOpenData,
+}: {
+  view: FlowNodeProgramView;
+  onOpenComponent: (componentId: string) => void;
+  onOpenData: () => void;
+}) {
+  return (
+    <section className="flow-node-connections" aria-label="Dipendenze del nodo">
+      <div>
+        <p className="eyebrow">Grafo unificato</p>
+        <h2>{view.nodeLabel}</h2>
+        <span>
+          {view.incoming.length} ingressi · {view.outgoing.length} uscite · {view.components.length} elementi · {view.dataSources.length} dati
+        </span>
+      </div>
+      <div className="flow-dependency-list">
+        {view.components.map((component) => (
+          <button className="secondary" key={component.id} onClick={() => onOpenComponent(component.id)}>
+            Apri {component.name} <small>{component.type}</small>
+          </button>
+        ))}
+        {view.dataSources.map((source) => (
+          <button className="secondary" key={source.id} onClick={onOpenData}>
+            Apri {source.name} <small>{source.provider}</small>
+          </button>
+        ))}
+        {view.errors.map((error) => <span className="requirement-warning" key={error}>{error}</span>)}
+      </div>
+      <details>
+        <summary>Impatto nel codice generato</summary>
+        {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
+      </details>
+    </section>
   );
 }
 

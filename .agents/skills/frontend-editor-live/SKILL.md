@@ -10,10 +10,10 @@ Treat the visual project model as the source of truth. Never guess the target fr
 ## Required workflow
 
 1. From the repository root, run `node .agents/skills/frontend-editor-live/scripts/check_live_bridge.mjs`; stop clearly if the editor or bridge is unavailable.
-2. Read `GET http://127.0.0.1:4173/api/live/status`. Record `projectId`, `pageId`, `revision`, selection and viewport.
-3. Inspect the selected component, its neighbors, flows and data sources. Read [references/project-model.md](references/project-model.md) only when changing the model.
+2. Read `GET http://127.0.0.1:4173/api/live/status`. Record `projectId`, `pageId`, `revision`, selection, viewport and reported capability gaps.
+3. Inspect the selected component, its semantic intent, neighbors, flows and data sources. Read [references/project-model.md](references/project-model.md) only when changing the model.
 4. For visual work, capture the canvas before changing it and identify the target by stable ID, not appearance alone.
-5. For behavior or data work, inspect linked flows and sources. If a required source is missing, offer a local source or an existing connection and wait for confirmation.
+5. For behavior or data work, inspect linked flows, sources and `capabilities`. Explain what exists and what is missing; if a required source is absent, offer local storage, an existing connection or a generated backend and wait for confirmation.
 6. Present a short plan before a substantial change. Call only typed bridge operations from [references/live-bridge-tools.md](references/live-bridge-tools.md).
 7. Send the revision read in step 2 with every mutation. On `409`, fetch fresh state and reassess; never retry a stale write blindly.
 8. Apply related changes as one transaction. Validate the model, refresh preview, inspect runtime and console errors, and capture the result.

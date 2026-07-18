@@ -17,7 +17,7 @@ function FlowNode({ data }: NodeProps) {
 
 const nodeTypes = { editor: FlowNode }
 
-export default function FlowEditor({ flow, onChange }: { flow?: Flow; onChange: (flow: Flow) => void }) {
+export default function FlowEditor({ flow, onChange, onNodeSelect }: { flow?: Flow; onChange: (flow: Flow) => void; onNodeSelect?: (nodeId: string) => void }) {
   const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, data: { label: node.label, type: node.type } }))
   const edges: Edge[] = (flow?.edges ?? []).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.path, label: edge.path, animated: edge.path === 'success' }))
   const connect = useCallback((connection: Connection) => {
@@ -31,6 +31,7 @@ export default function FlowEditor({ flow, onChange }: { flow?: Flow; onChange: 
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      onNodeClick={(_, node) => onNodeSelect?.(node.id)}
       onConnect={connect}
       onNodesChange={(changes) => {
         const positions = new Map(changes.flatMap((change) => change.type === 'position' && change.position ? [[change.id, change.position] as const] : []))
