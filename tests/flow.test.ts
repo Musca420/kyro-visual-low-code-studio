@@ -265,4 +265,17 @@ describe('flow runtime', () => {
     navigation.nodes[1].config = { mode: 'url', path: 'javascript:alert(1)' }
     expect((await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })).some((entry) => entry.message === 'Usa un indirizzo API HTTP o HTTPS')).toBe(true)
   })
+
+  it('apre e chiude la stessa modal dal nodo visuale', async () => {
+    const modal: Flow = { id: 'modal', name: 'Modal', nodes: [
+      { id: 'event', type: 'event', label: 'Click', position: { x: 0, y: 0 }, config: {} },
+      { id: 'modal', type: 'openModal', label: 'Modal', position: { x: 1, y: 0 }, config: { componentId: 'dialog', operation: 'close' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'modal', path: 'success' }] }
+    const openModal = vi.fn()
+    await runFlow(modal, { input: '', insert: async () => undefined, refresh: async () => undefined, openModal })
+    expect(openModal).toHaveBeenCalledWith('dialog', 'close')
+    modal.nodes[1].config.operation = 'open'
+    await runFlow(modal, { input: '', insert: async () => undefined, refresh: async () => undefined, openModal })
+    expect(openModal).toHaveBeenLastCalledWith('dialog', 'open')
+  })
 })

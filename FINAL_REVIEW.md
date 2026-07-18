@@ -23,7 +23,8 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 
 ## Controlli finali riproducibili
 
-- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 60 test superati, build Vite riuscita.
+- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 62 test superati, build Vite riuscita.
+- `npx playwright test e2e/modal-flow.spec.ts --workers=1`: modal scelta e chiusa dal nodo visuale; visibilità DOM reale verificata nella preview.
 - `npx playwright test e2e/navigation-flow.spec.ts --workers=1`: pagina, indietro e URL esterno configurati visualmente; cambio hash reale verificato nella preview.
 - `npx playwright test e2e/file-flow.spec.ts --workers=1`: 1 test browser superato; upload configurato interamente nell'editor, record persistito e ritrovato alla riapertura.
 - `npx playwright test e2e/data-evolution.spec.ts --workers=1`: 1 test browser superato; due entità create, relazione configurata, schema migrato a v2 e riaperto senza perdita.
@@ -31,7 +32,7 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 - `npx playwright test e2e/runtime-observability.spec.ts --workers=1`: 1 test browser superato; errore e oggetto runtime trasferiti dall'iframe isolato alla console visuale.
 - `npm run export:sample` e `npm run build` in `generated-app`: export materializzato e compilato indipendentemente, incluso il runtime autenticazione del grafo.
 - `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
-- `npx playwright test`: 37 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
+- `npx playwright test`: 39 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
 - `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 75 secondi; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
 - `RUN_PACKAGED_DESKTOP=1`: 1 smoke test dedicato superato; eseguibile Windows avviato indipendentemente e cartella progetto aperta.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
@@ -60,6 +61,7 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - Il test completo ha rilevato contrasto transitorio di 2,85:1 durante l'idratazione del tema: le transizioni di colore/sfondo dei pulsanti sono state eliminate; cinque ripetizioni e la suite completa sono verdi.
 - Input file nascosto senza nome accessibile: aggiunta etichetta ARIA e riprovato il percorso tastiera.
 - Il flow upload passava isolatamente ma poteva perdere il click sul nodo quando sei worker ridimensionavano il canvas: il test usa ora l'identità stabile del nodo e la suite completa è tornata verde.
+- Una modal configurata come chiusa manteneva `hidden` nel DOM ma lo stile Grid del componente prevaleva sul foglio utente del browser: preview ed export ora applicano `[hidden]{display:none!important}` e il test visuale ripete la chiusura dal flow.
 
 ## Limiti esterni e rischi residui
 

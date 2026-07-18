@@ -125,6 +125,18 @@ describe("web generator", () => {
     expect(source).toContain("location.assign(url.toString())");
   });
 
+  it("esporta apertura e chiusura modal dal medesimo nodo", () => {
+    const project = createProject("Modal export");
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [] });
+    project.flows.push({ id: "modal", name: "Modal", nodes: [
+      { id: "event", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } },
+      { id: "close", type: "openModal", label: "Chiudi", position: { x: 1, y: 0 }, config: { componentId: "dialog", operation: "close" } },
+    ], edges: [{ id: "edge", source: "event", target: "close", path: "success" }] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain("current.config.operation === 'close'");
+    expect(source).toContain("setAttribute('hidden', '')");
+  });
+
   it("preserves nested containers in the exported markup", () => {
     const project = createProject("Nested Export");
     const stack = makeComponent("stack"),

@@ -151,6 +151,8 @@ Anche gli export rifiniti **Landing** e **Dashboard** caricano ora il runtime de
 
 Il nodo **Vai alla pagina** offre tre scelte visuali: una pagina del progetto, torna indietro o un sito esterno. Preview ed export condividono il comportamento; gli indirizzi esterni accettano soltanto HTTP/HTTPS. `e2e/navigation-flow.spec.ts` verifica la configurazione senza codice e la navigazione effettiva nella preview.
 
+Il nodo **Gestisci modal** apre o chiude un dialogo scelto dall'elenco degli elementi, senza CSS o JavaScript. L'attributo `hidden` ha precedenza esplicita sugli stili del componente sia in preview sia nell'export, quindi anche una modal con layout Grid viene realmente rimossa dalla navigazione e dal rendering quando è chiusa. `e2e/modal-flow.spec.ts` costruisce e verifica il percorso interamente dall'interfaccia visuale.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.

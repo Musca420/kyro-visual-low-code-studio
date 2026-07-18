@@ -1697,7 +1697,7 @@ function Editor({
     const activeFlow = project.flows.find((item) => item.id === flowId);
     const source = project.dataSources[0];
     if (!activeFlow) throw new Error("Flow non trovato");
-    let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modalId: string | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
+    let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modal: { componentId: string; operation: "open" | "close" } | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
     setLogs([]);
     const result = await runFlow(activeFlow, {
       input,
@@ -1714,7 +1714,7 @@ function Editor({
       },
       refresh: async () => { if (source) await refreshRecords(); },
       navigate: (path, mode) => { navigate = { path, mode }; },
-      openModal: (componentId) => { modalId = componentId; },
+      openModal: (componentId, operation) => { modal = { componentId, operation }; },
       updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
       notify: (message, kind) => { notification = message; level = kind; },
       signOut: () => { notification = "Sessione chiusa nella preview"; level = "success"; },
@@ -1740,7 +1740,7 @@ function Editor({
     setLogs(result);
     const failure = result.find((entry) => entry.level === "error");
     if (failure) throw new Error(failure.message);
-    return { notification, level, navigate, modalId, ui };
+    return { notification, level, navigate, modal, ui };
   }, [project.flows, project.dataSources, project.codeModules, refreshRecords]);
 
   const dashboardAction = useCallback(
