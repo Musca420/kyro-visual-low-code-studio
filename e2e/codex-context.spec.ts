@@ -55,8 +55,9 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   expect(wrap.status()).toBe(202)
   const wrapId = (await wrap.json()).transactionId
   await expect.poll(async () => (await (await request.get(`/api/live/transactions/${wrapId}`)).json()).status).toBe('applied')
-  const nestedState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
-  const wrapper = nestedState.componentTree.find((item: { name: string }) => item.name === 'Azioni')
+  let wrapper: { id: string; children: { id: string }[] } | undefined
+  await expect.poll(async () => { const nestedState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json(); wrapper = nestedState.componentTree.find((item: { name: string }) => item.name === 'Azioni'); return Boolean(wrapper) }).toBe(true)
+  if (!wrapper) throw new Error('Wrapper Azioni non pubblicato dal bridge')
   expect(wrapper.children.map((item: { id: string }) => item.id)).toContain(live.selectedComponentIds[0])
   await expect(page.locator(`[data-component-id="${wrapper.id}"] [data-component-id="${live.selectedComponentIds[0]}"]`)).toBeVisible()
   await page.getByRole('button', { name: 'Preview' }).click()

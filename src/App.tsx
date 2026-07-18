@@ -10,6 +10,7 @@ import { CodexPanel, type CodexContext } from './CodexPanel'
 import { applyEditorOperation } from './editorOperations'
 import { captureElement, type CaptureResult } from './capture'
 import { canContain, componentPath, componentTree, descendantIds, type ComponentBranch } from './hierarchy'
+import { VisualProperties } from './VisualProperties'
 
 type WorkspaceTab = 'design' | 'flow' | 'data' | 'preview' | 'plugins'
 const FlowEditor = lazy(() => import('./FlowEditor'))
@@ -841,6 +842,7 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
                   if (componentTypes.includes(type)) addComponent(type)
                 }}
               >
+                {currentPage && <style>{canvasStateCss(currentPage.components)}</style>}
                 {!currentPage ? (
                   <div className="canvas-empty">
                     <strong>Crea la prima pagina</strong>
@@ -1184,6 +1186,11 @@ const serializeBranch = ({ component, children }: ComponentBranch): LiveComponen
   children: children.map(serializeBranch),
 })
 
+function canvasStateCss(components: EditorComponent[]) {
+  const declarations = (value: Record<string, unknown>) => Object.entries(value).map(([key, item]) => `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${String(item).replace(/[{};]/g, '')}!important`).join(';')
+  return components.map((component) => { const target = `.canvas-component[data-component-id="${component.id}"]`; return `${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}` }).join('\n')
+}
+
 function DesignBranch({ branch, breakpoint, selected, onSelect, onMove, onContextMenu, onAdd }: { branch: ComponentBranch; breakpoint: Breakpoint; selected: string[]; onSelect: (id: string, multi: boolean) => void; onMove: (component: EditorComponent, direction: number) => void; onContextMenu: (component: EditorComponent, bounds: CodexContext['bounds'], point: { x: number; y: number }) => void; onAdd: (type: EditorComponent['type'], parentId?: string) => void }) {
   const { component, children } = branch
   return (
@@ -1220,7 +1227,7 @@ function DesignComponent({ component, breakpoint, selected, onSelect, onMove, on
     component.type === 'input' ? (
       <input tabIndex={-1} placeholder={String(component.props.placeholder)} />
     ) : component.type === 'button' ? (
-      <button tabIndex={-1}>{String(component.props.label)}</button>
+      <button tabIndex={-1} disabled={component.props.disabled === true}>{String(component.props.label)}</button>
     ) : component.type === 'list' ? (
       <ul>
         <li>Elemento dinamico</li>
@@ -1235,6 +1242,9 @@ function DesignComponent({ component, breakpoint, selected, onSelect, onMove, on
     <article
       className={`canvas-component ${selected ? 'selected' : ''}`}
       data-component-id={component.id}
+      title={String(component.props.tooltip || '') || undefined}
+      aria-disabled={component.props.disabled === true || undefined}
+      tabIndex={0}
       style={style}
       onClick={(event) => {
         event.stopPropagation()
@@ -1246,6 +1256,7 @@ function DesignComponent({ component, breakpoint, selected, onSelect, onMove, on
         const box = event.currentTarget.getBoundingClientRect()
         onContextMenu({ x: box.x, y: box.y, width: box.width, height: box.height }, { x: event.clientX, y: event.clientY })
       }}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(event.ctrlKey || event.metaKey) } }}
       onDragOver={
         onDrop
           ? (event) => {
@@ -1301,6 +1312,7 @@ function DesignComponent({ component, breakpoint, selected, onSelect, onMove, on
 }
 
 function Properties({ component, components, breakpoint, onUpdate, onReparent, onWrap, onDuplicate, onDelete }: { component: EditorComponent; components: EditorComponent[]; breakpoint: Breakpoint; onUpdate: (update: (component: EditorComponent) => EditorComponent) => void; onReparent: (parentId?: string) => void; onWrap: () => void; onDuplicate: () => void; onDelete: () => void }) {
+  if ((component as { states?: unknown }).states) return <VisualProperties component={component} components={components} breakpoint={breakpoint} onUpdate={onUpdate} onReparent={onReparent} onWrap={onWrap} onDuplicate={onDuplicate} onDelete={onDelete} />
   const style = {
     ...component.styles.desktop,
     ...(breakpoint === 'desktop' ? {} : component.styles[breakpoint]),

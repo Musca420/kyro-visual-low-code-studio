@@ -9,6 +9,7 @@
 - cattura PNG reale di canvas e preview sandboxata tramite bridge;
 - Codex CLI ufficiale, analisi read-only reale e approvazione prima di workspace-write;
 - pannello con cronologia persistente per progetto, avanzamento reale, comandi locali, file Git, diff, test e ripristino transazionale protetto;
+- ispettore visuale completo per layout, responsive, tipografia, bordi, effetti, animazioni e stati interattivi, verificato anche nell'export;
 - skill `frontend-editor-live` validata con script reali.
 
 Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-details.png`, `artifacts/live-canvas-capture.png`, `artifacts/live-preview-capture.png`.

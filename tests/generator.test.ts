@@ -24,4 +24,14 @@ describe('web generator', () => {
     expect(html.indexOf('id="stack"')).toBeLessThan(html.indexOf('id="nested-button"'))
     expect(html).toMatch(/id="stack"[^]*id="nested-button"[^]*<\/div>/)
   })
+
+  it('exports responsive visual styles and interaction states', () => {
+    const project = createProject('Visual states'), button = makeComponent('button')
+    button.id = 'action'; button.styles.mobile.display = 'none'; button.states.hover = { transform: 'scale(1.05)', boxShadow: '0 10px 30px #0003' }; button.props.tooltip = 'Azione principale'
+    project.pages.push({ id: 'page', name: 'Home', path: '/', components: [button] })
+    const files = generateFiles(project)
+    expect(files['index.html']).toContain('title="Azione principale"')
+    expect(files['src/style.css']).toContain('[id="action"]:hover{transform:scale(1.05);box-shadow:0 10px 30px #0003}')
+    expect(files['src/style.css']).toMatch(/@media\(max-width:600px\)[^{]*\{[^]*display:none/)
+  })
 })

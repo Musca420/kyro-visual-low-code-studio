@@ -9,8 +9,9 @@ const cssEscape = (value: unknown) => String(value ?? '').replace(/[{};]/g, '')
 
 function componentHtml(component: EditorComponent, children = '') {
   const label = htmlEscape(component.props.label || component.name)
+  const attributes = `${component.props.tooltip ? ` title="${htmlEscape(component.props.tooltip)}"` : ''}${component.props.disabled === true ? ' aria-disabled="true"' : ''}`
   if (component.type === 'input') return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" placeholder="${htmlEscape(component.props.placeholder)}" /></label>`
-  if (component.type === 'button') return `<button id="${component.id}" type="button">${label}</button>`
+  if (component.type === 'button') return `<button id="${component.id}" type="button"${attributes}${component.props.disabled === true ? ' disabled' : ''}>${label}</button>`
   if (component.type === 'list') return `<section id="${component.id}" aria-label="${htmlEscape(component.accessibility.label)}"><div class="status" role="status">Caricamento…</div><ul></ul></section>`
   if (component.type === 'title') return `<h1 id="${component.id}">${label}</h1>`
   if (component.type === 'textarea') return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}"></textarea></label>`
@@ -23,7 +24,9 @@ const branchHtml = ({ component, children }: ComponentBranch): string => compone
 
 function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
   const style = { ...component.styles.desktop, ...(breakpoint === 'desktop' ? {} : component.styles[breakpoint]) }
-  return `[id="${component.id}"]{${Object.entries(style).map(([key, value]) => `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${cssEscape(value)}`).join(';')}}`
+  const declarations = (value: Record<string, unknown>) => Object.entries(value).map(([key, item]) => `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${cssEscape(item)}`).join(';')
+  const target = `[id="${component.id}"]`
+  return `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`
 }
 
 function commonExportFiles(project: Project) {
@@ -42,7 +45,7 @@ function generateExperienceFiles(project: Project, experience: 'landing' | 'dash
   const desktop = page.components.map((component) => componentCss(component, 'desktop')).join('\n')
   const tablet = page.components.map((component) => componentCss(component, 'tablet')).join('\n')
   const mobile = page.components.map((component) => componentCss(component, 'mobile')).join('\n')
-  const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`
+  const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`
   const landingMain = `import './style.css'\nawait import('./ui.js')\n`
   const dashboardMain = `import './style.css'
 
@@ -134,7 +137,7 @@ void refresh()
     'package.json': JSON.stringify({ name: project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'generated-app', private: true, version: '1.0.0', type: 'module', scripts: { dev: 'vite', build: 'tsc && vite build', preview: 'vite preview' }, devDependencies: { typescript: '^5.8.3', vite: '^7.1.4' } }, null, 2),
     'index.html': `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body><main>${body}</main><script type="module" src="/src/main.ts"></script></body></html>`,
     'src/main.ts': main,
-    'src/style.css': `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
+    'src/style.css': `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
     'tsconfig.json': JSON.stringify({ compilerOptions: { target: 'ES2022', lib: ['ES2022', 'DOM'], module: 'ESNext', moduleResolution: 'Bundler', strict: true, noEmit: true }, include: ['src'] }, null, 2),
     'capacitor.config.ts': `export default { appId: 'com.frontendeditor.${project.id.replace(/-/g, '').slice(0, 12)}', appName: ${JSON.stringify(project.name)}, webDir: 'dist' }`,
     'project.frontend-editor.json': serializeProject(project),

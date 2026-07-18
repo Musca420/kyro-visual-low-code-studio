@@ -57,6 +57,8 @@ Il modello visuale è la source of truth; il codice è un derivato. Non esiste s
 
 Ogni controllo mostra una spiegazione al passaggio del mouse o al focus. La barra “Prossimo passo” accompagna dalla pagina alla preview. Il clic destro su un componente offre azioni Codex per comportamento, dati, correzione, miglioramento e spiegazione.
 
+L'ispettore visuale copre dimensioni min/max, Flexbox, Grid, spaziatura per lato, tipografia, sfondi e gradienti, bordi per angolo, ombre, filtri, trasformazioni, animazioni, posizione, overflow, responsive e stati hover/focus/active/disabled. Gli override sono strutturati, immediati, annullabili e condivisi da canvas, preview ed export.
+
 Il pannello inferiore mostra target, ID stabile, pagina, revisione, flow, dati e workspace. `Analizza richiesta` esegue `codex exec` in sandbox read-only; solo “Approva e applica” abilita workspace-write. Il login resta quello ufficiale della CLI (`codex login`): l’app non legge o salva token.
 
 La skill repo-specific è in `.agents/skills/frontend-editor-live`. Verifica bridge e contesto con:
