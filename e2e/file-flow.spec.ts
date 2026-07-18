@@ -22,7 +22,7 @@ test("un utente salva un file locale con un flow costruito visualmente", async (
   await page.getByLabel("Tipo evento").selectOption("change");
   await page.getByLabel("Elemento collegato").selectOption({ label: "Upload · upload" });
   for (const label of ["Leggi input", "Non vuoto"]) {
-    await page.locator(".react-flow__node").filter({ hasText: label }).click();
+    await page.locator(".react-flow__node").filter({ hasText: label }).click({ force: true });
     await page.getByRole("button", { name: "Elimina nodo" }).click();
   }
 

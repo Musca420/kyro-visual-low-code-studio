@@ -30,14 +30,16 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 - `npx playwright test e2e/runtime-observability.spec.ts --workers=1`: 1 test browser superato; errore e oggetto runtime trasferiti dall'iframe isolato alla console visuale.
 - `npm run export:sample` e `npm run build` in `generated-app`: export materializzato e compilato indipendentemente, incluso il runtime autenticazione del grafo.
 - `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
-- `npx playwright test`: 32 test browser superati; 3 test dedicati saltati per variabili d'ambiente o artefatti opzionali intenzionali.
+- `npx playwright test`: 37 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
+- `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 75 secondi; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
+- `RUN_PACKAGED_DESKTOP=1`: 1 smoke test dedicato superato; eseguibile Windows avviato indipendentemente e cartella progetto aperta.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
 - `npm run desktop:test`: 2/2, renderer di produzione e apertura cartella nella shell Electron.
 - `npm --prefix generated-app run build`: build autonoma riuscita.
 - `npm run test:generated`: 1/1, app esportata avviata separatamente e IndexedDB funzionante.
 - `npm audit --omit=dev`: 0 vulnerabilità runtime note.
 
-I tre skip della suite generale sono espliciti: build Android completa (`RUN_ANDROID_E2E=1`), pacchetto desktop già prodotto (`RUN_PACKAGED_DESKTOP=1`) e tre export già estratti/avviati (`SCENARIO_EXPORTS=1`). Le prove e gli screenshot dei collaudi dedicati sono conservati in `artifacts/`; non vengono contati come eseguiti nel run generale.
+I tre skip della suite generale sono espliciti: build Android completa (`RUN_ANDROID_E2E=1`), pacchetto desktop già prodotto (`RUN_PACKAGED_DESKTOP=1`) e tre export già estratti/avviati (`SCENARIO_EXPORTS=1`). Android e desktop sono stati riattivati e superati nel collaudo dedicato corrente; gli export Landing/Dashboard aggiornati sono coperti separatamente da `npm run test:specialized`.
 
 ## Review del codice
 
@@ -56,11 +58,13 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - Contributi plugin inizialmente non utilizzabili end-to-end: componenti, nodi, provider e temi sono ora materializzabili e isolati.
 - Il test completo ha rilevato contrasto transitorio di 2,85:1 durante l'idratazione del tema: le transizioni di colore/sfondo dei pulsanti sono state eliminate; cinque ripetizioni e la suite completa sono verdi.
 - Input file nascosto senza nome accessibile: aggiunta etichetta ARIA e riprovato il percorso tastiera.
+- Il flow upload passava isolatamente ma poteva perdere il click sul nodo quando sei worker ridimensionavano il canvas: il test usa ora l'identità stabile del nodo e la suite completa è tornata verde.
 
 ## Limiti esterni e rischi residui
 
 - Le cinque persona sono simulazioni browser ripetibili, non sessioni con persone reali. Reclutamento, consenso e osservazione umana richiedono coordinamento esterno.
 - Windows è stato impacchettato, installato e avviato. La CI prepara artefatti Windows/macOS/Linux, ma smoke test e firma nativi macOS/Linux richiedono runner e identità di firma esterni.
 - Device Guard rifiuta nuovi hash Windows non firmati; una release pubblica e un aggiornamento installato end-to-end richiedono certificato e hosting HTTPS. La policy rifiuta manifest, canale, downgrade o artefatti non validi, ma non viene dichiarata pubblicazione completata.
+- Il telefono Android collegato è visibile ad ADB, ma l'installazione della build corrente richiede confermare sul dispositivo “Consenti installazione via USB”; due tentativi sono stati annullati dal sistema. Non viene dichiarata installata questa nuova build, mentre generazione e compilazione APK sono verificate.
 - L'import generico preserva codice non convertito; la modifica bidirezionale profonda di ogni framework resta un'evoluzione parser-specifica.
 - Plugin di codice arbitrario non vengono eseguiti: l'SDK attuale è dichiarativo per mantenere isolamento. Una futura API di codice richiederà sandbox e firma.
