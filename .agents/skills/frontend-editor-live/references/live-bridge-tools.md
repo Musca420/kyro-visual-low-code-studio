@@ -15,7 +15,7 @@ Letture: `get_editor_status`, `get_active_project`, `get_active_page`, `get_curr
 
 Operazioni asincrone: `move_component`, `resize_component`, `set_component_property`, `set_component_style`, `set_responsive_style`, `add_component`, `remove_component`, `reorder_component`, `create_flow`, `connect_nodes`, `bind_component_data`, `create_data_source`, `apply_editor_transaction`, `undo_last_transaction`, `open_preview`, `capture_canvas`, `capture_preview`. Le catture restituiscono `{dataUrl,width,height}` nel campo `result` della transazione e non cambiano la revisione.
 
-Usare `scripts/invoke_live_tool.ps1 <tool> '<args-json>'`. Lo script legge automaticamente progetto, pagina e revisione correnti. `remove_component` richiede `confirmed:true`.
+Dal root del repository usare `node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs <tool> '<args-json>'`. Lo script legge automaticamente progetto, pagina e revisione correnti. `remove_component` richiede `confirmed:true`.
 
 ## Sessione Codex
 

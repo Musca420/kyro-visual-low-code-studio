@@ -9,7 +9,7 @@ Treat the visual project model as the source of truth. Never guess the target fr
 
 ## Required workflow
 
-1. Run `scripts/check_live_bridge.ps1`; stop clearly if the editor or bridge is unavailable.
+1. From the repository root, run `node .agents/skills/frontend-editor-live/scripts/check_live_bridge.mjs`; stop clearly if the editor or bridge is unavailable.
 2. Read `GET http://127.0.0.1:4173/api/live/status`. Record `projectId`, `pageId`, `revision`, selection and viewport.
 3. Inspect the selected component, its neighbors, flows and data sources. Read [references/project-model.md](references/project-model.md) only when changing the model.
 4. For visual work, capture the canvas before changing it and identify the target by stable ID, not appearance alone.

@@ -8,7 +8,7 @@
 - letture e mutazioni tipizzate, transazioni atomiche e undo con revisione monotona;
 - cattura PNG reale di canvas e preview sandboxata tramite bridge;
 - Codex CLI ufficiale, analisi read-only reale e approvazione prima di workspace-write;
-- pannello con cronologia, comandi locali, file Git, diff e test estratti dagli eventi reali;
+- pannello con cronologia persistente per progetto, avanzamento reale, comandi locali, file Git, diff, test e ripristino transazionale protetto;
 - skill `frontend-editor-live` validata con script reali.
 
 Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-details.png`, `artifacts/live-canvas-capture.png`, `artifacts/live-preview-capture.png`.

@@ -4,6 +4,7 @@ import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
+import { changedPaths, restoreWorkspace, snapshotWorkspace, type WorkspaceSnapshot } from './server/workspaceTransactions'
 
 const run = promisify(execFile)
 const codexCommand = process.platform === 'win32' ? process.execPath : 'codex'
@@ -39,6 +40,9 @@ function liveBridge() {
   const projects = new Map<string, Record<string, unknown>>()
   const commands: { id: string; projectId: string; pageId: string; revision: number; tool: string; args: Record<string, unknown>; status: 'pending' | 'applied' | 'error'; error?: string; result?: unknown }[] = []
   let agent: ChildProcessWithoutNullStreams | undefined
+  let agentJobId: string | undefined
+  type CodexJob = { id: string; projectId: string; revision: number; mode: 'plan' | 'apply'; status: 'running' | 'completed' | 'error' | 'cancelled' | 'restored'; output: string; errors: string; code?: number | null; startedAt: string; finishedAt?: string; git?: Awaited<ReturnType<typeof gitSnapshot>>; changedFiles: string[]; before?: WorkspaceSnapshot; after?: WorkspaceSnapshot }
+  const jobs = new Map<string, CodexJob>()
   return {
     name: 'frontend-editor-live-bridge',
     configureServer(server: { middlewares: { use: (handler: (request: IncomingMessage, response: ServerResponse, next: () => void) => void) => void } }) {
@@ -96,6 +100,43 @@ function liveBridge() {
           if (url.pathname.startsWith('/api/live/transactions/') && request.method === 'GET') {
             const command = commands.find((item) => item.id === url.pathname.split('/').at(-1))
             return reply(response, command ? 200 : 404, command ?? { error: 'Transazione non trovata' })
+          }
+          if (url.pathname === '/api/codex/jobs' && request.method === 'POST') {
+            if (agent) return reply(response, 409, { error: 'Codex sta giÃ  lavorando' })
+            const input = await body(request), prompt = String(input.prompt ?? ''), mode = input.mode === 'apply' ? 'apply' : 'plan', projectId = String(input.projectId ?? '')
+            if (!prompt.trim() || prompt.length > 8_000) return reply(response, 400, { error: 'La richiesta deve contenere da 1 a 8000 caratteri' })
+            const current = projects.get(projectId)
+            if (!current || input.revision !== current.revision) return reply(response, 409, { error: 'Il progetto Ã¨ cambiato: aggiorna il contesto prima di continuare' })
+            const id = crypto.randomUUID(), job: CodexJob = { id, projectId, revision: Number(input.revision), mode, status: 'running', output: '', errors: '', startedAt: new Date().toISOString(), changedFiles: [], before: mode === 'apply' ? await snapshotWorkspace(process.cwd()) : undefined }
+            jobs.set(id, job); agentJobId = id
+            const instruction = `${mode === 'plan' ? 'Analizza e proponi un piano. Non modificare file.' : 'Applica la modifica richiesta e verifica il risultato. Limita ogni scrittura alla cartella di lavoro.'}\n\n${prompt}\n\nContesto Frontend Editor:\n${JSON.stringify(input.context)}`
+            agent = spawn(codexCommand, [...codexPrefix, '-a', 'never', 'exec', '--json', '--ephemeral', '-C', process.cwd(), '-s', mode === 'plan' ? 'read-only' : 'workspace-write', '-'], { cwd: process.cwd(), stdio: 'pipe' })
+            agent.stdout.on('data', (chunk) => { job.output += chunk; if (job.output.length > 250_000) agent?.kill() })
+            agent.stderr.on('data', (chunk) => { job.errors += chunk })
+            agent.stdin.end(instruction)
+            agent.on('close', async (code) => {
+              agent = undefined; agentJobId = undefined; job.code = code; job.finishedAt = new Date().toISOString(); job.status = job.status === 'cancelled' ? 'cancelled' : code === 0 ? 'completed' : 'error'; job.git = await gitSnapshot()
+              if (job.before) { job.after = await snapshotWorkspace(process.cwd()); job.changedFiles = changedPaths(job.before, job.after) }
+            })
+            agent.on('error', (error) => { job.errors += error.message; job.status = 'error'; job.finishedAt = new Date().toISOString(); agent = undefined; agentJobId = undefined })
+            return reply(response, 202, { jobId: id, status: job.status })
+          }
+          if (url.pathname.startsWith('/api/codex/jobs/') && request.method === 'GET') {
+            const job = jobs.get(url.pathname.split('/')[4])
+            if (!job) return reply(response, 404, { error: 'Operazione Codex non trovata' })
+            return reply(response, 200, { ...job, before: undefined, after: undefined })
+          }
+          if (url.pathname.endsWith('/cancel') && url.pathname.startsWith('/api/codex/jobs/') && request.method === 'POST') {
+            const id = url.pathname.split('/')[4], job = jobs.get(id)
+            if (!job || job.status !== 'running' || agentJobId !== id) return reply(response, 409, { error: 'Operazione non annullabile' })
+            job.status = 'cancelled'; agent?.kill()
+            return reply(response, 200, { cancelled: true })
+          }
+          if (url.pathname.endsWith('/restore') && url.pathname.startsWith('/api/codex/jobs/') && request.method === 'POST') {
+            const id = url.pathname.split('/')[4], job = jobs.get(id)
+            if (!job?.before || !job.after || job.status !== 'completed') return reply(response, 409, { error: 'Operazione non ripristinabile' })
+            const restored = await restoreWorkspace(process.cwd(), job.before, job.after); job.status = 'restored'
+            return reply(response, 200, { restored, jobId: id })
           }
           if (request.url === '/api/codex/status' && request.method === 'GET') {
             try { const result = await run(codexCommand, [...codexPrefix, 'login', 'status'], { cwd: process.cwd(), timeout: 10_000 }); return reply(response, 200, { authenticated: true, message: result.stdout.trim() || result.stderr.trim(), workspace: process.cwd() }) }

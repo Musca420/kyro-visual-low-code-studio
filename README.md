@@ -46,7 +46,7 @@ Da “Progetto vuoto”: crea una pagina, trascina input, button e list, modific
 - `src/PluginManager.tsx`: catalogo locale; valida manifest, impedisce collisioni ed evita esecuzione di codice plugin.
 - `vite.config.ts`: Live Bridge locale vincolato al workspace; sincronizza stato/revision ed espone operazioni visuali tipizzate senza shell generica.
 - `src/editorOperations.ts`: transazioni validate per proprietà, stili, responsive, componenti, flow, binding e sorgenti dati.
-- `src/CodexPanel.tsx`: contesto certo del componente, Codex CLI ufficiale, analisi read-only e approvazione prima dell’applicazione.
+- `src/CodexPanel.tsx`: contesto certo del componente, Codex CLI ufficiale, analisi read-only, aggiornamenti progressivi, cronologia per progetto e approvazione prima dell’applicazione.
 - `src/capture.ts`: screenshot PNG del canvas; la preview invia un DOM privo di script e viene rasterizzata fuori dall’iframe senza indebolire la sandbox.
 
 Il modello visuale è la source of truth; il codice è un derivato. Non esiste sincronizzazione bidirezionale con codice arbitrario.
@@ -89,6 +89,6 @@ In questo ambiente è presente `C:\Users\david\AppData\Local\Android\Sdk`, ma `j
 - Il runtime MVP esegue i nodi del vertical slice; HTTP, autenticazione, database remoti e marketplace remoto sono contributi futuri, non simulati.
 - Snap/guide, componenti riutilizzabili avanzati, animazioni visuali e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
-- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component` e viste conversazione/operazioni/file/diff/test reali. Restano da completare terminale PTY interattivo, streaming continuo e ripristino dell’intera operazione Codex; non sono simulati.
+- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale e ripristino protetto dell’intera operazione file. Resta da completare il terminale PTY interattivo; non Ã¨ simulato.
 
 Stato verificato e matrice dei requisiti: [MVP_STATUS.md](./MVP_STATUS.md).
