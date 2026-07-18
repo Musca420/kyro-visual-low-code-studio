@@ -1140,6 +1140,32 @@ label {
 .canvas-component > .resize-east { right: -7px; top: calc(50% - 6px); cursor: ew-resize; }
 .canvas-component > .resize-south { bottom: -7px; left: calc(50% - 6px); cursor: ns-resize; }
 .canvas-component > .resize-corner { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.grid-divider-handle {
+  position: absolute;
+  z-index: 5;
+  top: 18px;
+  bottom: 8px;
+  width: 14px !important;
+  min-width: 14px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: color-mix(in srgb, var(--purple) 24%, transparent) !important;
+  cursor: col-resize;
+  touch-action: none;
+  transform: translateX(-50%);
+  opacity: 0;
+}
+.component-children:hover > .grid-divider-handle,
+.grid-divider-handle:focus-visible { opacity: 1; }
+.grid-divider-handle::after {
+  content: "";
+  position: absolute;
+  inset: 4px 6px;
+  border-radius: 2px;
+  background: var(--purple);
+}
 .alignment-guide { position: absolute; z-index: 3; pointer-events: none; background: var(--purple); opacity: 0.8; }
 .guide-horizontal { left: -100vw; top: 50%; width: 200vw; height: 1px; }
 .guide-vertical { top: -100vh; left: 50%; width: 1px; height: 200vh; }
@@ -1213,12 +1239,25 @@ label {
   margin-bottom: 0;
 }
 .flow-canvas {
+  position: relative;
   height: 480px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: #fff;
   overflow: hidden;
   margin: 24px 0;
+}
+.flow-fit-button {
+  position: absolute;
+  z-index: 7;
+  top: 10px;
+  right: 10px;
+  width: auto;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 10px;
 }
 .flow-node {
   min-width: 135px;
@@ -1240,8 +1279,8 @@ label {
   font-size: 12px;
 }
 .react-flow__handle {
-  width: 9px;
-  height: 9px;
+  width: 13px;
+  height: 13px;
 }
 .log-console {
   border: 1px solid var(--line);

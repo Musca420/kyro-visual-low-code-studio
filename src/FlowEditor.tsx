@@ -13,8 +13,12 @@ const ports: Record<FlowNode['type'], { input: ValueType; output: ValueType }> =
 const compatible = (output: ValueType, input: ValueType) => output === 'unknown' || input === 'unknown' || output === input || (input === 'writable' && ['string', 'record'].includes(output))
 
 function FlowNode({ data }: NodeProps) {
-  const value = data as { label: string; type: string; input: ValueType; output: ValueType; cases?: string[] }
-  return <div className="flow-node" style={{ borderColor: colors[value.type] ?? '#64748b' }}>
+  const value = data as { label: string; type: string; input: ValueType; output: ValueType; cases?: string[]; onSelect: () => void }
+  const selectBody = (event: React.PointerEvent | React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('.react-flow__handle')) return
+    value.onSelect()
+  }
+  return <div className="flow-node" style={{ borderColor: colors[value.type] ?? '#64748b' }} onPointerDown={selectBody} onClick={selectBody}>
     {value.type !== 'event' && <Handle type="target" position={Position.Left} />}
     <small>{value.type}</small><strong>{value.label}</strong>
     {!['switch', 'loop'].includes(value.type) && <Handle type="source" position={Position.Right} id="success" />}
@@ -33,20 +37,30 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
   const [paletteQuery, setPaletteQuery] = useState('')
   const [connectionPath, setConnectionPath] = useState('success')
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance>()
+  const [fitReady, setFitReady] = useState(false)
   const portFor = (node: FlowNode) => node.type === 'query' && node.config.mode === 'one' ? { input: 'unknown' as const, output: 'record' as const } : node.type === 'module' ? (() => {
     const module = modules.find((item) => item.id === node.config.moduleId)
     return module ? { input: module.inputType, output: module.outputType } : ports.module
   })() : ports[node.type]
-  const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type, cases: node.type === 'switch' ? node.config.cases?.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 4) : undefined, ...portFor(node) } }))
+  const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type, cases: node.type === 'switch' ? node.config.cases?.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 4) : undefined, onSelect: () => onNodeSelect?.(node.id), ...portFor(node) } }))
   const edges: Edge[] = (flow?.edges ?? []).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.path, label: edge.path, animated: edge.path === 'success' }))
   const selected = flow?.nodes.find((node) => node.id === selectedNodeId)
+  const fitNodeIds = (flow?.nodes ?? []).map((node) => node.id).join(',')
   const selectedPaths = selected?.type === 'switch' ? [...(selected.config.cases ?? '').split(',').map((item) => `case:${item.trim()}`).filter((item) => item !== 'case:').slice(0, 4), 'error'] : selected?.type === 'loop' ? ['each', 'done'] : selected && ['validate', 'condition', 'requireRole'].includes(selected.type) ? ['success', 'error'] : ['success']
   const activeConnectionPath = selectedPaths.includes(connectionPath) ? connectionPath : selectedPaths[0]
   useEffect(() => {
+    setFitReady(false)
     if (!flowInstance) return
-    const frame = requestAnimationFrame(() => void flowInstance.fitView({ padding: 0.18, duration: 0 }))
+    const expected = fitNodeIds ? fitNodeIds.split(',').length : 0
+    let frame = 0
+    const check = () => {
+      const current = document.querySelectorAll<HTMLElement>('.flow-canvas .react-flow__node')
+      if (current.length === expected && [...current].every((node) => node.offsetWidth && node.offsetHeight)) setFitReady(true)
+      else frame = requestAnimationFrame(check)
+    }
+    frame = requestAnimationFrame(check)
     return () => cancelAnimationFrame(frame)
-  }, [flowInstance, nodes.length])
+  }, [flowInstance, fitNodeIds])
   const addNode = (type: FlowNode['type']) => {
     if (!flow) return
     const index = flow.nodes.length
@@ -98,6 +112,7 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
       {paletteQuery.trim() ? nodeButtons(matchingTypes) : <div className="flow-groups">{groups.map((group) => <details key={group.label} open={group.open}><summary>{group.label}<span>{group.types.length}</span></summary>{nodeButtons(group.types)}</details>)}</div>}
     </aside>
     <div className="flow-canvas" aria-label="Editor grafico del flow">
+    <button type="button" className="flow-fit-button" disabled={!fitReady} onClick={() => flowInstance?.fitView({ nodes: flow.nodes.map((node) => ({ id: node.id })), padding: 0.18, duration: 0 })}>Mostra tutto</button>
     <ReactFlow
       nodes={nodes}
       edges={edges}

@@ -64,6 +64,7 @@ import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
 import { createReusableComponent, instantiateReusableComponent } from "./reusableComponents";
 import { createBackup, restoreBackup, serializeBackup } from "./backup";
+import { gridColumns, gridFractions, resizeGridColumns } from "./gridLayout";
 import {
   inspectComponentProgram,
   inspectFlowNodeProgram,
@@ -2300,10 +2301,10 @@ function Editor({
               {activeComponent && canContain(activeComponent) && (
                 <div className="canvas-layout-tools" aria-label="Colonne del contenitore">
                   <span>Colonne</span>
-                  {[1, 2, 3].map((count) => (
+                  {[1, 2, 3, 4].map((count) => (
                     <button
                       key={count}
-                      aria-label={`${count === 1 ? "Una" : count === 2 ? "Due" : "Tre"} ${count === 1 ? "colonna" : "colonne"}`}
+                      aria-label={`${["Una", "Due", "Tre", "Quattro"][count - 1]} ${count === 1 ? "colonna" : "colonne"}`}
                       onClick={() =>
                         updateComponent((component) => ({
                           ...component,
@@ -2312,7 +2313,7 @@ function Editor({
                             [breakpoint]: {
                               ...component.styles[breakpoint],
                               display: "grid",
-                              gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
+                              gridTemplateColumns: gridColumns(count),
                               gap: "16px",
                             },
                           },
@@ -2322,6 +2323,47 @@ function Editor({
                       {count}
                     </button>
                   ))}
+                  <button
+                    aria-label="Meno colonne"
+                    disabled={gridFractions(componentStyle(activeComponent).gridTemplateColumns).length <= 1}
+                    onClick={() => {
+                      const count = gridFractions(componentStyle(activeComponent).gridTemplateColumns).length;
+                      updateComponent((component) => ({
+                        ...component,
+                        styles: {
+                          ...component.styles,
+                          [breakpoint]: {
+                            ...component.styles[breakpoint],
+                            display: "grid",
+                            gridTemplateColumns: gridColumns(count - 1),
+                            gap: componentStyle(component).gap || "16px",
+                          },
+                        },
+                      }));
+                    }}
+                  >−</button>
+                  <output aria-label="Numero colonne">
+                    {gridFractions(componentStyle(activeComponent).gridTemplateColumns).length}
+                  </output>
+                  <button
+                    aria-label="Più colonne"
+                    disabled={gridFractions(componentStyle(activeComponent).gridTemplateColumns).length >= 12}
+                    onClick={() => {
+                      const count = gridFractions(componentStyle(activeComponent).gridTemplateColumns).length;
+                      updateComponent((component) => ({
+                        ...component,
+                        styles: {
+                          ...component.styles,
+                          [breakpoint]: {
+                            ...component.styles[breakpoint],
+                            display: "grid",
+                            gridTemplateColumns: gridColumns(count + 1),
+                            gap: componentStyle(component).gap || "16px",
+                          },
+                        },
+                      }));
+                    }}
+                  >＋</button>
                 </div>
               )}
               {selected.length > 1 && (
@@ -3874,6 +3916,30 @@ function DesignComponent({
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });
   };
+  const fractions = style.display === "grid" ? gridFractions(style.gridTemplateColumns) : [];
+  const resizeColumn = (boundary: number, event: React.PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const zone = event.currentTarget.parentElement!.getBoundingClientRect();
+    const start = event.clientX;
+    const initial = style.gridTemplateColumns;
+    let next = initial;
+    const move = (pointer: PointerEvent) => {
+      next = resizeGridColumns(initial, boundary, (pointer.clientX - start) / zone.width);
+      setDirectPreview({ gridTemplateColumns: next, transition: "none" });
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", move);
+      setDirectPreview({});
+      onDirectStyle({ gridTemplateColumns: next });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+  };
+  const nudgeColumn = (boundary: number, direction: number) =>
+    onDirectStyle({
+      gridTemplateColumns: resizeGridColumns(style.gridTemplateColumns, boundary, direction * 0.025),
+    });
   return (
     <article
       className={`canvas-component ${selected ? "selected" : ""}`}
@@ -3935,6 +4001,27 @@ function DesignComponent({
             {children ? component.name : "Trascina qui gli elementi"}
           </span>
           {children}
+          {selected && fractions.slice(0, -1).map((_, index) => {
+            const position = fractions.slice(0, index + 1).reduce((sum, value) => sum + value, 0) /
+              fractions.reduce((sum, value) => sum + value, 0) * 100;
+            return (
+              <button
+                key={index}
+                className="grid-divider-handle"
+                style={{ left: `${position}%` }}
+                aria-label={`Ridimensiona colonne ${index + 1} e ${index + 2}`}
+                title="Trascina per cambiare la larghezza delle colonne"
+                onPointerDown={(event) => resizeColumn(index, event)}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  nudgeColumn(index, event.key === "ArrowLeft" ? -1 : 1);
+                }}
+              />
+            );
+          })}
         </div>
       )}
       {selected && (

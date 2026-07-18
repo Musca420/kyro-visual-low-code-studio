@@ -21,6 +21,7 @@ test("un utente protegge un'azione per ruolo dal flow visuale", async ({ page })
   await page.getByLabel("Messaggio accesso negato").fill("Solo il team può aggiungere attività");
   const roleNode = page.locator(".react-flow__node").filter({ hasText: "Controlla ruolo" });
   const eventNode = page.locator(".react-flow__node").filter({ hasText: "Click pulsante" });
+  await page.getByRole("button", { name: "Mostra tutto" }).click();
   await eventNode.click();
   await page.getByLabel("Passo successivo").selectOption({ label: "Controlla ruolo" });
   await roleNode.click();

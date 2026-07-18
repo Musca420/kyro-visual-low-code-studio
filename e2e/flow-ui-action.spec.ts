@@ -22,7 +22,15 @@ test("un flow cambia davvero un elemento della preview senza codice", async ({ p
   await page.getByLabel("Valore cambiamento").fill("Aggiunta completata");
   const refresh = page.locator(".react-flow__node").filter({ hasText: "Aggiorna lista" });
   const visual = page.locator(".react-flow__node").filter({ hasText: "Conferma visiva" });
-  await refresh.locator(".react-flow__handle.source").dragTo(visual.locator(".react-flow__handle.target"));
+  await page.getByRole("button", { name: "Mostra tutto" }).click();
+  const edgeCount = await page.locator(".react-flow__edge").count();
+  const sourceBox = (await refresh.locator(".react-flow__handle.source").boundingBox())!;
+  const targetBox = (await visual.locator(".react-flow__handle.target").boundingBox())!;
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(edgeCount + 1);
 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');

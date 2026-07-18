@@ -84,6 +84,7 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.locator(".react-flow__node").filter({ hasText: "Funzione avanzata" }).click();
   await expect(page.getByLabel("Modulo collegato")).toHaveValue(/.+/);
 
+  await page.getByRole("button", { name: "Mostra tutto" }).click();
   await queryNode.click();
   await page.getByLabel("Passo successivo").selectOption({ label: "Inserisci record" });
   await expect(page.getByRole("alert")).toContainText("produce list");
