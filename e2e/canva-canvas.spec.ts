@@ -107,6 +107,29 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
   await buttons.nth(2).click({ modifiers: ["Control"] });
   await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
 
+  const canvas = page.locator(".design-canvas");
+  const canvasBox = await canvas.boundingBox();
+  await page.mouse.click(canvasBox!.x + 8, canvasBox!.y + 8);
+  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toHaveCount(0);
+  const initialBoxes = await buttons.evaluateAll((items) =>
+    items.map((item) => item.getBoundingClientRect()),
+  );
+  const marqueeStart = {
+    x: Math.min(...initialBoxes.map((box) => box.left)) - 12,
+    y: Math.min(...initialBoxes.map((box) => box.top)) - 12,
+  };
+  const marqueeEnd = {
+    x: Math.max(...initialBoxes.map((box) => box.right)) + 12,
+    y: Math.max(...initialBoxes.map((box) => box.bottom)) + 12,
+  };
+  await page.mouse.move(marqueeStart.x, marqueeStart.y);
+  await page.mouse.down();
+  await page.mouse.move(marqueeEnd.x, marqueeEnd.y, { steps: 6 });
+  await expect(page.locator(".selection-marquee")).toBeVisible();
+  await page.screenshot({ path: "artifacts/frontend-editor-canva-marquee.png", fullPage: true });
+  await page.mouse.up();
+  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
+
   await page.getByRole("button", { name: "Allinea in alto" }).click();
   await page.waitForTimeout(250);
   const alignedTops = await buttons.evaluateAll((items) =>
@@ -172,4 +195,46 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
   );
   expect(previewBoxes.every((box) => box.position === "absolute")).toBe(true);
   expect(Math.max(...previewBoxes.map((box) => box.top)) - Math.min(...previewBoxes.map((box) => box.top))).toBeLessThanOrEqual(8);
+});
+
+test("guide intelligenti agganciano bordi e centro degli elementi vicini", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Nome progetto").fill("Canva Smart Guides");
+  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
+  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  const paletteButton = page.locator(".palette").getByRole("button").filter({ hasText: "button" });
+  await paletteButton.click();
+  await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
+  await page.getByLabel("Larghezza").fill("120px");
+  await paletteButton.click();
+  await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
+  await page.getByLabel("Larghezza").fill("120px");
+  await page.getByLabel("Posizione X").fill("157px");
+  await page.waitForTimeout(250);
+
+  const buttons = page.getByTestId("component-button");
+  const first = (await buttons.nth(0).boundingBox())!;
+  const second = (await buttons.nth(1).boundingBox())!;
+  const mover = buttons.nth(1).getByRole("button", { name: "Trascina per spostare" });
+  await mover.hover();
+  const moverBox = (await mover.boundingBox())!;
+  await page.mouse.down();
+  await page.mouse.move(
+    moverBox.x + moverBox.width / 2 + first.x - second.x + 4,
+    moverBox.y + moverBox.height / 2 + first.y - second.y + 4,
+    { steps: 8 },
+  );
+  await expect(buttons.nth(1).locator(".alignment-guide")).toHaveCount(2);
+  await page.screenshot({ path: "artifacts/frontend-editor-canva-smart-guides.png", fullPage: true });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+
+  const snappedFirst = (await buttons.nth(0).boundingBox())!;
+  const snappedSecond = (await buttons.nth(1).boundingBox())!;
+  expect(Math.abs(snappedFirst.x - snappedSecond.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(snappedFirst.y - snappedSecond.y)).toBeLessThanOrEqual(1);
+  await page.getByRole("button", { name: "Annulla" }).click();
+  await page.waitForTimeout(250);
+  const restored = (await buttons.nth(1).boundingBox())!;
+  expect(restored.x).toBeGreaterThan(snappedSecond.x + 100);
 });

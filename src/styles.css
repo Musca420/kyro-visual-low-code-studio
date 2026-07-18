@@ -929,6 +929,13 @@ label {
   gap: 12px;
   transition: width 0.2s;
 }
+.selection-marquee {
+  position: absolute;
+  z-index: 20;
+  border: 1px solid var(--purple);
+  background: color-mix(in srgb, var(--purple) 16%, transparent);
+  pointer-events: none;
+}
 .canvas-desktop {
   width: 100%;
   max-width: 1120px;

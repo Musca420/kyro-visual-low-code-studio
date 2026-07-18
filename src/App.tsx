@@ -554,6 +554,12 @@ function Editor({
   const [project, setProject] = useState(initial);
   const [pageId, setPageId] = useState(initial.pages[0]?.id ?? "");
   const [selected, setSelected] = useState<string[]>([]);
+  const [marquee, setMarquee] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>();
   const [tab, setTab] = useState<WorkspaceTab>("design");
   const [breakpoint, setBreakpoint] = useState<Breakpoint>("desktop");
   const [interactive, setInteractive] = useState(true);
@@ -1077,6 +1083,58 @@ function Editor({
         };
       }),
     );
+  };
+  const startMarquee = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.target !== event.currentTarget) return;
+    event.preventDefault();
+    const canvas = event.currentTarget;
+    const canvasBox = canvas.getBoundingClientRect();
+    const start = { x: event.clientX, y: event.clientY };
+    let current = start;
+    setSelected([]);
+    const draw = (pointer: PointerEvent) => {
+      current = { x: pointer.clientX, y: pointer.clientY };
+      setMarquee({
+        x: (Math.min(start.x, current.x) - canvasBox.left) / zoom,
+        y: (Math.min(start.y, current.y) - canvasBox.top) / zoom,
+        width: Math.abs(current.x - start.x) / zoom,
+        height: Math.abs(current.y - start.y) / zoom,
+      });
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", draw);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      const bounds = {
+        left: Math.min(start.x, current.x),
+        right: Math.max(start.x, current.x),
+        top: Math.min(start.y, current.y),
+        bottom: Math.max(start.y, current.y),
+      };
+      if (bounds.right - bounds.left >= 4 && bounds.bottom - bounds.top >= 4) {
+        const ids = [...canvas.querySelectorAll<HTMLElement>("[data-component-id]")]
+          .filter((element) => {
+            const box = element.getBoundingClientRect();
+            const center = {
+              x: box.left + box.width / 2,
+              y: box.top + box.height / 2,
+            };
+            return (
+              center.x >= bounds.left &&
+              center.x <= bounds.right &&
+              center.y >= bounds.top &&
+              center.y <= bounds.bottom
+            );
+          })
+          .map((element) => element.dataset.componentId!)
+          .filter(Boolean);
+        setSelected(ids);
+      }
+      setMarquee(undefined);
+    };
+    window.addEventListener("pointermove", draw);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
   };
   const removeSelected = () => {
     change((value) => {
@@ -1876,6 +1934,7 @@ function Editor({
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
+                onPointerDown={startMarquee}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   const type = event.dataTransfer.getData(
@@ -1923,6 +1982,13 @@ function Editor({
                       onDirectStyle={applyDirectStyle}
                     />
                   ))
+                )}
+                {marquee && (
+                  <span
+                    className="selection-marquee"
+                    aria-hidden="true"
+                    style={marquee}
+                  />
                 )}
               </div>
             </div>
@@ -2788,6 +2854,7 @@ function GuideBar({
 
 function HelpOverlay({ children }: { children: React.ReactNode }) {
   const [help, setHelp] = useState<{ text: string; x: number; y: number }>();
+  const pressed = useRef(false);
   const show = (target: EventTarget | null, x?: number, y?: number) => {
     const element =
       target instanceof Element
@@ -2813,11 +2880,21 @@ function HelpOverlay({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="help-surface"
+      onPointerDownCapture={() => {
+        pressed.current = true;
+        setHelp(undefined);
+      }}
+      onPointerUpCapture={() => {
+        pressed.current = false;
+      }}
+      onPointerCancelCapture={() => {
+        pressed.current = false;
+      }}
       onPointerOver={(event) =>
-        show(event.target, event.clientX, event.clientY)
+        !pressed.current && show(event.target, event.clientX, event.clientY)
       }
       onPointerMove={(event) =>
-        show(event.target, event.clientX, event.clientY)
+        !pressed.current && show(event.target, event.clientX, event.clientY)
       }
       onPointerLeave={() => setHelp(undefined)}
       onFocusCapture={(event) => show(event.target)}
@@ -3075,6 +3152,10 @@ function DesignComponent({
   const [directPreview, setDirectPreview] = useState<
     Partial<EditorComponent["styles"]["desktop"]>
   >({});
+  const [directGuides, setDirectGuides] = useState<{
+    x?: number;
+    y?: number;
+  }>({});
   const directManipulation = useRef(false);
   const style = {
     ...component.styles.desktop,
@@ -3112,25 +3193,89 @@ function DesignComponent({
     event.stopPropagation();
     directManipulation.current = true;
     const start = { x: event.clientX, y: event.clientY };
+    const movingElement = event.currentTarget.closest<HTMLElement>(
+      "[data-component-id]",
+    )!;
+    const movingBox = movingElement.getBoundingClientRect();
+    const candidates = [
+      ...(movingElement.closest(".design-canvas")?.querySelectorAll<HTMLElement>(
+        "[data-component-id]",
+      ) ?? []),
+    ]
+      .filter(
+        (element) =>
+          element !== movingElement &&
+          !element.classList.contains("selected") &&
+          !movingElement.contains(element) &&
+          !element.contains(movingElement),
+      )
+      .map((element) => element.getBoundingClientRect());
     const initial = {
       x: Number.parseFloat(style.left) || 0,
       y: Number.parseFloat(style.top) || 0,
     };
     let next = initial;
     const move = (pointer: PointerEvent) => {
-      next = {
-        x: snap(initial.x + (pointer.clientX - start.x) / zoom),
-        y: snap(initial.y + (pointer.clientY - start.y) / zoom),
+      const delta = {
+        x: pointer.clientX - start.x,
+        y: pointer.clientY - start.y,
       };
+      const proposed = {
+        left: movingBox.left + delta.x,
+        top: movingBox.top + delta.y,
+      };
+      const closest = (
+        movingAnchors: number[],
+        candidateAnchors: number[],
+      ) => {
+        let match: { correction: number; target: number; anchor: number } | undefined;
+        movingAnchors.forEach((anchor) =>
+          candidateAnchors.forEach((target) => {
+            const correction = target - anchor;
+            if (
+              Math.abs(correction) <= 6 &&
+              (!match || Math.abs(correction) < Math.abs(match.correction))
+            )
+              match = { correction, target, anchor };
+          }),
+        );
+        return match;
+      };
+      const xMatch = closest(
+        [proposed.left, proposed.left + movingBox.width / 2, proposed.left + movingBox.width],
+        candidates.flatMap((box) => [box.left, box.left + box.width / 2, box.right]),
+      );
+      const yMatch = closest(
+        [proposed.top, proposed.top + movingBox.height / 2, proposed.top + movingBox.height],
+        candidates.flatMap((box) => [box.top, box.top + box.height / 2, box.bottom]),
+      );
+      next = {
+        x: xMatch
+          ? initial.x + (delta.x + xMatch.correction) / zoom
+          : snap(initial.x + delta.x / zoom),
+        y: yMatch
+          ? initial.y + (delta.y + yMatch.correction) / zoom
+          : snap(initial.y + delta.y / zoom),
+      };
+      setDirectGuides({
+        x: xMatch
+          ? (xMatch.target - (proposed.left + xMatch.correction)) / zoom
+          : movingBox.width / zoom / 2,
+        y: yMatch
+          ? (yMatch.target - (proposed.top + yMatch.correction)) / zoom
+          : movingBox.height / zoom / 2,
+      });
       setDirectPreview({
         position: style.position === "absolute" ? "absolute" : "relative",
         left: `${next.x}px`,
         top: `${next.y}px`,
+        transition: "none",
       });
     };
     const finish = () => {
       window.removeEventListener("pointermove", move);
       setDirectPreview({});
+      setDirectGuides({});
       onDirectStyle({
         position: style.position === "absolute" ? "absolute" : "relative",
         left: `${next.x}px`,
@@ -3159,11 +3304,17 @@ function DesignComponent({
       setDirectPreview({
         ...(axis === "y" ? {} : { width: `${next.width}px` }),
         ...(axis === "x" ? {} : { height: `${next.height}px` }),
+        transition: "none",
+      });
+      setDirectGuides({
+        x: next.width / 2,
+        y: next.height / 2,
       });
     };
     const finish = () => {
       window.removeEventListener("pointermove", move);
       setDirectPreview({});
+      setDirectGuides({});
       onDirectStyle({
         ...(axis === "y" ? {} : { width: `${next.width}px` }),
         ...(axis === "x" ? {} : { height: `${next.height}px` }),
@@ -3290,8 +3441,14 @@ function DesignComponent({
           />
           {Object.keys(directPreview).length > 0 && (
             <>
-              <span className="alignment-guide guide-horizontal" />
-              <span className="alignment-guide guide-vertical" />
+              <span
+                className="alignment-guide guide-horizontal"
+                style={{ top: directGuides.y }}
+              />
+              <span
+                className="alignment-guide guide-vertical"
+                style={{ left: directGuides.x }}
+              />
             </>
           )}
         </>
