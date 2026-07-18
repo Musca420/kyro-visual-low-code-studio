@@ -38,6 +38,11 @@ describe('project model', () => {
     project.reusableComponents[0].exposedProperties[0].componentId = 'missing'
     expect(() => parseProject(project)).toThrow('Proprietà esposta senza componente')
   })
+  it('conserva al massimo una cronologia flow tipizzata nel progetto', () => {
+    const project = createProject('Profiling')
+    project.flowRuns.push({ id: 'run', flowId: 'flow', startedAt: new Date().toISOString(), durationMs: 12.5, logs: [{ nodeId: 'node', level: 'info', message: 'Fatto', durationMs: 12.5 }] })
+    expect(parseProject(project).flowRuns[0].logs[0].durationMs).toBe(12.5)
+  })
 
   it('rejects dangling references with a useful error', () => {
     const project = createProject('Invalid')

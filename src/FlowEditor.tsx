@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Background, Controls, Handle, Position, ReactFlow, addEdge, type Connection, type Edge, type Node, type NodeProps } from '@xyflow/react'
+import { useEffect, useState } from 'react'
+import { Background, Controls, Handle, Position, ReactFlow, addEdge, type Connection, type Edge, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { flowNodeTypes, type EditorComponent, type Flow, type FlowNode, type Project } from './model'
 import { CodeModuleEditor } from './CodeModuleEditor'
@@ -32,6 +32,7 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
   const [connectionError, setConnectionError] = useState('')
   const [paletteQuery, setPaletteQuery] = useState('')
   const [connectionPath, setConnectionPath] = useState('success')
+  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance>()
   const portFor = (node: FlowNode) => node.type === 'query' && node.config.mode === 'one' ? { input: 'unknown' as const, output: 'record' as const } : node.type === 'module' ? (() => {
     const module = modules.find((item) => item.id === node.config.moduleId)
     return module ? { input: module.inputType, output: module.outputType } : ports.module
@@ -41,6 +42,11 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
   const selected = flow?.nodes.find((node) => node.id === selectedNodeId)
   const selectedPaths = selected?.type === 'switch' ? [...(selected.config.cases ?? '').split(',').map((item) => `case:${item.trim()}`).filter((item) => item !== 'case:').slice(0, 4), 'error'] : selected?.type === 'loop' ? ['each', 'done'] : selected && ['validate', 'condition', 'requireRole'].includes(selected.type) ? ['success', 'error'] : ['success']
   const activeConnectionPath = selectedPaths.includes(connectionPath) ? connectionPath : selectedPaths[0]
+  useEffect(() => {
+    if (!flowInstance) return
+    const frame = requestAnimationFrame(() => void flowInstance.fitView({ padding: 0.18, duration: 180 }))
+    return () => cancelAnimationFrame(frame)
+  }, [flowInstance, nodes.length])
   const addNode = (type: FlowNode['type']) => {
     if (!flow) return
     const index = flow.nodes.length
@@ -103,6 +109,7 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
         if (positions.size) onChange({ ...flow, nodes: flow.nodes.map((node) => ({ ...node, position: positions.get(node.id) ?? node.position })) })
       }}
       fitView
+      onInit={setFlowInstance}
       deleteKeyCode={null}
     ><Background /><Controls /></ReactFlow>
     </div>

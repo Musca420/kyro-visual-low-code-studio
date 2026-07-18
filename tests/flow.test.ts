@@ -287,6 +287,7 @@ describe('flow runtime', () => {
     const records = [{ id: 'alpha', name: 'Alpha' }, { id: 'beta', name: 'Beta' }]
     const logs = await runFlow(one, { input: { projectId: 'beta' }, insert: async () => undefined, refresh: async () => undefined, query: async () => records })
     expect(logs.at(-1)?.value).toEqual(records[1])
+    expect(logs.every((log) => typeof log.durationMs === 'number' && log.durationMs >= 0)).toBe(true)
     const missing = await runFlow(one, { input: { projectId: 'missing' }, insert: async () => undefined, refresh: async () => undefined, query: async () => records })
     expect(missing.at(-1)?.message).toBe('Record missing non trovato')
   })

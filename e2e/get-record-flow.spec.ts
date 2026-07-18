@@ -28,7 +28,8 @@ test("configura la lettura di un record per ID senza codice", async ({ page }) =
   await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
   await page.getByRole("button", { name: /Get visuale/ }).click();
   await page.getByRole("button", { name: /^Flow/ }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Carica dati" }).last().click();
+  await page.getByRole("button", { name: "Fit View" }).click();
+  await page.locator(".react-flow__node").filter({ hasText: "Carica dati" }).last().locator("strong").click();
   await expect(page.getByLabel("Tipo caricamento dati")).toHaveValue("one");
   await expect(page.getByLabel("Campo ID input")).toHaveValue("projectId");
 });

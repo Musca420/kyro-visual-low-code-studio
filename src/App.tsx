@@ -644,6 +644,7 @@ function Editor({
     tool: "capture_canvas" | "capture_preview";
   }>();
   const processingCommands = useRef(new Set<string>());
+  const projectRef = useRef(project);
   const runtimeState = useRef<Record<string, unknown>>({ ...initial.state });
   const resumeFlow = useRef<(() => void) | undefined>(undefined);
   const assetInput = useRef<HTMLInputElement>(null);
@@ -651,6 +652,9 @@ function Editor({
     () => listPlugins().then(setInstalledPlugins),
     [],
   );
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
   useEffect(() => {
     void refreshPlugins();
   }, [refreshPlugins]);
@@ -1669,6 +1673,32 @@ function Editor({
       date: String(record.date ?? new Date().toISOString()),
     }));
   }, [project.dataSources]);
+  const persistFlowRun = useCallback(async (activeFlowId: string, startedAt: string, result: FlowLog[]) => {
+    const logs = result.map((log) => ({
+      nodeId: log.nodeId,
+      level: log.level,
+      message: log.message,
+      durationMs: log.durationMs ?? 0,
+    }));
+    const run = {
+      id: crypto.randomUUID(),
+      flowId: activeFlowId,
+      startedAt,
+      durationMs: logs.reduce((total, log) => total + log.durationMs, 0),
+      logs,
+    };
+    const base = projectRef.current;
+    const candidate = {
+      ...base,
+      flowRuns: [...base.flowRuns, run].slice(-20),
+      revision: base.revision + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    projectRef.current = candidate;
+    change({ ...base, flowRuns: candidate.flowRuns }, false);
+    await saveProject(candidate);
+    setSaveState("Salvato automaticamente");
+  }, [change]);
   const addRecord = useCallback(
     async (input: string) => {
       const activeFlow =
@@ -1690,6 +1720,7 @@ function Editor({
         return;
       }
       setLogs([]);
+      const startedAt = new Date().toISOString();
       const result = await runFlow(activeFlow, {
         input,
         insert: (value, sourceId) => insertRecord(sourceId || source.id, String(value)),
@@ -1717,10 +1748,11 @@ function Editor({
         }),
       });
       setLogs(result);
+      await persistFlowRun(activeFlow.id, startedAt, result);
       const error = result.find((entry) => entry.level === "error");
       if (error) throw new Error(error.message);
     },
-    [project.flows, project.dataSources, project.codeModules, refreshRecords],
+    [project.flows, project.dataSources, project.codeModules, refreshRecords, persistFlowRun],
   );
 
   const runPreviewFlow = useCallback(async (flowId: string, input: unknown) => {
@@ -1729,6 +1761,7 @@ function Editor({
     if (!activeFlow) throw new Error("Flow non trovato");
     let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modal: { componentId: string; operation: "open" | "close" } | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
     setLogs([]);
+    const startedAt = new Date().toISOString();
     const result = await runFlow(activeFlow, {
       input,
       insert: (value, sourceId) => insertGenericRecord(sourceId || source?.id || "", value),
@@ -1768,10 +1801,11 @@ function Editor({
       }),
     });
     setLogs(result);
+    await persistFlowRun(activeFlow.id, startedAt, result);
     const failure = result.find((entry) => entry.level === "error");
     if (failure) throw new Error(failure.message);
     return { notification, level, navigate, modal, ui };
-  }, [project.flows, project.dataSources, project.codeModules, refreshRecords]);
+  }, [project.flows, project.dataSources, project.codeModules, refreshRecords, persistFlowRun]);
 
   const dashboardAction = useCallback(
     async (action: string, payload?: Record<string, string>) => {
@@ -2600,6 +2634,7 @@ function Editor({
               onOpenData={() => setTab("data")}
             />
           )}
+          <FlowRunHistory runs={project.flowRuns} flows={project.flows} onOpen={setLogs} />
           <LogConsole logs={logs} paused={pausedFlow} onResume={() => resumeFlow.current?.()} onSelect={setSelectedFlowNodeId} />
         </main>
       )}
@@ -2927,6 +2962,7 @@ function Editor({
               <span>Crea una pagina per aprire la preview.</span>
             </div>
           )}
+          <FlowRunHistory runs={project.flowRuns} flows={project.flows} onOpen={setLogs} />
           <LogConsole logs={logs} paused={pausedFlow} onResume={() => resumeFlow.current?.()} onSelect={(nodeId) => { setSelectedFlowNodeId(nodeId); setTab("flow"); }} />
         </main>
       )}
@@ -4186,12 +4222,29 @@ function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; pau
           {logs.map((log, index) => (
             <li key={`${log.nodeId}-${index}`} className={`${log.level}${cursor === index ? " current" : ""}`}>
               <code>{log.level}</code>
-              <button type="button" className="log-step" onClick={() => showStep(index)}>{log.message}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</button>
+              <button type="button" className="log-step" onClick={() => showStep(index)}><span>{log.message}</span>{log.durationMs !== undefined && <time>{log.durationMs.toFixed(1)} ms</time>}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</button>
             </li>
           ))}
         </ol>
       )}
     </section>
+  );
+}
+
+function FlowRunHistory({ runs, flows, onOpen }: { runs: Project["flowRuns"]; flows: Project["flows"]; onOpen: (logs: FlowLog[]) => void }) {
+  return (
+    <details className="flow-run-history">
+      <summary>Cronologia esecuzioni <span>{runs.length}</span></summary>
+      <div>
+        {runs.length === 0 ? <p>Nessuna esecuzione registrata.</p> : [...runs].reverse().map((run) => (
+          <button key={run.id} type="button" className="secondary" onClick={() => onOpen(run.logs)}>
+            <strong>{flows.find((flow) => flow.id === run.flowId)?.name ?? "Flow rimosso"}</strong>
+            <span>{run.logs.length} passi · {run.durationMs.toFixed(1)} ms</span>
+            <time>{new Date(run.startedAt).toLocaleString("it")}</time>
+          </button>
+        ))}
+      </div>
+    </details>
   );
 }
 

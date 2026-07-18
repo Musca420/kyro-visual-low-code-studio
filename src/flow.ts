@@ -1,6 +1,6 @@
 import type { Flow } from './model'
 
-export type FlowLog = { nodeId: string; level: 'info' | 'error'; message: string; value?: unknown }
+export type FlowLog = { nodeId: string; level: 'info' | 'error'; message: string; value?: unknown; durationMs?: number }
 export type FlowContext = {
   input: unknown
   insert: (value: unknown, sourceId?: string) => Promise<unknown>
@@ -39,12 +39,14 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
   const loops = new Map<string, { items: unknown[]; index: number }>()
   const push = (log: FlowLog) => { logs.push(log); context.onLog?.(log) }
   let steps = 0
+  const clock = () => typeof performance === 'undefined' ? Date.now() : performance.now()
   while (node) {
     if (++steps > 1000) throw new Error('Il flow ha superato il limite di 1000 passaggi')
     if (context.signal?.aborted) throw new DOMException('Flow annullato', 'AbortError')
     const count = (visited.get(node.id) ?? 0) + 1
     visited.set(node.id, count)
     if (count > 1 && loops.size === 0) throw new Error(`Loop non controllato al nodo ${node.label}`)
+    const nodeStarted = clock()
     try {
       if (node.config.breakpoint === 'true' && breakpointMatches(value, node.config.breakpointWhen, node.config.breakpointValue)) await context.onBreakpoint?.(node.id, value)
       if (node.type === 'readInput') value = context.input
@@ -92,10 +94,10 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
       path = loopPath ?? switchPath ?? (conditionResult === false ? 'error' : 'success')
-      push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value })
+      push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value, durationMs: Math.max(0, clock() - nodeStarted) })
     } catch (error) {
       path = 'error'
-      push({ nodeId: node.id, level: 'error', message: error instanceof Error ? error.message : String(error) })
+      push({ nodeId: node.id, level: 'error', message: error instanceof Error ? error.message : String(error), durationMs: Math.max(0, clock() - nodeStarted) })
     }
     const edge = flow.edges.find((candidate) => candidate.source === node.id && candidate.path === path)
     if (!edge) {

@@ -364,6 +364,18 @@ export const projectSchema = z.object({
       edges: z.array(edgeSchema),
     }),
   ),
+  flowRuns: z.array(z.object({
+    id: z.string(),
+    flowId: z.string(),
+    startedAt: z.string().datetime(),
+    durationMs: z.number().nonnegative(),
+    logs: z.array(z.object({
+      nodeId: z.string(),
+      level: z.enum(["info", "error"]),
+      message: z.string(),
+      durationMs: z.number().nonnegative(),
+    })),
+  })).max(20).default([]),
   state: z.record(z.string(), z.unknown()),
   dataSources: z.array(
     z.object({
@@ -545,6 +557,7 @@ export function createProject(name: string): Project {
     pages: [],
     reusableComponents: [],
     flows: [],
+    flowRuns: [],
     state: {},
     dataSources: [],
     theme: { tokens: { primary: "#6d5dfc", surface: "#ffffff" } },
@@ -601,6 +614,7 @@ function migrateProject(input: unknown): unknown {
     ...legacy,
     formatVersion: 1,
     state: legacy.state ?? {},
+    flowRuns: legacy.flowRuns ?? [],
     reusableComponents: legacy.reusableComponents ?? [],
     dataSources: legacy.dataSources ?? [],
     theme: legacy.theme ?? { tokens: {} },

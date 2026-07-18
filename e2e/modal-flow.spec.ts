@@ -16,8 +16,10 @@ test("un utente chiude una modal con un nodo configurato visualmente", async ({ 
   await nodePalette.getByRole("button", { name: "Gestisci modal", exact: true }).click();
   await page.getByLabel("Elemento collegato").selectOption({ label: "Modal · modal" });
   await page.getByLabel("Azione modal").selectOption("close");
+  await page.getByRole("button", { name: "Fit View" }).click();
   const eventNode = page.locator(".react-flow__node").filter({ hasText: "Click pulsante" });
-  await eventNode.click({ force: true });
+  await eventNode.locator("strong").click();
+  await expect(page.getByLabel("Tipo evento")).toBeVisible();
   await page.getByLabel("Passo successivo").selectOption({ label: "Gestisci modal" });
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');

@@ -8,6 +8,8 @@ Il confronto funzionale aggiornato con i visual builder e la roadmap verificabil
 
 Per il debug, ogni nodo può attivare **Ferma qui**, sempre oppure solo quando il valore è uguale a/contiene un testo. La preview sospende davvero l’operazione prima del nodo, mostra il valore corrente e riparte soltanto con **Continua esecuzione**. La console riproduce i passi dall’inizio manualmente o in automatico e seleziona sul canvas il nodo corrispondente a ogni valore.
 
+Ogni passo mostra anche la durata in millisecondi. Le ultime 20 esecuzioni, con flow, esito, messaggio e tempo per nodo ma senza payload potenzialmente sensibili o pesanti, restano nel progetto versionabile e possono essere riaperte nella console dopo un riavvio. La run viene salvata immediatamente prima di concludere l'azione, quindi chiudere subito la preview non la perde. Quando si aggiunge un nodo il grafo si ricentra automaticamente. `e2e/flow-profile.spec.ts` verifica misura, salvataggio, riapertura e replay persistente.
+
 Nel generatore web generico, eventi, nodi, rami success/error e moduli protetti vengono serializzati dal medesimo grafo ed eseguiti da un runtime TypeScript deterministico. `npm run export:sample`, build e `npm run test:generated` dimostrano separatamente il percorso evento → validazione → modulo → IndexedDB → refresh, senza un handler simulato nell’export.
 
 I plugin seguono l'[SDK dichiarativo](./PLUGIN_SDK.md): possono contribuire preset di componenti, nodi, provider REST e temi con permessi espliciti, senza eseguire codice di terzi nell'editor. Una volta applicato, ogni contributo diventa parte del formato aperto e continua a funzionare anche se il plugin viene disabilitato o nell'export standalone.
