@@ -17,6 +17,8 @@ export type FlowContext = {
   setState?: (key: string, value: unknown) => void
   resetState?: (key: string) => void
   request?: (url: string, method: string, body?: string) => Promise<unknown>
+  getRole?: () => string | undefined
+  signOut?: () => Promise<void> | void
   onLog?: (log: FlowLog) => void
   onBreakpoint?: (nodeId: string, value: unknown) => Promise<void>
   signal?: AbortSignal
@@ -70,6 +72,8 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'map') value = mapItems(value, node.config.field, node.config.template)
       if (node.type === 'http') value = await guarded(required(context.request, 'Richieste API non disponibili')(safeHttpUrl(node.config.url), node.config.method || 'GET', ['GET', 'DELETE'].includes(node.config.method || 'GET') ? undefined : (node.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value))), context)
       if (node.type === 'file') value = await guarded(prepareFile(value, Number(node.config.maxMb) || 2, node.config.accept), context)
+      if (node.type === 'requireRole') { const role = context.getRole?.() ?? node.config.previewRole ?? 'viewer'; const allowed = (node.config.roles || 'admin').split(',').map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(node.config.message || `Questa azione richiede il ruolo ${allowed.join(' o ')}`); value = { role, allowed: true } }
+      if (node.type === 'signOut') await context.signOut?.()
       if (node.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; value = await guarded(node.config.sourceId ? context.insert(next, node.config.sourceId) : context.insert(next), context) }
       if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)

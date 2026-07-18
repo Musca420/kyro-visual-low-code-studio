@@ -224,6 +224,8 @@ export const flowNodeTypes = [
   "map",
   "http",
   "file",
+  "requireRole",
+  "signOut",
   "insert",
   "query",
   "update",

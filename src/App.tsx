@@ -1717,6 +1717,7 @@ function Editor({
       openModal: (componentId) => { modalId = componentId; },
       updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
       notify: (message, kind) => { notification = message; level = kind; },
+      signOut: () => { notification = "Sessione chiusa nella preview"; level = "success"; },
       runModule: (moduleId, value) => {
         const module = project.codeModules.find((item) => item.id === moduleId);
         if (!module) throw new Error("Modulo avanzato non trovato");

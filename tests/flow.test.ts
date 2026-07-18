@@ -235,4 +235,19 @@ describe('flow runtime', () => {
     expect(insert).not.toHaveBeenCalled()
     expect(rejected.some((entry) => entry.message === 'Il tipo di file non è accettato')).toBe(true)
   })
+
+  it('dirama i permessi per ruolo e chiude la sessione dal flow', async () => {
+    const access: Flow = { id: 'access', name: 'Accesso', nodes: [
+      { id: 'event', type: 'event', label: 'Click', position: { x: 0, y: 0 }, config: {} },
+      { id: 'role', type: 'requireRole', label: 'Solo editor', position: { x: 1, y: 0 }, config: { roles: 'admin,editor', message: 'Accesso riservato' } },
+      { id: 'logout', type: 'signOut', label: 'Esci', position: { x: 2, y: 0 }, config: {} },
+      { id: 'denied', type: 'notify', label: 'Negato', position: { x: 2, y: 1 }, config: { message: 'Permesso mancante' } },
+    ], edges: [{ id: '1', source: 'event', target: 'role', path: 'success' }, { id: '2', source: 'role', target: 'logout', path: 'success' }, { id: '3', source: 'role', target: 'denied', path: 'error' }] }
+    const signOut = vi.fn(), notify = vi.fn()
+    await runFlow(access, { input: '', insert: async () => undefined, refresh: async () => undefined, getRole: () => 'editor', signOut, notify })
+    expect(signOut).toHaveBeenCalledOnce()
+    await runFlow(access, { input: '', insert: async () => undefined, refresh: async () => undefined, getRole: () => 'viewer', signOut, notify })
+    expect(signOut).toHaveBeenCalledOnce()
+    expect(notify).toHaveBeenCalledWith('Permesso mancante', 'error')
+  })
 })

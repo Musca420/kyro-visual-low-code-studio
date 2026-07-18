@@ -98,6 +98,20 @@ describe("web generator", () => {
     expect(source).toContain("current.type === 'file'");
   });
 
+  it("esporta controllo ruolo e logout dal grafo", () => {
+    const project = createProject("Access flow");
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [] });
+    project.flows.push({ id: "access", name: "Accesso", nodes: [
+      { id: "event", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } },
+      { id: "role", type: "requireRole", label: "Solo admin", position: { x: 1, y: 0 }, config: { roles: "admin" } },
+      { id: "logout", type: "signOut", label: "Esci", position: { x: 2, y: 0 }, config: {} },
+    ], edges: [{ id: "1", source: "event", target: "role", path: "success" }, { id: "2", source: "role", target: "logout", path: "success" }] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain("const graphRole");
+    expect(source).toContain("current.type === 'requireRole'");
+    expect(source).toContain("sessionStorage.removeItem('frontend-editor-session')");
+  });
+
   it("preserves nested containers in the exported markup", () => {
     const project = createProject("Nested Export");
     const stack = makeComponent("stack"),

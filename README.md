@@ -143,6 +143,8 @@ Il componente **Upload** può inoltre avviare un flow al cambio del file. Il nod
 
 Una sorgente già creata non è bloccata: **Evoluzione sicura** permette di aggiungere, rimuovere o cambiare campi e salva una nuova versione con schema precedente e successivo, senza cancellare i record IndexedDB esistenti. Dallo stesso pannello si collegano entità diverse scegliendo campo locale, sorgente, campo destinazione e cardinalità. Le relazioni mancanti o incoerenti vengono rifiutate durante la validazione del progetto; `e2e/data-evolution.spec.ts` verifica migrazione, relazione e persistenza dopo la riapertura.
 
+La categoria **Accesso** del Flow Editor contiene **Controlla ruolo** ed **Esci dall’account**. Il controllo espone i percorsi consentito/negato, accetta ruoli in linguaggio semplice e permette di simulare admin, editor o lettore in preview. Nell’export il ruolo viene letto dalla sessione firmata, mentre logout elimina la sessione e torna al gate di accesso. `e2e/auth-flow.spec.ts` verifica un’azione negata a un lettore e riuscita a un editor.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.
