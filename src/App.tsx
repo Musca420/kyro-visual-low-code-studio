@@ -2219,6 +2219,11 @@ function Editor({
         open={Boolean(codexRequest)}
         context={codexRequest?.context}
         suggestedPrompt={codexRequest?.prompt ?? ""}
+        captureEvidence={async () => {
+          const canvas = document.querySelector<HTMLElement>(".design-canvas");
+          if (!canvas) throw new Error("Canvas non disponibile per la prova visuale");
+          return captureElement(canvas);
+        }}
         onClose={() => setCodexRequest(undefined)}
       />
     </div>

@@ -3,7 +3,7 @@ import { parseProject, pluginManifestSchema } from './model'
 import { z } from 'zod'
 
 const DB_NAME = 'frontend-editor'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -13,6 +13,7 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('records')) db.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId')
       if (!db.objectStoreNames.contains('plugins')) db.createObjectStore('plugins', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('codexTimeline')) db.createObjectStore('codexTimeline', { keyPath: 'id' }).createIndex('projectId', 'projectId')
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -57,6 +58,26 @@ export type LocalRecord = {
   priority?: 'Low' | 'Medium' | 'High'
   dueDate?: string
 }
+
+export const codexTimelineEntrySchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  componentId: z.string().min(1),
+  componentName: z.string().min(1),
+  prompt: z.string().min(1).max(8000),
+  revision: z.number().int().nonnegative(),
+  mode: z.enum(['plan', 'apply']),
+  status: z.enum(['running', 'completed', 'error', 'cancelled', 'restored']),
+  startedAt: z.string(),
+  finishedAt: z.string().optional(),
+  output: z.string(),
+  errors: z.string(),
+  changedFiles: z.array(z.string()),
+  tests: z.array(z.object({ command: z.string(), passed: z.boolean(), output: z.string() })),
+  beforeScreenshot: z.string().startsWith('data:image/png;base64,').max(1_500_000).optional(),
+  afterScreenshot: z.string().startsWith('data:image/png;base64,').max(1_500_000).optional(),
+})
+export type CodexTimelineEntry = z.infer<typeof codexTimelineEntrySchema>
 
 const projectInputSchema = z.object({
   name: z.string().trim().min(2, 'Il nome deve contenere almeno 2 caratteri'),
@@ -108,20 +129,36 @@ export async function queryRecords(sourceId: string): Promise<LocalRecord[]> {
 export const listPlugins = () => request<PluginManifest[]>('plugins', 'readonly', (store) => store.getAll())
 export const listAllRecords = () => request<LocalRecord[]>('records', 'readonly', (store) => store.getAll())
 
-export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[]) {
+export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = []) {
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(['projects', 'records', 'plugins'], 'readwrite')
+    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline'], 'readwrite')
     const projectStore = transaction.objectStore('projects')
     const recordStore = transaction.objectStore('records')
     const pluginStore = transaction.objectStore('plugins')
+    const timelineStore = transaction.objectStore('codexTimeline')
     projects.forEach((project) => projectStore.put(parseProject(project)))
     records.forEach((record) => recordStore.put(record))
     plugins.forEach((plugin) => pluginStore.put(pluginManifestSchema.parse(plugin)))
+    timeline.forEach((entry) => timelineStore.put(codexTimelineEntrySchema.parse(entry)))
     transaction.oncomplete = () => { db.close(); resolve() }
     transaction.onerror = () => { db.close(); reject(transaction.error) }
     transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error('Ripristino annullato')) }
   })
+}
+export function listCodexTimeline(projectId: string): Promise<CodexTimelineEntry[]> {
+  return request<CodexTimelineEntry[]>('codexTimeline', 'readonly', (store) => store.index('projectId').getAll(projectId))
+    .then((items) => items.map((item) => codexTimelineEntrySchema.parse(item)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)))
+}
+export function listAllCodexTimeline(): Promise<CodexTimelineEntry[]> {
+  return request<CodexTimelineEntry[]>('codexTimeline', 'readonly', (store) => store.getAll())
+    .then((items) => items.map((item) => codexTimelineEntrySchema.parse(item)))
+}
+export async function saveCodexTimelineEntry(value: CodexTimelineEntry) {
+  const entry = codexTimelineEntrySchema.parse(value)
+  await request('codexTimeline', 'readwrite', (store) => store.put(entry))
+  const obsolete = (await listCodexTimeline(entry.projectId)).slice(100)
+  await Promise.all(obsolete.map((item) => request('codexTimeline', 'readwrite', (store) => store.delete(item.id))))
 }
 export async function installPlugin(value: unknown) {
   const manifest = pluginManifestSchema.parse(value)

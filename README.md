@@ -96,6 +96,8 @@ L'onboarding offre template per landing page, portfolio, sito aziendale, blog, e
 
 Il pannello inferiore mostra target, ID stabile, pagina, revisione, flow, dati e workspace. `Analizza richiesta` esegue `codex exec` in sandbox read-only; solo “Approva e applica” abilita workspace-write. Il login resta quello ufficiale della CLI (`codex login`): l’app non legge o salva token.
 
+Ogni richiesta Codex viene registrata nella scheda **Cronologia** con componente, revisione, stato, screenshot prima/dopo, file e test. Le ultime 100 operazioni per progetto restano in IndexedDB, entrano nel backup e possono mostrare il ripristino atomico della modifica.
+
 La scheda **Terminale** è separata dal percorso guidato e destinata agli utenti avanzati. Avvia una sessione persistente soltanto per un progetto aperto, nella cartella locale del workspace; ogni comando viene inviato esclusivamente premendo **Esegui**, l’output è limitato e la sessione può essere terminata dall’interfaccia. Il bridge rifiuta progetti non autorizzati e non viene incluso nell’export.
 
 La skill repo-specific è in `.agents/skills/frontend-editor-live`. Verifica bridge e contesto con:

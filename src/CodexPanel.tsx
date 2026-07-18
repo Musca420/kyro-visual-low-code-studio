@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import {
+  listCodexTimeline,
+  saveCodexTimelineEntry,
+  type CodexTimelineEntry,
+} from "./db";
 
 export type CodexContext = {
   projectId: string;
@@ -88,11 +93,13 @@ export function CodexPanel({
   open,
   context,
   suggestedPrompt,
+  captureEvidence,
   onClose,
 }: {
   open: boolean;
   context?: CodexContext;
   suggestedPrompt: string;
+  captureEvidence?: () => Promise<{ dataUrl: string }>;
   onClose: () => void;
 }) {
   const [prompt, setPrompt] = useState(suggestedPrompt);
@@ -106,7 +113,7 @@ export function CodexPanel({
   const [history, setHistory] = useState<
     { role: "user" | "codex" | "system"; text: string }[]
   >([]);
-  const [view, setView] = useState<"chat" | "operations" | "files" | "tests">(
+  const [view, setView] = useState<"chat" | "timeline" | "operations" | "files" | "tests">(
     "chat",
   );
   const [trace, setTrace] = useState<Trace>({
@@ -117,6 +124,7 @@ export function CodexPanel({
   });
   const [job, setJob] = useState<CodexJob>();
   const [liveText, setLiveText] = useState("");
+  const [timeline, setTimeline] = useState<CodexTimelineEntry[]>([]);
   const contextProjectId = context?.projectId;
   useEffect(() => {
     setPrompt(suggestedPrompt);
@@ -134,6 +142,10 @@ export function CodexPanel({
     } catch {
       setHistory([]);
     }
+  }, [contextProjectId]);
+  useEffect(() => {
+    if (!contextProjectId) return;
+    void listCodexTimeline(contextProjectId).then(setTimeline).catch(() => setTimeline([]));
   }, [contextProjectId]);
   useEffect(() => {
     if (contextProjectId)
@@ -188,7 +200,11 @@ export function CodexPanel({
   };
   const execute = async (mode: "plan" | "apply") => {
     if (!context || !prompt.trim()) return;
+    if (mode === "apply") setPlan("");
     setBusy(true);
+    const startedAt = new Date().toISOString();
+    const beforeScreenshot = await captureEvidence?.().then((value) => value.dataUrl).catch(() => undefined);
+    let timelineId: string = crypto.randomUUID();
     setLiveText(mode === "plan" ? "Analisi in corso…" : "Applicazione in corso…");
     if (mode === "plan")
       setHistory((items) => [
@@ -213,6 +229,25 @@ export function CodexPanel({
         throw new Error(
           value.error || value.errors || "Operazione non riuscita",
         );
+      timelineId = String(value.jobId ?? timelineId);
+      const runningEntry: CodexTimelineEntry = {
+        id: timelineId,
+        projectId: context.projectId,
+        componentId: context.componentId,
+        componentName: context.componentName,
+        prompt,
+        revision: context.revision,
+        mode,
+        status: "running",
+        startedAt,
+        output: "",
+        errors: "",
+        changedFiles: [],
+        tests: [],
+        ...(beforeScreenshot ? { beforeScreenshot } : {}),
+      };
+      await saveCodexTimelineEntry(runningEntry);
+      setTimeline((items) => [runningEntry, ...items.filter((item) => item.id !== timelineId)]);
       let current: CodexJob;
       do {
         await new Promise((resolve) => setTimeout(resolve, 250));
@@ -228,6 +263,19 @@ export function CodexPanel({
       value = current;
       const parsed = readOutput(value.output, value.git);
       const text = parsed.text;
+      const afterScreenshot = await captureEvidence?.().then((result) => result.dataUrl).catch(() => undefined);
+      const completedEntry: CodexTimelineEntry = {
+        ...runningEntry,
+        status: "completed",
+        finishedAt: new Date().toISOString(),
+        output: text,
+        errors: value.errors ?? "",
+        changedFiles: value.changedFiles ?? [],
+        tests: parsed.trace.tests,
+        ...(afterScreenshot ? { afterScreenshot } : {}),
+      };
+      await saveCodexTimelineEntry(completedEntry);
+      setTimeline((items) => [completedEntry, ...items.filter((item) => item.id !== timelineId)]);
       setTrace(parsed.trace);
       if (mode === "plan") setPlan(text);
       setHistory((items) => [
@@ -235,6 +283,27 @@ export function CodexPanel({
         { role: "codex", text },
       ]);
     } catch (error) {
+      if (context) {
+        const failedEntry: CodexTimelineEntry = {
+          id: timelineId,
+          projectId: context.projectId,
+          componentId: context.componentId,
+          componentName: context.componentName,
+          prompt,
+          revision: context.revision,
+          mode,
+          status: "error",
+          startedAt,
+          finishedAt: new Date().toISOString(),
+          output: "",
+          errors: error instanceof Error ? error.message : String(error),
+          changedFiles: [],
+          tests: [],
+          ...(beforeScreenshot ? { beforeScreenshot } : {}),
+        };
+        await saveCodexTimelineEntry(failedEntry).catch(() => undefined);
+        setTimeline((items) => [failedEntry, ...items.filter((item) => item.id !== timelineId)]);
+      }
       setHistory((items) => [
         ...items.filter((item) => !item.text.endsWith("avviata…")),
         {
@@ -253,6 +322,12 @@ export function CodexPanel({
     const value = await response.json();
     if (!response.ok) return setHistory((items) => [...items, { role: "system", text: value.error || "Ripristino non riuscito" }]);
     setJob({ ...job, status: "restored" });
+    const entry = timeline.find((item) => item.id === job.id);
+    if (entry) {
+      const restoredEntry = { ...entry, status: "restored" as const, finishedAt: new Date().toISOString() };
+      await saveCodexTimelineEntry(restoredEntry);
+      setTimeline((items) => items.map((item) => item.id === job.id ? restoredEntry : item));
+    }
     setHistory((items) => [...items, { role: "system", text: `Operazione ripristinata: ${value.restored.length} file riportati allo stato precedente.` }]);
   };
   if (!open) return null;
@@ -307,6 +382,11 @@ export function CodexPanel({
               "Leggi richiesta, risposta e piano in parole semplici.",
             ],
             [
+              "timeline",
+              "Cronologia",
+              "Rivedi richieste, revisioni, screenshot, file e test anche dopo il riavvio.",
+            ],
+            [
               "operations",
               "Operazioni",
               "Mostra i comandi eseguiti nel processo locale controllato.",
@@ -333,6 +413,7 @@ export function CodexPanel({
             {id === "operations" && trace.commands.length > 0 && (
               <span>{trace.commands.length}</span>
             )}
+            {id === "timeline" && timeline.length > 0 && <span>{timeline.length}</span>}
             {id === "files" && trace.files.length > 0 && (
               <span>{trace.files.length}</span>
             )}
@@ -423,6 +504,29 @@ export function CodexPanel({
                   body: `${item.command}\n${item.output}`,
                 }))}
               />
+            )}
+            {view === "timeline" && (
+              timeline.length ? (
+                <div className="codex-timeline">
+                  {timeline.map((entry) => (
+                    <article key={entry.id}>
+                      <header>
+                        <strong>{entry.mode === "apply" ? "Modifica" : "Analisi"} · {entry.componentName}</strong>
+                        <span className={`timeline-status ${entry.status}`}>{entry.status}</span>
+                      </header>
+                      <p>{entry.prompt}</p>
+                      <small>Revisione {entry.revision} · {new Date(entry.startedAt).toLocaleString()}</small>
+                      {(entry.beforeScreenshot || entry.afterScreenshot) && (
+                        <div className="timeline-images">
+                          {entry.beforeScreenshot && <figure><img src={entry.beforeScreenshot} alt="Prima della richiesta Codex" /><figcaption>Prima</figcaption></figure>}
+                          {entry.afterScreenshot && <figure><img src={entry.afterScreenshot} alt="Dopo la richiesta Codex" /><figcaption>Dopo</figcaption></figure>}
+                        </div>
+                      )}
+                      <span>{entry.changedFiles.length} file · {entry.tests.filter((item) => item.passed).length}/{entry.tests.length} test superati</span>
+                    </article>
+                  ))}
+                </div>
+              ) : <div className="codex-welcome"><strong>Nessuna operazione registrata.</strong><p>Ogni richiesta verrà salvata qui con prove e revisione.</p></div>
             )}
             {view === "files" && (
               <>

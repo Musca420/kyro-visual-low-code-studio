@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { listAllRecords, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
+import { codexTimelineEntrySchema, listAllCodexTimeline, listAllRecords, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
 import { pluginManifestSchema, projectSchema } from "./model";
 
 const localRecordSchema = z.object({
@@ -21,6 +21,7 @@ const backupSchema = z.object({
   records: z.array(localRecordSchema).max(50_000),
   plugins: z.array(pluginManifestSchema).max(500),
   preferences: z.record(z.string(), z.string()),
+  codexTimeline: z.array(codexTimelineEntrySchema).max(2_000).default([]),
 });
 
 export type FrontendEditorBackup = z.infer<typeof backupSchema>;
@@ -45,12 +46,13 @@ export async function createBackup(): Promise<FrontendEditorBackup> {
     records: await listAllRecords(),
     plugins: await listPlugins(),
     preferences,
+    codexTimeline: await listAllCodexTimeline(),
   });
 }
 
 export async function restoreBackup(input: unknown) {
   const backup = backupSchema.parse(input);
-  await mergeDatabaseBackup(backup.projects, backup.records, backup.plugins);
+  await mergeDatabaseBackup(backup.projects, backup.records, backup.plugins, backup.codexTimeline);
   Object.entries(backup.preferences).forEach(([key, value]) => {
     if (persistedKey(key)) localStorage.setItem(key, value);
   });
@@ -64,4 +66,3 @@ export async function restoreBackup(input: unknown) {
 export function serializeBackup(backup: FrontendEditorBackup) {
   return JSON.stringify(backup, null, 2);
 }
-

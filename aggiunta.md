@@ -375,4 +375,6 @@ Continua attraverso cicli di osservazione, implementazione, test nel browser, co
 
 È requisito fondamentale anche il completamento verificato di `DESKTOP_PRODUCT_ROADMAP.md`: identità originale chiara/scura accessibile, canvas e pannelli adatti a desktop e mobile, progressive disclosure per utenti non tecnici, applicazione desktop multipiattaforma, CLI globale per aprire cartelle, persistenza completa, home con recenti/ricerca/template/backup/ripristino e aggiornamenti sicuri. La scelta della shell deve essere motivata e gli artefatti installabili devono essere avviati e collaudati, non soltanto configurati.
 
+Il criterio finale di arresto è la facilità d'uso visuale di Canva applicata a un ambiente programmabile: spostamento, resize, allineamento, colonne, griglie, responsive e rifinitura devono essere naturali per un'utente visuale zero-coding. La stessa interfaccia deve poi permettere di collegare qualunque comportamento, dato o servizio con flow, Codex o codice avanzato, senza separare il design dal programma.
+
 Se un requisito è bloccato da credenziali, costi, strumenti esterni o hardware non disponibile, completa tutto ciò che è possibile, documenta esattamente il blocco e non descrivere la parte non verificata come funzionante.

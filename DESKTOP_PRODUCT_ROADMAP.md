@@ -15,14 +15,14 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 | Area | Requisito | Criterio verificabile | Stato |
 |---|---|---|---|
 | Identità | Palette neutra scura, accenti semantici UI/dati/flow/errori, chiaro/scuro | Screenshot desktop/mobile; contrasto testo normale almeno 4.5:1; preferenza persistente | Base verificata |
-| Canvas | Pannelli ridimensionabili e progressive disclosure | Resize desktop; a 760 px nessun overflow e inspector non copre il canvas | Base verificata |
+| Canvas | Facilità Canva con potenza di programmazione completa | Spostare, ridimensionare, allineare, creare colonne/griglie e responsive senza codice; logica/dati restano visuali o Codex | Base responsive verificata; manipolazione diretta avanzata in corso |
 | Accessibilità | WCAG 2.2 AA nei percorsi principali | Tastiera, focus visibile, nomi accessibili e audit automatico/manuale | In corso |
 | Home | Recenti, ricerca, template, backup e ripristino | Chiudere/riaprire, cercare, esportare backup, cancellare/ripristinare senza perdita | Verificato |
 | Desktop | Avvio da icona su Windows/macOS/Linux | Bundle prodotti in CI per i tre sistemi; installazione e smoke test nativo per sistema | Windows verificato; macOS/Linux da eseguire sui sistemi target |
 | CLI | `frontend-editor [cartella]` globale | Installazione locale del comando, apertura cartella valida, errore comprensibile per percorso non valido | Verificato su Windows |
 | Persistenza | Progetti, cronologia, conversazioni, versioni ed export | Riavvio del processo desktop conserva ogni elemento; backup/restore round-trip | In corso |
 | Aggiornamenti | Canale firmato, rollback/rifiuto pacchetto invalido | Test manifest/versione/firma; prova reale dopo disponibilità certificati e hosting | Da fare |
-| Codex | Contesto live, transazione, before/after, test e undo | Timeline persistente con screenshot e revisione; rollback atomico riprovato | In corso |
+| Codex | Contesto live, transazione, before/after, test e undo | Timeline persistente con screenshot e revisione; rollback atomico riprovato | Verificato |
 | Apertura | Formato locale/versionabile, import cartella, export web/Android | Progetto continua fuori dall'editor e file non convertiti non vengono persi | Base verificata |
 
 ## Ordine di consegna
@@ -34,6 +34,10 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 5. Plugin/provider estendibili, export web/Android e aggiornamenti firmati.
 6. Cinque sessioni persona “Canva, zero coding”, seguite da audit completo delle Definition of Done.
 
+## Criterio di arresto UX
+
+Il prodotto non è finito finché una persona abituata a Canva può comporre visivamente pagine e applicazioni, creare più colonne, spostare e ridimensionare oggetti, usare allineamenti/guide e rifinire i breakpoint senza conoscere CSS. Questa semplicità non sostituisce la programmazione: eventi, flow, dati, backend, servizi, codice avanzato e Codex devono rimanere collegati allo stesso elemento e allo stesso grafo.
+
 ## Evidenze del verticale Windows
 
 - `npm run desktop:package`: pacchetto x64 prodotto e avviato separatamente.
@@ -43,3 +47,4 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 - Sicurezza verificata dal test: `contextIsolation=true`, `nodeIntegration=false`, `sandbox=true`; audit delle dipendenze runtime: 0 vulnerabilità note.
 - Dopo una successiva ricostruzione, Device Guard ha rifiutato il nuovo hash non firmato (exit code 4551). Il renderer di produzione aggiornato viene quindi testato con il runtime Electron locale autorizzato; la distribuzione del nuovo artefatto richiede un certificato di firma Windows e resta esplicitamente aperta.
 - `e2e/backup-restore.spec.ts`: progetto e record creati esclusivamente dalla UI, backup scaricato e ispezionato, progetto eliminato, restore eseguito e record verificato nuovamente in Preview; ricerca e contrasto della card recente inclusi.
+- `e2e/codex-timeline.spec.ts`: due richieste registrate con revisione e screenshot prima/dopo, comando di test e file coinvolto; ripristino marcato e timeline ricaricata dal database. Il bridge reale, le revisioni e il restore workspace restano coperti separatamente dai test Live Bridge e delle transazioni.

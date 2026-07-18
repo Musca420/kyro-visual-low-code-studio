@@ -681,6 +681,18 @@ label {
     system-ui;
   color: #3f4859;
 }
+.codex-timeline { display: grid; gap: 12px; }
+.codex-timeline > article { padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.codex-timeline article > header { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.codex-timeline p { margin: 8px 0; white-space: pre-wrap; }
+.codex-timeline small, .codex-timeline article > span { color: var(--muted); font-size: 11px; }
+.timeline-status { padding: 3px 7px; border-radius: 999px; background: #dff7ed; color: #126b4d !important; }
+.timeline-status.error, .timeline-status.cancelled { background: #ffe6e2; color: #9b3026 !important; }
+.timeline-status.restored { background: #fff0d4; color: #875008 !important; }
+.timeline-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.timeline-images figure { margin: 0; }
+.timeline-images img { display: block; width: 100%; max-height: 150px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--workspace); }
+.timeline-images figcaption { margin-top: 3px; color: var(--muted); font-size: 10px; }
 .codex-body > main > form {
   display: grid;
   align-content: end;
@@ -1764,6 +1776,25 @@ label {
   color: #58dbe8;
 }
 [data-theme="dark"] .project-thumb small { color: #c1d5d6; }
+[data-theme="dark"] .codex-body > aside,
+[data-theme="dark"] .codex-history,
+[data-theme="dark"] .codex-body > main > form {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+[data-theme="dark"] .codex-body > aside > span,
+[data-theme="dark"] .codex-body > aside > small,
+[data-theme="dark"] .codex-body dt,
+[data-theme="dark"] .codex-body dd,
+[data-theme="dark"] .codex-body > main > form span { color: var(--muted); }
+[data-theme="dark"] .codex-body code { color: #58dbe8; }
+[data-theme="dark"] .codex-welcome,
+[data-theme="dark"] .codex-welcome strong,
+[data-theme="dark"] .codex-history pre { color: var(--ink); }
+[data-theme="dark"] .codex-history article { background: #1e292d; }
+[data-theme="dark"] .codex-history article.user { background: #17363b; }
+[data-theme="dark"] .codex-history article.system { background: #382f1e; }
 [data-theme="dark"] .workspace-tabs button,
 [data-theme="dark"] .template,
 [data-theme="dark"] .page-list button,
@@ -1925,6 +1956,7 @@ label {
 .flow-node-connections code { display: inline-block; margin: 6px 8px 0 0; }
 @media (max-width: 760px) {
   .flow-node-connections { grid-template-columns: 1fr; }
+  .timeline-images { grid-template-columns: 1fr; }
 }
 .template-heading {
   display: flex;
