@@ -304,7 +304,7 @@ export function PreviewFrame({
         ? landingCss()
         : experience === "dashboard"
           ? dashboardCss()
-          : "body{padding:24px}main{display:grid;gap:14px;width:min(680px,100%);margin:auto}";
+          : "body{padding:24px}main{position:relative;min-height:680px;display:grid;gap:14px;width:min(680px,100%);margin:auto}";
     const behavior =
       experience === "landing"
         ? landingScript(interactive) + landingValidationScript()

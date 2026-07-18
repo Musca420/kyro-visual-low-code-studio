@@ -850,6 +850,33 @@ label {
 .canvas-layout-tools span { margin-right: 3px; color: var(--muted); font-size: 10px; }
 .canvas-layout-tools button { min-width: 28px; padding: 5px 7px; background: transparent; color: var(--ink); }
 .canvas-layout-tools button:hover { background: var(--purple); color: #062f34; }
+.canvas-arrange-tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline: auto;
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-raised);
+}
+.canvas-arrange-tools span {
+  padding-inline: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.canvas-arrange-tools button {
+  min-width: 26px;
+  padding: 5px;
+  background: transparent;
+  color: var(--ink);
+}
+.canvas-arrange-tools button:hover,
+.canvas-arrange-tools button:focus-visible {
+  background: var(--purple);
+  color: #062f34;
+}
 .segmented {
   display: flex;
   background: #e9ebf1;
@@ -889,6 +916,7 @@ label {
   padding: 36px;
 }
 .design-canvas {
+  position: relative;
   transform-origin: top center;
   margin: auto;
   min-height: 680px;

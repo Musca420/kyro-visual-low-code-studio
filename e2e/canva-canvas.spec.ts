@@ -49,13 +49,13 @@ test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo"
   await expect(grid.locator(".alignment-guide")).toHaveCount(2);
   await page.screenshot({ path: "artifacts/frontend-editor-canva-guides.png", fullPage: true });
   await page.mouse.up();
-  await expect(grid).toHaveCSS("margin-left", "32px");
-  await expect(grid).toHaveCSS("margin-top", "24px");
+  await expect(grid).toHaveCSS("left", "32px");
+  await expect(grid).toHaveCSS("top", "24px");
 
   await page.getByRole("button", { name: "Annulla" }).click();
-  await expect(grid).toHaveCSS("margin-left", "0px");
+  await expect(grid).toHaveCSS("left", "0px");
   await page.getByRole("button", { name: "Ripristina" }).click();
-  await expect(grid).toHaveCSS("margin-left", "32px");
+  await expect(grid).toHaveCSS("left", "32px");
   await page.screenshot({ path: "artifacts/frontend-editor-canva-columns.png", fullPage: true });
 
   const componentId = await grid.getAttribute("data-component-id");
@@ -81,4 +81,95 @@ test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo"
   expect(await reopenedDropZone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toContain("repeat(3");
   await page.getByRole("button", { name: "mobile" }).click();
   expect(await reopenedDropZone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toContain("repeat(1");
+});
+
+test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Nome progetto").fill("Canva Multi Select");
+  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
+  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  const paletteButton = page.locator(".palette").getByRole("button").filter({ hasText: "button" });
+  for (const [x, y] of [[16, 0], [152, 40], [336, 80]]) {
+    await paletteButton.click();
+    await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
+    await page.getByLabel("Larghezza").fill("120px");
+    await page.getByLabel("Posizione X").fill(`${x}px`);
+    await page.getByLabel("Posizione Y").fill(`${y}px`);
+  }
+
+  const buttons = page.getByTestId("component-button");
+  await expect(buttons).toHaveCount(3);
+  const buttonIds = await buttons.evaluateAll((items) =>
+    items.map((item) => item.getAttribute("data-component-id")!),
+  );
+  await buttons.nth(0).click();
+  await buttons.nth(1).click({ modifiers: ["Control"] });
+  await buttons.nth(2).click({ modifiers: ["Control"] });
+  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
+
+  await page.getByRole("button", { name: "Allinea in alto" }).click();
+  await page.waitForTimeout(250);
+  const alignedTops = await buttons.evaluateAll((items) =>
+    items.map((item) => Math.round(item.getBoundingClientRect().top)),
+  );
+  expect(Math.max(...alignedTops) - Math.min(...alignedTops)).toBeLessThanOrEqual(8);
+
+  await page.getByRole("button", { name: "Distribuisci orizzontalmente" }).click();
+  await page.waitForTimeout(250);
+  const distributed = await buttons.evaluateAll((items) =>
+    items.map((item) => item.getBoundingClientRect()).sort((a, b) => a.left - b.left),
+  );
+  const firstGap = distributed[1].left - distributed[0].right;
+  const secondGap = distributed[2].left - distributed[1].right;
+  expect(Math.abs(firstGap - secondGap)).toBeLessThanOrEqual(8);
+
+  const beforeMove = await buttons.evaluateAll((items) =>
+    items.map((item) => ({ left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top })),
+  );
+  const mover = buttons.nth(0).getByRole("button", { name: "Trascina per spostare" });
+  await mover.hover();
+  const moverBox = await mover.boundingBox();
+  await page.mouse.down();
+  await page.mouse.move(
+    moverBox!.x + moverBox!.width / 2 + 32,
+    moverBox!.y + moverBox!.height / 2 + 24,
+    { steps: 4 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+  const afterMove = await buttons.evaluateAll((items) =>
+    items.map((item) => ({ left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top })),
+  );
+  afterMove.forEach((box, index) => {
+    expect(Math.round(box.left - beforeMove[index].left)).toBe(32);
+    expect(Math.round(box.top - beforeMove[index].top)).toBe(24);
+  });
+  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
+  await page.mouse.move(800, 620);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: "artifacts/frontend-editor-canva-multiselect.png", fullPage: true });
+
+  await page.getByRole("button", { name: "Annulla" }).click();
+  await page.waitForTimeout(250);
+  const afterUndo = await buttons.evaluateAll((items) =>
+    items.map((item) => ({ left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top })),
+  );
+  afterUndo.forEach((box, index) => {
+    expect(Math.round(box.left)).toBe(Math.round(beforeMove[index].left));
+    expect(Math.round(box.top)).toBe(Math.round(beforeMove[index].top));
+  });
+  await page.getByRole("button", { name: "Ripristina" }).click();
+  await page.waitForTimeout(250);
+  await page.getByRole("button", { name: "Preview" }).click();
+  const preview = page.frameLocator('iframe[title="Preview isolata"]');
+  const previewBoxes = await Promise.all(
+    buttonIds.map((id) =>
+      preview.locator(`[data-component="${id}"]`).evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return { left: box.left, top: box.top, position: getComputedStyle(element).position };
+      }),
+    ),
+  );
+  expect(previewBoxes.every((box) => box.position === "absolute")).toBe(true);
+  expect(Math.max(...previewBoxes.map((box) => box.top)) - Math.min(...previewBoxes.map((box) => box.top))).toBeLessThanOrEqual(8);
 });

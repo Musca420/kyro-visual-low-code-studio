@@ -597,6 +597,9 @@ function Editor({
   const activeComponent = currentPage?.components.find(
     (component) => component.id === selected[0],
   );
+  const selectedComponents = currentPage?.components.filter((component) =>
+    selected.includes(component.id),
+  ) ?? [];
   const activeProgram =
     currentPage && activeComponent
       ? inspectComponentProgram(project, currentPage.id, activeComponent.id)
@@ -905,6 +908,176 @@ function Editor({
         selected.includes(component.id) ? update(component) : component,
       ),
     );
+  const componentStyle = (component: EditorComponent) => ({
+    ...component.styles.desktop,
+    ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
+  });
+  const applyDirectStyle = (
+    componentId: string,
+    values: Partial<EditorComponent["styles"]["desktop"]>,
+  ) => {
+    const source = currentPage?.components.find(
+      (component) => component.id === componentId,
+    );
+    if (!source) return;
+    const moving = "left" in values || "top" in values;
+    const sourceStyle = componentStyle(source);
+    const deltaX = moving
+      ? (Number.parseFloat(values.left ?? sourceStyle.left) || 0) -
+        (Number.parseFloat(sourceStyle.left) || 0)
+      : 0;
+    const deltaY = moving
+      ? (Number.parseFloat(values.top ?? sourceStyle.top) || 0) -
+        (Number.parseFloat(sourceStyle.top) || 0)
+      : 0;
+    patchPage((components) =>
+      components.map((component) => {
+        const moveTogether =
+          moving &&
+          selected.includes(componentId) &&
+          selected.includes(component.id) &&
+          component.parentId === source.parentId;
+        if (component.id !== componentId && !moveTogether) return component;
+        const current = componentStyle(component);
+        const next =
+          component.id === componentId
+            ? values
+            : {
+                position:
+                  current.position === "absolute"
+                    ? ("absolute" as const)
+                    : ("relative" as const),
+                left: `${(Number.parseFloat(current.left) || 0) + deltaX}px`,
+                top: `${(Number.parseFloat(current.top) || 0) + deltaY}px`,
+              };
+        return {
+          ...component,
+          styles: {
+            ...component.styles,
+            [breakpoint]: {
+              ...component.styles[breakpoint],
+              ...next,
+            },
+          },
+        };
+      }),
+    );
+  };
+  const arrangeSelection = (
+    action:
+      | "left"
+      | "center"
+      | "right"
+      | "top"
+      | "middle"
+      | "bottom"
+      | "distribute-x"
+      | "distribute-y",
+  ) => {
+    const entries = selectedComponents
+      .map((component) => ({
+        component,
+        box: document
+          .querySelector<HTMLElement>(`[data-component-id="${component.id}"]`)
+          ?.getBoundingClientRect(),
+      }))
+      .filter(
+        (entry): entry is { component: EditorComponent; box: DOMRect } =>
+          Boolean(entry.box),
+      );
+    if (entries.length < 2) return;
+    if (new Set(entries.map(({ component }) => component.parentId ?? "root")).size > 1) {
+      setFeedback("Seleziona elementi dello stesso gruppo per allinearli insieme");
+      return;
+    }
+    const left = Math.min(...entries.map(({ box }) => box.left));
+    const right = Math.max(...entries.map(({ box }) => box.right));
+    const top = Math.min(...entries.map(({ box }) => box.top));
+    const bottom = Math.max(...entries.map(({ box }) => box.bottom));
+    const targets = new Map<string, { x?: number; y?: number }>();
+    entries.forEach(({ component, box }) => {
+      if (action === "left") targets.set(component.id, { x: left });
+      if (action === "center")
+        targets.set(component.id, { x: (left + right - box.width) / 2 });
+      if (action === "right") targets.set(component.id, { x: right - box.width });
+      if (action === "top") targets.set(component.id, { y: top });
+      if (action === "middle")
+        targets.set(component.id, { y: (top + bottom - box.height) / 2 });
+      if (action === "bottom") targets.set(component.id, { y: bottom - box.height });
+    });
+    if (action === "distribute-x" && entries.length >= 3) {
+      const ordered = [...entries].sort((a, b) => a.box.left - b.box.left);
+      const gap =
+        (right - left - ordered.reduce((sum, entry) => sum + entry.box.width, 0)) /
+        (ordered.length - 1);
+      let cursor = left;
+      ordered.forEach(({ component, box }) => {
+        targets.set(component.id, { x: cursor });
+        cursor += box.width + gap;
+      });
+    }
+    if (action === "distribute-y" && entries.length >= 3) {
+      const ordered = [...entries].sort((a, b) => a.box.top - b.box.top);
+      const gap =
+        (bottom - top - ordered.reduce((sum, entry) => sum + entry.box.height, 0)) /
+        (ordered.length - 1);
+      let cursor = top;
+      ordered.forEach(({ component, box }) => {
+        targets.set(component.id, { y: cursor });
+        cursor += box.height + gap;
+      });
+    }
+    if (!targets.size) return;
+    const canvasBox = document
+      .querySelector<HTMLElement>(".design-canvas")
+      ?.getBoundingClientRect();
+    patchPage((components) =>
+      components.map((component) => {
+        const target = targets.get(component.id);
+        const entry = entries.find((item) => item.component.id === component.id);
+        if (!target || !entry) return component;
+        const current = componentStyle(component);
+        const snap = (value: number) => Math.round(value / 8) * 8;
+        if (!component.parentId && canvasBox) {
+          return {
+            ...component,
+            styles: {
+              ...component.styles,
+              [breakpoint]: {
+                ...component.styles[breakpoint],
+                position: "absolute",
+                left: `${snap(((target.x ?? entry.box.left) - canvasBox.left) / zoom)}px`,
+                top: `${snap(((target.y ?? entry.box.top) - canvasBox.top) / zoom)}px`,
+                marginLeft: "0px",
+                marginTop: "0px",
+              },
+            },
+          };
+        }
+        return {
+          ...component,
+          styles: {
+            ...component.styles,
+            [breakpoint]: {
+              ...component.styles[breakpoint],
+              ...(target.x === undefined
+                ? {}
+                : {
+                    position: "relative" as const,
+                    left: `${snap((Number.parseFloat(current.left) || 0) + (target.x - entry.box.left) / zoom)}px`,
+                  }),
+              ...(target.y === undefined
+                ? {}
+                : {
+                    position: "relative" as const,
+                    top: `${snap((Number.parseFloat(current.top) || 0) + (target.y - entry.box.top) / zoom)}px`,
+                  }),
+            },
+          },
+        };
+      }),
+    );
+  };
   const removeSelected = () => {
     change((value) => {
       const page = value.pages.find((item) => item.id === pageId);
@@ -1661,6 +1834,22 @@ function Editor({
                   ))}
                 </div>
               )}
+              {selected.length > 1 && (
+                <div
+                  className="canvas-arrange-tools"
+                  aria-label={`Disponi ${selected.length} elementi selezionati`}
+                >
+                  <span>{selected.length} selezionati</span>
+                  <button aria-label="Allinea a sinistra" onClick={() => arrangeSelection("left")}>&#8676;</button>
+                  <button aria-label="Allinea al centro" onClick={() => arrangeSelection("center")}>&#8596;</button>
+                  <button aria-label="Allinea a destra" onClick={() => arrangeSelection("right")}>&#8678;</button>
+                  <button aria-label="Allinea in alto" onClick={() => arrangeSelection("top")}>&#8613;</button>
+                  <button aria-label="Allinea al centro verticale" onClick={() => arrangeSelection("middle")}>&#8597;</button>
+                  <button aria-label="Allinea in basso" onClick={() => arrangeSelection("bottom")}>&#8615;</button>
+                  <button aria-label="Distribuisci orizzontalmente" onClick={() => arrangeSelection("distribute-x")}>&#8943;</button>
+                  <button aria-label="Distribuisci verticalmente" onClick={() => arrangeSelection("distribute-y")}>&#8942;</button>
+                </div>
+              )}
               <div className="zoom">
                 <button
                   onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
@@ -1731,24 +1920,7 @@ function Editor({
                       onMove={reorder}
                       onAdd={addComponent}
                       zoom={zoom}
-                      onDirectStyle={(componentId, values) =>
-                        patchPage((components) =>
-                          components.map((component) =>
-                            component.id === componentId
-                              ? {
-                                  ...component,
-                                  styles: {
-                                    ...component.styles,
-                                    [breakpoint]: {
-                                      ...component.styles[breakpoint],
-                                      ...values,
-                                    },
-                                  },
-                                }
-                              : component,
-                          ),
-                        )
-                      }
+                      onDirectStyle={applyDirectStyle}
                     />
                   ))
                 )}
@@ -2903,6 +3075,7 @@ function DesignComponent({
   const [directPreview, setDirectPreview] = useState<
     Partial<EditorComponent["styles"]["desktop"]>
   >({});
+  const directManipulation = useRef(false);
   const style = {
     ...component.styles.desktop,
     ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
@@ -2937,10 +3110,11 @@ function DesignComponent({
   const startMove = (event: React.PointerEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    directManipulation.current = true;
     const start = { x: event.clientX, y: event.clientY };
     const initial = {
-      x: Number.parseFloat(style.marginLeft) || 0,
-      y: Number.parseFloat(style.marginTop) || 0,
+      x: Number.parseFloat(style.left) || 0,
+      y: Number.parseFloat(style.top) || 0,
     };
     let next = initial;
     const move = (pointer: PointerEvent) => {
@@ -2948,12 +3122,23 @@ function DesignComponent({
         x: snap(initial.x + (pointer.clientX - start.x) / zoom),
         y: snap(initial.y + (pointer.clientY - start.y) / zoom),
       };
-      setDirectPreview({ marginLeft: `${next.x}px`, marginTop: `${next.y}px` });
+      setDirectPreview({
+        position: style.position === "absolute" ? "absolute" : "relative",
+        left: `${next.x}px`,
+        top: `${next.y}px`,
+      });
     };
     const finish = () => {
       window.removeEventListener("pointermove", move);
       setDirectPreview({});
-      onDirectStyle({ marginLeft: `${next.x}px`, marginTop: `${next.y}px` });
+      onDirectStyle({
+        position: style.position === "absolute" ? "absolute" : "relative",
+        left: `${next.x}px`,
+        top: `${next.y}px`,
+      });
+      window.setTimeout(() => {
+        directManipulation.current = false;
+      });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });
@@ -2961,6 +3146,7 @@ function DesignComponent({
   const startResize = (event: React.PointerEvent, axis: "x" | "y" | "both") => {
     event.preventDefault();
     event.stopPropagation();
+    directManipulation.current = true;
     const box = event.currentTarget.parentElement!.getBoundingClientRect();
     const start = { x: event.clientX, y: event.clientY };
     const initial = { width: box.width / zoom, height: box.height / zoom };
@@ -2982,6 +3168,9 @@ function DesignComponent({
         ...(axis === "y" ? {} : { width: `${next.width}px` }),
         ...(axis === "x" ? {} : { height: `${next.height}px` }),
       });
+      window.setTimeout(() => {
+        directManipulation.current = false;
+      });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });
@@ -2996,6 +3185,7 @@ function DesignComponent({
       style={canvasStyle}
       onClick={(event) => {
         event.stopPropagation();
+        if (directManipulation.current) return;
         onSelect(event.ctrlKey || event.metaKey);
       }}
       onContextMenu={(event) => {
@@ -3054,6 +3244,7 @@ function DesignComponent({
             className="move-handle"
             aria-label="Trascina per spostare"
             onPointerDown={startMove}
+            onClick={(event) => event.stopPropagation()}
           >
             ::
           </button>
@@ -3083,16 +3274,19 @@ function DesignComponent({
             className="resize-handle resize-east"
             aria-label="Ridimensionamento orizzontale"
             onPointerDown={(event) => startResize(event, "x")}
+            onClick={(event) => event.stopPropagation()}
           />
           <button
             className="resize-handle resize-south"
             aria-label="Ridimensionamento verticale"
             onPointerDown={(event) => startResize(event, "y")}
+            onClick={(event) => event.stopPropagation()}
           />
           <button
             className="resize-handle resize-corner"
             aria-label="Ridimensionamento libero"
             onPointerDown={(event) => startResize(event, "both")}
+            onClick={(event) => event.stopPropagation()}
           />
           {Object.keys(directPreview).length > 0 && (
             <>
