@@ -2835,6 +2835,7 @@ function Editor({
               interactive={interactive}
               onAdd={addRecord}
               onRunFlow={runPreviewFlow}
+              onRuntimeLog={(level, message) => setLogs((current) => [...current.slice(-199), { nodeId: "runtime", level, message }])}
               onRefresh={refreshRecords}
               onDashboardAction={dashboardAction}
               captureRequest={

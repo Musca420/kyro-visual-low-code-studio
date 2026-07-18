@@ -145,6 +145,8 @@ Una sorgente già creata non è bloccata: **Evoluzione sicura** permette di aggi
 
 La categoria **Accesso** del Flow Editor contiene **Controlla ruolo** ed **Esci dall’account**. Il controllo espone i percorsi consentito/negato, accetta ruoli in linguaggio semplice e permette di simulare admin, editor o lettore in preview. Nell’export il ruolo viene letto dalla sessione firmata, mentre logout elimina la sessione e torna al gate di accesso. `e2e/auth-flow.spec.ts` verifica un’azione negata a un lettore e riuscita a un editor.
 
+La preview inoltra automaticamente log, avvisi, errori JavaScript e promise non gestite alla console visuale dell’editor. I messaggi sono limitati agli ultimi 200 elementi e rendono visibili anche oggetti e ID di componente senza aprire DevTools. `e2e/runtime-observability.spec.ts` verifica il ponte dal runtime isolato al pannello.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, applica la configurazione nativa (inclusi icona, splash, safe area e status bar), sincronizza la cartella Android e compila l'APK quando la toolchain è disponibile.

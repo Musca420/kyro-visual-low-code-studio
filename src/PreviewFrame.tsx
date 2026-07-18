@@ -23,6 +23,7 @@ type Props = {
     height: number;
   }) => void;
   onCaptureError?: (error: string) => void;
+  onRuntimeLog?: (level: "info" | "error", message: string) => void;
 };
 
 const escapeHtml = (value: unknown) =>
@@ -298,6 +299,7 @@ export function PreviewFrame({
   captureRequest,
   onCapture,
   onCaptureError,
+  onRuntimeLog,
 }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const ready = useRef(false);
@@ -329,7 +331,8 @@ export function PreviewFrame({
           ? dashboardScript(interactive) + dashboardValidationScript()
           : todoScript(interactive && !hasGraphBindings);
     const capture = `addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-capture')return;try{const width=Math.min(2400,Math.max(1,document.documentElement.scrollWidth)),height=Math.min(2400,Math.max(1,document.documentElement.scrollHeight)),copy=document.documentElement.cloneNode(true);copy.querySelectorAll('script').forEach((node)=>node.remove());send('CAPTURE_HTML',{html:'<!doctype html>'+copy.outerHTML,width,height})}catch(error){send('CAPTURE_ERROR',{error:String(error)})}});`;
-    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join("\n")}body{background:${project.theme.tokens.pageBackground ?? "#ffffff"};background-image:${project.theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${capture}${behavior}${flowTriggerScript(project, interactive)}</script></body></html>`;
+    const observability = `;const feLogText=(value)=>{try{return typeof value==='string'?value:JSON.stringify(value)}catch{return String(value)}};['log','info','warn','error'].forEach((level)=>{const original=console[level].bind(console);console[level]=(...values)=>{original(...values);send('RUNTIME_LOG',{level:level==='error'?'error':'info',message:values.map(feLogText).join(' ')})}});addEventListener('error',(event)=>send('RUNTIME_LOG',{level:'error',message:event.message||'Errore runtime'}));addEventListener('unhandledrejection',(event)=>send('RUNTIME_LOG',{level:'error',message:'Promise non gestita: '+feLogText(event.reason)}));`;
+    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join("\n")}body{background:${project.theme.tokens.pageBackground ?? "#ffffff"};background-image:${project.theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${observability}${capture}${behavior}${flowTriggerScript(project, interactive)}</script></body></html>`;
   }, [page, project, breakpoint, interactive, experience]);
 
   useEffect(() => {
@@ -369,6 +372,8 @@ export function PreviewFrame({
       }
       if (event.data.type === "CAPTURE_ERROR")
         onCaptureError?.(String(event.data.error));
+      if (event.data.type === "RUNTIME_LOG")
+        onRuntimeLog?.(event.data.level === "error" ? "error" : "info", String(event.data.message ?? ""));
       if (event.data.type === "ADD") {
         try {
           await onAdd(String(event.data.value ?? ""));
@@ -433,6 +438,7 @@ export function PreviewFrame({
   }, [
     onAdd,
     onRunFlow,
+    onRuntimeLog,
     onRefresh,
     onDashboardAction,
     sourceId,
