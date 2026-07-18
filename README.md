@@ -2,7 +2,7 @@
 
 Editor visuale low-code locale per creare UI responsive, collegare flow deterministici, usare IndexedDB e generare un'app TypeScript/Vite indipendente.
 
-Il Flow Editor permette di aggiungere liberamente nodi da una palette visuale, configurarli usando i nomi di componenti e sorgenti, collegare porte success/error e osservare il valore che attraversa caricamento, filtro, ordinamento e KPI. Rinomina, eliminazione e collegamenti persistono nello stesso progetto versionato.
+Il Flow Editor permette di aggiungere liberamente nodi da una palette visuale, configurarli usando i nomi di componenti e sorgenti, collegare porte success/error e osservare il valore che attraversa caricamento, filtro, ordinamento e KPI. Le condizioni diramano senza trasformare un esito falso in errore; le porte mostrano i tipi e rifiutano collegamenti incompatibili. Rinomina, eliminazione e collegamenti persistono nello stesso progetto versionato.
 
 Il confronto funzionale aggiornato con i visual builder e la roadmap verificabile sono in [BENCHMARK_ROADMAP.md](./BENCHMARK_ROADMAP.md). Il modello include anche l'intento semantico degli elementi; il pannello **Programma collegato** attraversa eventi, flow, dati e file generati e segnala le capability mancanti allo stesso Live Bridge usato da Codex.
 

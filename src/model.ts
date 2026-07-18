@@ -212,6 +212,7 @@ export const flowNodeTypes = [
   "event",
   "readInput",
   "validate",
+  "condition",
   "insert",
   "query",
   "update",

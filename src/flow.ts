@@ -32,6 +32,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     try {
       if (node.type === 'readInput') value = context.input
       if (node.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(node.config.message || 'Il valore è obbligatorio')
+      const conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
       if (node.type === 'insert') value = await guarded(node.config.sourceId ? context.insert(String(value).trim(), node.config.sourceId) : context.insert(String(value).trim()), context)
       if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
@@ -43,8 +44,8 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'navigate') await context.navigate?.(node.config.path || '/')
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
-      logs.push({ nodeId: node.id, level: 'info', message: `${node.label}: completato`, value })
-      path = 'success'
+      path = conditionResult === false ? 'error' : 'success'
+      logs.push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value })
     } catch (error) {
       path = 'error'
       logs.push({ nodeId: node.id, level: 'error', message: error instanceof Error ? error.message : String(error) })
@@ -86,6 +87,17 @@ const aggregate = (value: unknown, operation = 'count', key = '') => {
   if (operation === 'sum') return numbers.reduce((total, item) => total + item, 0)
   if (operation === 'average') return numbers.length ? numbers.reduce((total, item) => total + item, 0) / numbers.length : 0
   throw new Error(`Operazione KPI non supportata: ${operation}`)
+}
+
+const matches = (value: unknown, key = '', operator = 'equals', expected = '') => {
+  const actual = key ? field(value, key) : value
+  if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''
+  if (operator === 'equals') return String(actual) === expected
+  if (operator === 'notEquals') return String(actual) !== expected
+  if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase())
+  if (operator === 'greater') return Number(actual) > Number(expected)
+  if (operator === 'less') return Number(actual) < Number(expected)
+  throw new Error(`Operatore condizione non supportato: ${operator}`)
 }
 
 function guarded<T>(operation: Promise<T>, context: FlowContext): Promise<T> {

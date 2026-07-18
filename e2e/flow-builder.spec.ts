@@ -36,8 +36,16 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: /^Flow/ }).click();
   await page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" }).click();
   await expect(page.getByLabel("Sorgente collegata")).toHaveValue(/.+/);
+  await page.getByRole("complementary", { name: "Aggiungi nodi al flow" }).getByRole("button", { name: "Condizione" }).click();
+  await page.getByLabel("Operatore condizione").selectOption("contains");
+  await page.getByLabel("Valore condizione").fill("flow");
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Condizione" })).toBeVisible();
+
+  await queryNode.locator(".react-flow__handle.source").dragTo(page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).locator(".react-flow__handle.target"));
+  await expect(page.getByRole("alert")).toContainText("produce list");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-builder.png", fullPage: true });
 
+  await queryNode.click();
   await page.getByRole("button", { name: "Elimina nodo" }).click();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" })).toHaveCount(0);
 });

@@ -63,4 +63,21 @@ describe('flow runtime', () => {
     expect(logs.find((entry) => entry.nodeId === 'kpi')?.value).toBe(2)
     expect(notify).toHaveBeenCalledWith('Calcolo pronto', 'success')
   })
+
+  it('dirama una condizione non verificata senza trasformarla in errore runtime', async () => {
+    const conditional: Flow = { id: 'condition', name: 'Condition', nodes: [
+      { id: 'start', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'condition', type: 'condition', label: 'Solo admin', position: { x: 1, y: 0 }, config: { field: '', operator: 'equals', value: 'admin' } },
+      { id: 'yes', type: 'notify', label: 'Allowed', position: { x: 2, y: 0 }, config: { message: 'Sì' } },
+      { id: 'no', type: 'notify', label: 'Denied', position: { x: 2, y: 1 }, config: { message: 'No' } },
+    ], edges: [
+      { id: '1', source: 'start', target: 'condition', path: 'success' },
+      { id: '2', source: 'condition', target: 'yes', path: 'success' },
+      { id: '3', source: 'condition', target: 'no', path: 'error' },
+    ] }
+    const notify = vi.fn()
+    const logs = await runFlow(conditional, { input: 'viewer', insert: async () => undefined, refresh: async () => undefined, notify })
+    expect(logs.some((entry) => entry.level === 'error')).toBe(false)
+    expect(notify).toHaveBeenCalledWith('No', 'error')
+  })
 })

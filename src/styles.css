@@ -1253,6 +1253,8 @@ label {
 .flow-palette > div { display: grid; gap: 6px; max-height: 430px; overflow: auto; }
 .flow-palette button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left; }
 .flow-palette i { width: 9px; height: 9px; border-radius: 50%; }
+.flow-node .port-types { display: block; margin-top: 4px; color: #7b8495; font-size: 8px; }
+.flow-connection-error { color: var(--danger) !important; }
 .flow-inspector { border-left: 1px solid var(--line); }
 .flow-inspector label { display: grid; gap: 5px; font-size: 11px; }
 .flow-builder .flow-canvas { border: 0; border-radius: 0; min-height: 520px; }
