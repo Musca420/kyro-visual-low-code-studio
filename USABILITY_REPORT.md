@@ -52,5 +52,5 @@ Gli ZIP Simple Landing Page, Project Management Dashboard e Professional Website
 ## Limiti realmente osservati
 
 - L’importazione generica converte semanticamente HTML statico; applicazioni React/Vue/Svelte/Angular arbitrarie vengono preservate integralmente ma richiedono una conversione progressiva per rendere ogni costrutto proprietario modificabile nel canvas. Il codice importato non viene eseguito durante l’analisi.
-- Il terminale PTY interattivo resta una superficie avanzata non implementata. I flussi principali non tecnici non lo richiedono; Codex usa invece il bridge locale con modalità read-only/workspace-write e approvazione esplicita.
+- Il terminale avanzato esegue comandi reali in una sessione persistente e isolata logicamente per progetto, ma non supporta ancora programmi TUI a schermo intero che richiedono un PTY completo. I flussi principali non tecnici non lo richiedono; Codex usa il bridge locale con modalità read-only/workspace-write e approvazione esplicita.
 - Pubblicazione su store, hosting e servizi cloud non è stata eseguita perché comporta account, credenziali o costi esterni; build e avvio locali sono verificati.

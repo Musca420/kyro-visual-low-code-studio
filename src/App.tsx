@@ -50,9 +50,10 @@ import {
 } from "./hierarchy";
 import { VisualProperties } from "./VisualProperties";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
+import { TerminalPanel } from "./TerminalPanel";
 
 type WorkspaceTab =
-  "design" | "flow" | "data" | "preview" | "plugins" | "settings";
+  "design" | "flow" | "data" | "preview" | "plugins" | "terminal" | "settings";
 const FlowEditor = lazy(() => import("./FlowEditor"));
 const ProjectSettings = lazy(() =>
   import("./ProjectSettings").then((module) => ({
@@ -482,9 +483,9 @@ function Editor({
     project.flows.find((item) => item.id === flowId) ?? project.flows[0];
 
   useEffect(() => {
-    if (!currentPage) return;
+    const components = currentPage?.components ?? [];
     const layouts = Object.fromEntries(
-      currentPage.components.map((component) => {
+      components.map((component) => {
         const element = document.querySelector<HTMLElement>(
             `[data-component-id="${component.id}"]`,
           ),
@@ -499,12 +500,12 @@ function Editor({
     );
     const state = {
       projectId: project.id,
-      pageId: currentPage.id,
+      pageId: currentPage?.id ?? "no-page",
       revision: project.revision,
       selectedComponentIds: selected,
       viewport: breakpoint,
       previewState: tab === "preview" ? "open" : "closed",
-      componentTree: componentTree(currentPage.components).map(serializeBranch),
+      componentTree: componentTree(components).map(serializeBranch),
       layouts,
       flows: project.flows,
       dataSources: project.dataSources,
@@ -1354,6 +1355,11 @@ function Editor({
             ],
             ["plugins", "Plugin", "Aggiungi capacità controllate all’editor."],
             [
+              "terminal",
+              "Terminale",
+              "Esegui comandi avanzati nella cartella locale del progetto.",
+            ],
+            [
               "settings",
               "Pubblica",
               "Scegli Web, PWA o Android e configura il risultato senza terminale.",
@@ -1948,6 +1954,7 @@ function Editor({
           <PluginManager project={project} onChange={change} />
         </main>
       )}
+      {tab === "terminal" && <TerminalPanel projectId={project.id} />}
       {contextMenu && (
         <div
           className="component-menu"

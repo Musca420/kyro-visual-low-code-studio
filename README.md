@@ -51,7 +51,8 @@ Da “Progetto vuoto”: crea una pagina, trascina input, button e list, modific
 - `src/PreviewFrame.tsx`: preview in iframe sandbox senza accesso al contesto editor; usa messaggi e DOM sicuro (`textContent`).
 - `src/generator.ts`: ZIP TypeScript/Vite con routing hash, responsive CSS, IndexedDB e configurazione Capacitor.
 - `src/PluginManager.tsx`: catalogo locale; valida manifest, impedisce collisioni ed evita esecuzione di codice plugin.
-- `vite.config.ts`: Live Bridge locale vincolato al workspace; sincronizza stato/revision ed espone operazioni visuali tipizzate senza shell generica.
+- `vite.config.ts`: Live Bridge locale vincolato al workspace; sincronizza stato/revision, espone operazioni visuali tipizzate e gestisce sessioni terminale locali autorizzate per progetto.
+- `src/TerminalPanel.tsx`: shell persistente avanzata con output progressivo, comando esplicito, terminazione e isolamento logico per progetto; le variabili d’ambiente che sembrano segreti non vengono ereditate.
 - `src/editorOperations.ts`: transazioni validate per proprietà, stili, responsive, componenti, flow, binding e sorgenti dati.
 - `src/CodexPanel.tsx`: contesto certo del componente, Codex CLI ufficiale, analisi read-only, aggiornamenti progressivi, cronologia per progetto e approvazione prima dell’applicazione.
 - `src/capture.ts`: screenshot PNG del canvas; la preview invia un DOM privo di script e viene rasterizzata fuori dall’iframe senza indebolire la sandbox.
@@ -67,6 +68,8 @@ L'ispettore visuale copre dimensioni min/max, Flexbox, Grid, spaziatura per lato
 L'onboarding offre template per landing page, portfolio, sito aziendale, blog, e-commerce, dashboard, autenticazione, gestionale e applicazione mobile. La ricerca accetta anche termini italiani pratici (per esempio “grafico” trova `chart`); `Ctrl+K` apre i comandi rapidi per navigare e aggiungere componenti.
 
 Il pannello inferiore mostra target, ID stabile, pagina, revisione, flow, dati e workspace. `Analizza richiesta` esegue `codex exec` in sandbox read-only; solo “Approva e applica” abilita workspace-write. Il login resta quello ufficiale della CLI (`codex login`): l’app non legge o salva token.
+
+La scheda **Terminale** è separata dal percorso guidato e destinata agli utenti avanzati. Avvia una sessione persistente soltanto per un progetto aperto, nella cartella locale del workspace; ogni comando viene inviato esclusivamente premendo **Esegui**, l’output è limitato e la sessione può essere terminata dall’interfaccia. Il bridge rifiuta progetti non autorizzati e non viene incluso nell’export.
 
 La skill repo-specific è in `.agents/skills/frontend-editor-live`. Verifica bridge e contesto con:
 
@@ -109,7 +112,7 @@ In questo ambiente il rilevamento automatico trova Android SDK e il JBR di Andro
 - Snap/guide, componenti riutilizzabili avanzati e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti. Animazioni, transizioni, trasformazioni e stati interattivi sono invece configurabili dall’ispettore.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
 - Un progetto importato con `project.frontend-editor.json` è modificabile integralmente. Per cartelle generiche l’HTML statico viene convertito; codice arbitrario di framework viene preservato sotto `original-project/` e richiede conversione progressiva prima che ogni costrutto sia modificabile sul canvas.
-- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale e ripristino protetto dell’intera operazione file. Resta da completare il terminale PTY interattivo; non è simulato.
+- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale, ripristino protetto e terminale persistente. La shell esegue comandi reali e conserva `cd` e stato della sessione, ma non emula ancora programmi TUI che richiedono un PTY completo (per esempio editor terminali a schermo intero).
 
 Stato verificato e matrice dei requisiti: [MVP_STATUS.md](./MVP_STATUS.md).
 
