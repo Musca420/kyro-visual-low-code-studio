@@ -284,6 +284,7 @@ label {
   font: 800 28px Manrope;
 }
 .project-thumb small {
+  color: #46536a;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -304,6 +305,9 @@ label {
 .project-actions .danger {
   color: var(--danger);
 }
+.backup-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.backup-actions input { min-width: 210px; }
+.backup-actions button { padding: 8px 11px; }
 
 .app-shell {
   height: 100vh;
@@ -1746,6 +1750,20 @@ label {
   color: var(--ink);
   border-color: var(--line);
 }
+[data-theme="dark"] .project-card,
+[data-theme="dark"] .project-open,
+[data-theme="dark"] .project-actions,
+[data-theme="dark"] .project-actions button {
+  background: var(--surface-raised);
+  color: var(--ink);
+  border-color: var(--line);
+}
+[data-theme="dark"] .project-open:hover { background: #1d2a2d; }
+[data-theme="dark"] .project-thumb {
+  background: linear-gradient(135deg, #123239, #17322c);
+  color: #58dbe8;
+}
+[data-theme="dark"] .project-thumb small { color: #c1d5d6; }
 [data-theme="dark"] .workspace-tabs button,
 [data-theme="dark"] .template,
 [data-theme="dark"] .page-list button,

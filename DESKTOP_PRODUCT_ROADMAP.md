@@ -17,7 +17,7 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 | Identità | Palette neutra scura, accenti semantici UI/dati/flow/errori, chiaro/scuro | Screenshot desktop/mobile; contrasto testo normale almeno 4.5:1; preferenza persistente | Base verificata |
 | Canvas | Pannelli ridimensionabili e progressive disclosure | Resize desktop; a 760 px nessun overflow e inspector non copre il canvas | Base verificata |
 | Accessibilità | WCAG 2.2 AA nei percorsi principali | Tastiera, focus visibile, nomi accessibili e audit automatico/manuale | In corso |
-| Home | Recenti, ricerca, template, backup e ripristino | Chiudere/riaprire, cercare, esportare backup, cancellare/ripristinare senza perdita | In corso |
+| Home | Recenti, ricerca, template, backup e ripristino | Chiudere/riaprire, cercare, esportare backup, cancellare/ripristinare senza perdita | Verificato |
 | Desktop | Avvio da icona su Windows/macOS/Linux | Bundle prodotti in CI per i tre sistemi; installazione e smoke test nativo per sistema | Windows verificato; macOS/Linux da eseguire sui sistemi target |
 | CLI | `frontend-editor [cartella]` globale | Installazione locale del comando, apertura cartella valida, errore comprensibile per percorso non valido | Verificato su Windows |
 | Persistenza | Progetti, cronologia, conversazioni, versioni ed export | Riavvio del processo desktop conserva ogni elemento; backup/restore round-trip | In corso |
@@ -42,3 +42,4 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 - Smoke test dell'eseguibile installato: apertura cartella, conversione HTML/CSS e rendering sul canvas superati.
 - Sicurezza verificata dal test: `contextIsolation=true`, `nodeIntegration=false`, `sandbox=true`; audit delle dipendenze runtime: 0 vulnerabilità note.
 - Dopo una successiva ricostruzione, Device Guard ha rifiutato il nuovo hash non firmato (exit code 4551). Il renderer di produzione aggiornato viene quindi testato con il runtime Electron locale autorizzato; la distribuzione del nuovo artefatto richiede un certificato di firma Windows e resta esplicitamente aperta.
+- `e2e/backup-restore.spec.ts`: progetto e record creati esclusivamente dalla UI, backup scaricato e ispezionato, progetto eliminato, restore eseguito e record verificato nuovamente in Preview; ricerca e contrasto della card recente inclusi.

@@ -52,6 +52,7 @@ import { VisualProperties } from "./VisualProperties";
 import { visualGradients, visualPalettes } from "./visualPresets";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
+import { createBackup, restoreBackup, serializeBackup } from "./backup";
 import {
   inspectComponentProgram,
   inspectFlowNodeProgram,
@@ -136,9 +137,11 @@ function Dashboard({
   const [target, setTarget] = useState<"web" | "pwa" | "android">("web");
   const [themeColor, setThemeColor] = useState("#6d5dfc");
   const [templateQuery, setTemplateQuery] = useState("");
+  const [projectQuery, setProjectQuery] = useState("");
   const [importResult, setImportResult] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
+  const backupRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const desktop = window.frontendEditorDesktop;
     if (!desktop || loading || desktopImportStarted.current) return;
@@ -254,6 +257,37 @@ function Dashboard({
     });
     await onRefresh();
   };
+  const downloadBackup = async () => {
+    try {
+      const value = serializeBackup(await createBackup());
+      const url = URL.createObjectURL(new Blob([value], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `frontend-editor-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setImportResult("Backup completo creato: progetti, dati, plugin, preferenze e conversazioni Codex.");
+    } catch (problem) {
+      setError(`Backup non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`);
+    }
+  };
+  const restoreBackupFile = async (file?: File) => {
+    if (!file) return;
+    try {
+      if (file.size > 12_000_000) throw new Error("Il backup supera il limite di 12 MB.");
+      const result = await restoreBackup(JSON.parse(await file.text()));
+      await onRefresh();
+      setError("");
+      setImportResult(`Ripristino completato: ${result.projects} progetti, ${result.records} record e ${result.plugins} plugin.`);
+    } catch (problem) {
+      setError(`Ripristino non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`);
+    } finally {
+      if (backupRef.current) backupRef.current.value = "";
+    }
+  };
+  const visibleProjects = projects.filter((project) =>
+    project.name.toLowerCase().includes(projectQuery.trim().toLowerCase()),
+  );
   return (
     <main className="dashboard">
       <ThemeToggle theme={uiTheme} onToggle={onToggleTheme} />
@@ -428,6 +462,26 @@ function Dashboard({
             <p className="eyebrow">Salvati su questo dispositivo</p>
             <h2 id="recent-title">Progetti recenti</h2>
           </div>
+          <div className="backup-actions">
+            <label>
+              <span className="visually-hidden">Cerca nei progetti recenti</span>
+              <input
+                type="search"
+                placeholder="Cerca progetti…"
+                value={projectQuery}
+                onChange={(event) => setProjectQuery(event.target.value)}
+              />
+            </label>
+            <button className="secondary" onClick={() => void downloadBackup()}>Crea backup</button>
+            <button className="secondary" onClick={() => backupRef.current?.click()}>Ripristina backup</button>
+            <input
+              ref={backupRef}
+              className="visually-hidden"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => void restoreBackupFile(event.target.files?.[0])}
+            />
+          </div>
         </div>
         {loading ? (
           <p>Caricamento…</p>
@@ -436,9 +490,14 @@ function Dashboard({
             <strong>Nessun progetto ancora</strong>
             <span>Assegna un nome e scegli un punto di partenza.</span>
           </div>
+        ) : visibleProjects.length === 0 ? (
+          <div className="empty-panel" role="status">
+            <strong>Nessun progetto trovato</strong>
+            <span>Prova un nome diverso oppure cancella la ricerca.</span>
+          </div>
         ) : (
           <div className="project-grid">
-            {projects.map((project) => (
+            {visibleProjects.map((project) => (
               <article className="project-card" key={project.id}>
                 <button
                   className="project-open"

@@ -106,6 +106,23 @@ export async function queryRecords(sourceId: string): Promise<LocalRecord[]> {
 }
 
 export const listPlugins = () => request<PluginManifest[]>('plugins', 'readonly', (store) => store.getAll())
+export const listAllRecords = () => request<LocalRecord[]>('records', 'readonly', (store) => store.getAll())
+
+export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[]) {
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(['projects', 'records', 'plugins'], 'readwrite')
+    const projectStore = transaction.objectStore('projects')
+    const recordStore = transaction.objectStore('records')
+    const pluginStore = transaction.objectStore('plugins')
+    projects.forEach((project) => projectStore.put(parseProject(project)))
+    records.forEach((record) => recordStore.put(record))
+    plugins.forEach((plugin) => pluginStore.put(pluginManifestSchema.parse(plugin)))
+    transaction.oncomplete = () => { db.close(); resolve() }
+    transaction.onerror = () => { db.close(); reject(transaction.error) }
+    transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error('Ripristino annullato')) }
+  })
+}
 export async function installPlugin(value: unknown) {
   const manifest = pluginManifestSchema.parse(value)
   const installed = await listPlugins()

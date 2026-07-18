@@ -12,6 +12,8 @@ I requisiti di prodotto e la Definition of Done complessiva sono definiti da `PR
 
 La dashboard può anche importare una cartella Web, PWA o Capacitor esistente. Se trova `project.frontend-editor.json` ripristina integralmente canvas, flow, dati e configurazione; altrimenti converte l'HTML semantico in componenti visuali e conserva CSS/JavaScript non ancora convertiti. Dipendenze e cartelle di build vengono ignorate, il codice importato non viene eseguito durante l'analisi e l'export mantiene i file originali sotto `original-project/`.
 
+La sezione **Progetti recenti** offre ricerca, duplicazione, eliminazione e backup/ripristino. Il backup aperto e validato include progetti, record IndexedDB, plugin, tema, associazioni delle cartelle desktop e conversazioni Codex; il ripristino è additivo, quindi non cancella progetti già presenti.
+
 ## Avvio
 
 Richiede Node.js 20 o successivo.
