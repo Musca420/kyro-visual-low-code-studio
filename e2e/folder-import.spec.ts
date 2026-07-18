@@ -17,6 +17,19 @@ async function latestAndroidSource() {
   return directories.sort((a, b) => b.modified - a.modified)[0]?.path;
 }
 
+test("importa React come componenti visuali senza eseguire il codice", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("input[webkitdirectory]").setInputFiles(join(process.cwd(), "e2e", "fixtures", "react-import"));
+  await expect(page.locator(".import-source-banner")).toContainText("React");
+  await expect(page.locator(".import-source-banner")).toContainText("convertito staticamente");
+  await expect(page.getByTestId("component-title")).toContainText("Portfolio React");
+  await page.getByTestId("component-button").click();
+  await page.getByLabel("Testo o etichetta").fill("Apri progetto importato");
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.frameLocator('iframe[title="Preview isolata"]').getByRole("button", { name: "Apri progetto importato" })).toBeVisible();
+  await page.screenshot({ path: "artifacts/frontend-editor-react-import.png", fullPage: true });
+});
+
 test("importa la sorgente dell'app Android e continua visualmente", async ({
   page,
 }) => {

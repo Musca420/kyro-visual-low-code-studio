@@ -90,4 +90,16 @@ describe("import cartella esistente", () => {
       detected: "HTML/CSS",
     });
   });
+
+  it("converte staticamente il markup React senza eseguire il progetto", () => {
+    const imported = importExistingFolder("react-shop", [
+      { path: "package.json", content: JSON.stringify({ dependencies: { react: "^19" } }) },
+      { path: "src/App.tsx", content: `import React from 'react'; export function App(){ return (<><nav>Negozio</nav><main><h1>Catalogo</h1><section className="products"><article><button onClick={() => alert('no')}>Compra</button></article></section><form><input name="email" placeholder="Email" /><button>Iscriviti</button></form></main></>) }` },
+      { path: "src/api.ts", content: "export const secret = process.env.API_TOKEN" },
+    ]);
+    expect(imported.importedSource).toMatchObject({ detected: "React", exactModel: false });
+    expect(imported.pages[0].components.map((component) => component.type)).toEqual(expect.arrayContaining(["navbar", "title", "section", "card", "button", "form", "input"]));
+    expect(imported.pages[0].components.find((component) => component.type === "title")?.props.label).toBe("Catalogo");
+    expect(generateFiles(imported)["original-project/src/api.ts"]).toContain("process.env.API_TOKEN");
+  });
 });

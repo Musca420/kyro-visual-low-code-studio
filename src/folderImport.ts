@@ -218,6 +218,48 @@ function pageFromHtml(file: FolderTextFile, index: number) {
   };
 }
 
+function returnedMarkup(source: string) {
+  const marker = /(?:return|=>)\s*\(/g.exec(source);
+  if (!marker) return "";
+  const start = marker.index + marker[0].length;
+  let depth = 1, quote = "";
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) { if (character === quote && source[index - 1] !== "\\") quote = ""; continue; }
+    if (["'", '"', "`"].includes(character)) { quote = character; continue; }
+    if (character === "(") depth += 1;
+    if (character === ")" && --depth === 0) return source.slice(start, index);
+  }
+  return "";
+}
+
+function frameworkMarkup(file: FolderTextFile) {
+  const extension = file.path.split(".").at(-1)?.toLowerCase();
+  let markup = file.content;
+  if (extension === "vue") markup = markup.match(/<template[^>]*>([\s\S]*?)<\/template>/i)?.[1] ?? "";
+  else if (extension === "svelte") markup = markup.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "");
+  else {
+    markup = returnedMarkup(markup);
+  }
+  if (!markup.trim()) return "";
+  return markup
+    .replace(/<>/g, "<div>").replace(/<\/>/g, "</div>")
+    .replace(/className=/g, "class=").replace(/htmlFor=/g, "for=")
+    .replace(/\s+on[A-Z][A-Za-z]*=\{[^{}]*\}/g, "")
+    .replace(/\s+[A-Za-z_:][\w:.-]*=\{[^{}]*\}/g, "")
+    .replace(/\{[^{}]*\}/g, "")
+    .replace(/<([A-Z][A-Za-z0-9.]*)\b[^>]*\/>/g, '<div data-imported-component="$1"></div>')
+    .replace(/<([A-Z][A-Za-z0-9.]*)\b[^>]*>/g, '<div data-imported-component="$1">')
+    .replace(/<\/([A-Z][A-Za-z0-9.]*)>/g, "</div>");
+}
+
+function pageFromFramework(file: FolderTextFile, index: number) {
+  const markup = frameworkMarkup(file);
+  if (!markup) return undefined;
+  const name = file.path.split("/").at(-1)!.replace(/\.(jsx?|tsx?|vue|svelte)$/, "");
+  return pageFromHtml({ path: `${name}.html`, content: `<main>${markup}</main>` }, index);
+}
+
 export function importExistingFolder(
   originName: string,
   files: FolderTextFile[],
@@ -256,11 +298,11 @@ export function importExistingFolder(
         Number(!a.path.endsWith("index.html")) -
         Number(!b.path.endsWith("index.html")),
     );
-  project.pages = (
-    htmlFiles.length
-      ? htmlFiles
-      : [{ path: "index.html", content: "<main></main>" }]
-  ).map(pageFromHtml);
+  const frameworkFiles = files
+    .filter((file) => /\.(jsx|tsx|vue|svelte)$/.test(file.path) && /(^|\/)(App|page|index)\.(jsx|tsx|vue|svelte)$/.test(file.path))
+    .map(pageFromFramework)
+    .filter((page): page is NonNullable<typeof page> => Boolean(page));
+  project.pages = htmlFiles.length ? htmlFiles.map(pageFromHtml) : frameworkFiles.length ? frameworkFiles : [pageFromHtml({ path: "index.html", content: "<main></main>" }, 0)];
   project.dependencies = stack.dependencies;
   project.state = { imported: true };
   const capacitor = files.find((file) =>
@@ -291,8 +333,8 @@ export function importExistingFolder(
     };
   }
   const warnings = [
-    "HTML e stili inline sono stati convertiti in componenti visuali.",
-    "CSS avanzato e codice JavaScript restano preservati nella sorgente originale e vanno convertiti progressivamente in flow.",
+    htmlFiles.length ? "HTML e stili inline sono stati convertiti in componenti visuali." : frameworkFiles.length ? `Il markup ${stack.detected} riconoscibile è stato convertito staticamente in componenti visuali senza eseguire il codice.` : "Non è stato trovato markup convertibile: la sorgente resta preservata per la conversione progressiva.",
+    "CSS avanzato, componenti dinamici e codice JavaScript restano preservati nella sorgente originale e vanno convertiti progressivamente in flow.",
   ];
   project.importedSource = {
     originName,
