@@ -1255,6 +1255,12 @@ label {
 .flow-palette i { width: 9px; height: 9px; border-radius: 50%; }
 .flow-node .port-types { display: block; margin-top: 4px; color: #7b8495; font-size: 8px; }
 .flow-connection-error { color: var(--danger) !important; }
+.generated-file-link { display: block; width: 100%; margin-top: 5px; padding: 7px 9px; background: var(--surface); color: var(--ink); text-align: left; font-family: ui-monospace, monospace; font-size: 11px; }
+.generated-file-backdrop { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: #05090cb8; }
+.generated-file-backdrop > section { width: min(900px, 100%); max-height: min(760px, 90vh); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-lg); }
+.generated-file-backdrop header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.generated-file-backdrop h2 { margin: 0; font-size: 18px; }
+.generated-file-backdrop pre { margin: 0; padding: 18px; overflow: auto; color: var(--ink); font-size: 12px; white-space: pre-wrap; }
 .flow-inspector { border-left: 1px solid var(--line); }
 .flow-inspector label { display: grid; gap: 5px; font-size: 11px; }
 .flow-builder .flow-canvas { border: 0; border-radius: 0; min-height: 520px; }

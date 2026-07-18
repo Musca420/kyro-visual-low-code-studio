@@ -75,7 +75,7 @@ export function inspectComponentProgram(
     events,
     dataSources,
     dependentFlows,
-    generatedFiles: generatedFiles(project),
+    generatedFiles: generatedFiles(project, "component"),
     issues: resolveCapabilities(project, page.components, component),
   };
 }
@@ -216,7 +216,7 @@ export function inspectFlowNodeProgram(
         const target = nodeById(edge.target);
         return target ? [{ id: target.id, label: target.label, path: edge.path }] : [];
       }),
-    generatedFiles: generatedFiles(project),
+    generatedFiles: generatedFiles(project, "flow"),
     errors,
   };
 }
@@ -248,16 +248,15 @@ export function inspectDataSourceProgram(
       const nodes = flow.nodes.filter((node) => node.config.sourceId === source.id);
       return nodes.length ? [{ id: flow.id, name: flow.name, nodes: nodes.map((node) => node.label) }] : [];
     }),
-    generatedFiles: generatedFiles(project),
+    generatedFiles: generatedFiles(project, "data"),
     warnings,
   };
 }
 
-function generatedFiles(project: Project) {
-  const files = ["project.frontend-editor.json", "src/main.ts", "src/style.css"];
-  if (project.dataSources.some((source) => source.provider === "generated"))
+function generatedFiles(project: Project, origin: "component" | "flow" | "data") {
+  const files = ["project.frontend-editor.json", "src/main.ts"];
+  if (origin === "component") files.push("src/style.css");
+  if (origin !== "component" && project.dataSources.some((source) => source.provider === "generated"))
     files.push("server/index.mjs");
-  if (project.exportConfig.target === "pwa") files.push("manifest.webmanifest", "sw.js");
-  if (project.exportConfig.target === "android") files.push("capacitor.config.ts", "android/");
   return files;
 }

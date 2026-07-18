@@ -57,6 +57,12 @@ test("dal nodo del flow risale a dati e componenti", async ({ page }) => {
   await expect(dependencies).toContainText("Inserisci record");
   await expect(dependencies).toContainText("Attività locali");
   await expect(dependencies).toContainText("List");
+  await dependencies.getByText("Impatto nel codice generato").click();
+  await dependencies.getByRole("button", { name: "src/main.ts" }).click();
+  const generated = page.getByRole("dialog", { name: "src/main.ts" });
+  await expect(generated).toContainText("indexedDB.open");
+  await page.screenshot({ path: "artifacts/frontend-editor-generated-file.png", fullPage: true });
+  await page.getByRole("button", { name: "Chiudi file generato" }).click();
   await dependencies.getByRole("button", { name: /Apri List/ }).click();
   await expect(page.locator(".right-panel")).toContainText("Programma collegato");
   await expect(page.getByTestId("component-list")).toHaveClass(/selected/);

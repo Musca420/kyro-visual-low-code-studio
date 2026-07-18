@@ -607,6 +607,7 @@ function Editor({
     "http://127.0.0.1:8787/records",
   );
   const [feedback, setFeedback] = useState("");
+  const [generatedFile, setGeneratedFile] = useState<{ path: string; content: string }>();
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? "");
   const [selectedFlowNodeId, setSelectedFlowNodeId] = useState("");
   const [selectedSourceId, setSelectedSourceId] = useState(initial.dataSources[0]?.id ?? "");
@@ -1673,6 +1674,19 @@ function Editor({
     URL.revokeObjectURL(link.href);
     await archiveExport(blob, fileName, "project");
   };
+  const openGeneratedFile = async (path: string) => {
+    try {
+      const content = path === "project.frontend-editor.json"
+        ? serializeProject(project)
+        : path.endsWith("/")
+          ? `Cartella generata durante la build: ${path}`
+          : (await import("./generator")).generateFiles(project)[path];
+      if (!content) throw new Error(`Il file ${path} non è prodotto da questa configurazione`);
+      setGeneratedFile({ path, content });
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : String(error));
+    }
+  };
   const downloadStoredExport = (record: ExportRecord) => {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(record.blob);
@@ -2198,6 +2212,7 @@ function Editor({
                 {activeProgram && (
                   <ProgramConnections
                     view={activeProgram}
+                    onOpenFile={openGeneratedFile}
                     onResolve={(issue) => {
                       if (issue.target !== "codex") return setTab(issue.target);
                       const element = document.querySelector<HTMLElement>(
@@ -2355,6 +2370,7 @@ function Editor({
           {selectedFlowNode && (
             <FlowNodeConnections
               view={selectedFlowNode}
+              onOpenFile={openGeneratedFile}
               onOpenComponent={(componentId) => {
                 const owner = project.pages.find((page) =>
                   page.components.some((component) => component.id === componentId),
@@ -2554,6 +2570,7 @@ function Editor({
               {selectedSource && (
                 <DataSourceConnections
                   view={selectedSource}
+                  onOpenFile={openGeneratedFile}
                   onOpenComponent={(page, component) => {
                     setPageId(page);
                     setSelected([component]);
@@ -2733,6 +2750,14 @@ function Editor({
           </button>
         </div>
       )}
+      {generatedFile && (
+        <div className="generated-file-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setGeneratedFile(undefined)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="generated-file-title">
+            <header><div><p className="eyebrow">Derivato dal grafo</p><h2 id="generated-file-title">{generatedFile.path}</h2></div><button type="button" className="secondary" aria-label="Chiudi file generato" onClick={() => setGeneratedFile(undefined)}>×</button></header>
+            <pre><code>{generatedFile.content}</code></pre>
+          </section>
+        </div>
+      )}
       <CodexPanel
         open={Boolean(codexRequest)}
         context={codexRequest?.context}
@@ -2821,9 +2846,11 @@ function PageAppearance({
 function ProgramConnections({
   view,
   onResolve,
+  onOpenFile,
 }: {
   view: ComponentProgramView;
   onResolve: (issue: CapabilityIssue) => void;
+  onOpenFile: (path: string) => void;
 }) {
   return (
     <details className="program-connections" open>
@@ -2866,7 +2893,7 @@ function ProgramConnections({
       )}
       <details>
         <summary>File generati</summary>
-        {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
+        {view.generatedFiles.map((file) => <button type="button" className="generated-file-link" key={file} onClick={() => onOpenFile(file)}>{file}</button>)}
       </details>
     </details>
   );
@@ -2876,10 +2903,12 @@ function FlowNodeConnections({
   view,
   onOpenComponent,
   onOpenData,
+  onOpenFile,
 }: {
   view: FlowNodeProgramView;
   onOpenComponent: (componentId: string) => void;
   onOpenData: () => void;
+  onOpenFile: (path: string) => void;
 }) {
   return (
     <section className="flow-node-connections" aria-label="Dipendenze del nodo">
@@ -2905,7 +2934,7 @@ function FlowNodeConnections({
       </div>
       <details>
         <summary>Impatto nel codice generato</summary>
-        {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
+        {view.generatedFiles.map((file) => <button type="button" className="generated-file-link" key={file} onClick={() => onOpenFile(file)}>{file}</button>)}
       </details>
     </section>
   );
@@ -2915,10 +2944,12 @@ function DataSourceConnections({
   view,
   onOpenComponent,
   onOpenFlow,
+  onOpenFile,
 }: {
   view: DataSourceProgramView;
   onOpenComponent: (pageId: string, componentId: string) => void;
   onOpenFlow: (flowId: string) => void;
+  onOpenFile: (path: string) => void;
 }) {
   const provider = view.provider === "indexeddb" ? "Sul dispositivo" : view.provider === "generated" ? "Backend incluso" : "Servizio esterno";
   const capabilityNames: Record<string, string> = {
@@ -2959,7 +2990,7 @@ function DataSourceConnections({
       <details>
         <summary>Campi e file generati</summary>
         <p>{view.fields.map((field) => `${field.name}: ${field.type}`).join(" · ")}</p>
-        {view.generatedFiles.map((file) => <code key={file}>{file}</code>)}
+        {view.generatedFiles.map((file) => <button type="button" className="generated-file-link" key={file} onClick={() => onOpenFile(file)}>{file}</button>)}
       </details>
     </section>
   );
