@@ -26,3 +26,29 @@ test("propone storage locale, API esistente o backend generato in linguaggio sem
     "generated / records",
   );
 });
+
+test("crea uno schema dati personalizzato interamente dall'interfaccia", async ({ page }) => {
+  const name = `Schema visuale ${Date.now()}`;
+  await page.goto("/");
+  await page.getByLabel("Nome progetto").fill(name);
+  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
+  await page.getByRole("button", { name: "Dati", exact: true }).click();
+  await page.getByRole("button", { name: "+ Aggiungi campo" }).click();
+  const fields = page.getByLabel("Nome campo");
+  await fields.last().fill("budget");
+  await page.getByLabel("Tipo campo budget").selectOption("number");
+  await page.getByRole("button", { name: "+ Aggiungi campo" }).click();
+  await fields.last().fill("pubblicato");
+  await page.getByLabel("Tipo campo pubblicato").selectOption("boolean");
+  await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
+  const source = page.locator(".source-card");
+  await expect(source).toContainText("budget:number");
+  await expect(source).toContainText("pubblicato:boolean");
+  await page.screenshot({ path: "artifacts/frontend-editor-visual-schema.png", fullPage: true });
+  await expect(page.getByText("Salvato automaticamente")).toBeVisible();
+  await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
+  await page.getByRole("button", { name }).click();
+  await page.getByRole("button", { name: "Dati", exact: true }).click();
+  await expect(page.locator(".source-card")).toContainText("budget:number");
+  await expect(page.locator(".source-card")).toContainText("pubblicato:boolean");
+});

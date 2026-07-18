@@ -354,7 +354,7 @@ export const projectSchema = z.object({
       name: z.string(),
       provider: z.enum(["indexeddb", "rest", "generated"]),
       collection: z.string(),
-      schema: z.record(z.string(), z.enum(["string", "datetime"])),
+      schema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
       capabilities: z.array(
         z.enum(["get", "query", "insert", "update", "delete", "subscribe"]),
       ),

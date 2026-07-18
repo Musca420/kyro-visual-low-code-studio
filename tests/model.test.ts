@@ -61,4 +61,10 @@ describe('project model', () => {
     expect(pluginManifestSchema.parse(manifest).contributions).toHaveLength(1)
     expect(() => pluginManifestSchema.parse({ ...manifest, permissions: [] })).toThrow('richiede il permesso components')
   })
+
+  it('conserva schemi visuali con testo, numeri, booleani e date', () => {
+    const project = createProject('Schema ricco')
+    project.dataSources.push({ id: 'source', name: 'Prodotti', provider: 'indexeddb', collection: 'products', schema: { id: 'string', price: 'number', active: 'boolean', publishedAt: 'datetime' }, capabilities: ['get', 'query'], secretStrategy: 'none' })
+    expect(parseProject(project).dataSources[0].schema).toEqual({ id: 'string', price: 'number', active: 'boolean', publishedAt: 'datetime' })
+  })
 })

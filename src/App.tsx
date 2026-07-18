@@ -602,6 +602,12 @@ function Editor({
   const [pausedFlow, setPausedFlow] = useState<{ nodeId: string; value: unknown }>();
   const [sourceName, setSourceName] = useState("Attività locali");
   const [collection, setCollection] = useState("items");
+  const [schemaFields, setSchemaFields] = useState<Array<{ id: string; name: string; type: "string" | "number" | "boolean" | "datetime" }>>(() =>
+    (initial.state.experience === "dashboard"
+      ? [["id", "string"], ["name", "string"], ["description", "string"], ["status", "string"], ["priority", "string"], ["dueDate", "datetime"], ["date", "datetime"]]
+      : [["id", "string"], ["text", "string"], ["date", "datetime"]]
+    ).map(([name, type]) => ({ id: crypto.randomUUID(), name, type: type as "string" | "datetime" })),
+  );
   const [sourceProvider, setSourceProvider] = useState<
     "indexeddb" | "rest" | "generated"
   >("indexeddb");
@@ -1332,18 +1338,14 @@ function Editor({
         );
       }
     }
-    const schema: Record<string, "string" | "datetime"> =
-      project.state.experience === "dashboard"
-        ? {
-            id: "string",
-            name: "string",
-            description: "string",
-            status: "string",
-            priority: "string",
-            dueDate: "datetime",
-            date: "datetime",
-          }
-        : { id: "string", text: "string", date: "datetime" };
+    const normalizedFields = schemaFields.map((field) => ({ ...field, name: field.name.trim() }));
+    if (normalizedFields.some((field) => !/^[A-Za-z][A-Za-z0-9_]*$/.test(field.name)))
+      return setFeedback("Ogni campo deve iniziare con una lettera e contenere solo lettere, numeri o underscore");
+    if (new Set(normalizedFields.map((field) => field.name)).size !== normalizedFields.length)
+      return setFeedback("I nomi dei campi devono essere unici");
+    if (!normalizedFields.some((field) => field.name === "id"))
+      return setFeedback("Lo schema deve contenere il campo id");
+    const schema = Object.fromEntries(normalizedFields.map((field) => [field.name, field.type]));
     const id = crypto.randomUUID();
     change({
       ...project,
@@ -2589,28 +2591,18 @@ function Editor({
                 </label>
               )}
               <fieldset>
-                <legend>Schema record</legend>
-                {(project.state.experience === "dashboard"
-                  ? [
-                      ["id", "string", "chiave"],
-                      ["name", "string", "obbligatorio"],
-                      ["description", "string", "obbligatorio"],
-                      ["status", "string", "obbligatorio"],
-                      ["priority", "string", "obbligatorio"],
-                      ["dueDate", "datetime", "obbligatorio"],
-                    ]
-                  : [
-                      ["id", "string", "chiave"],
-                      ["text", "string", "obbligatorio"],
-                      ["date", "datetime", "automatico"],
-                    ]
-                ).map(([field, kind, note]) => (
-                  <div className="schema-row" key={field}>
-                    <code>{field}</code>
-                    <span>{kind}</span>
-                    <strong>{note}</strong>
+                <legend>Campi dei record</legend>
+                <p className="property-help">Definisci le informazioni che vuoi salvare. Il campo <code>id</code> identifica ogni record.</p>
+                {schemaFields.map((field) => (
+                  <div className="schema-row" key={field.id}>
+                    <input aria-label="Nome campo" value={field.name} disabled={field.name === "id"} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, name: event.target.value } : item))} />
+                    <select aria-label={`Tipo campo ${field.name || "senza nome"}`} value={field.type} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}>
+                      <option value="string">Testo</option><option value="number">Numero</option><option value="boolean">Sì / no</option><option value="datetime">Data e ora</option>
+                    </select>
+                    <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Elimina campo ${field.name}`} onClick={() => setSchemaFields((fields) => fields.filter((item) => item.id !== field.id))}>Elimina</button>
                   </div>
                 ))}
+                <button type="button" className="secondary" onClick={() => setSchemaFields((fields) => [...fields, { id: crypto.randomUUID(), name: `campo${fields.length}`, type: "string" }])}>+ Aggiungi campo</button>
               </fieldset>
               <button type="submit">
                 {sourceProvider === "indexeddb"
