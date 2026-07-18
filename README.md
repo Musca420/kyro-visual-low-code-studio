@@ -78,6 +78,8 @@ Segreti, token e password non appartengono al modello. Il provider MVP non richi
 
 La scheda Dati propone in termini pratici tre destinazioni: IndexedDB sul dispositivo, una API REST esistente o un backend Node generato. Per le API, l'export legge il token da `VITE_API_TOKEN`; non viene serializzato nel progetto. Il backend generato espone CRUD su `/records` e persiste in `server/data.json`; `tests/generatedBackend.test.ts` lo avvia e verifica l'intero ciclo HTTP.
 
+Nella stessa scheda, Asset consente di caricare immagini, audio e video fino a 2 MB. I file vengono salvati nel progetto e possono essere assegnati ai relativi componenti dal campo **File del progetto** nell'ispettore; `e2e/assets.spec.ts` verifica upload, preview, salvataggio e riapertura.
+
 ## Android / Capacitor
 
 Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, sincronizza la cartella nativa e compila l'APK quando la toolchain è disponibile.

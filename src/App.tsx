@@ -420,6 +420,7 @@ function Editor({
     tool: "capture_canvas" | "capture_preview";
   }>();
   const processingCommands = useRef(new Set<string>());
+  const assetInput = useRef<HTMLInputElement>(null);
   const currentPage = project.pages.find((page) => page.id === pageId);
   const activeComponent = currentPage?.components.find(
     (component) => component.id === selected[0],
@@ -761,6 +762,36 @@ function Editor({
     change({ ...project, pages: [...project.pages, page] });
     setPageId(page.id);
     setSelected([]);
+  };
+  const addAssets = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const accepted = [...files].filter(
+      (file) =>
+        file.size <= 2_000_000 && /^(image|audio|video)\//.test(file.type),
+    );
+    if (accepted.length !== files.length)
+      setFeedback(
+        "Alcuni file sono stati ignorati: usa immagini, audio o video fino a 2 MB",
+      );
+    const assets = await Promise.all(
+      accepted.map(async (file) => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        url: await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        }),
+      })),
+    );
+    if (assets.length) {
+      change({ ...project, assets: [...project.assets, ...assets] });
+      setFeedback(
+        `${assets.length} asset ${assets.length === 1 ? "caricato" : "caricati"} e salvato nel progetto`,
+      );
+    }
+    if (assetInput.current) assetInput.current.value = "";
   };
   const createSource = () => {
     if (!sourceName.trim() || !collection.trim())
@@ -1460,6 +1491,7 @@ function Editor({
               <Properties
                 component={activeComponent}
                 components={currentPage!.components}
+                assets={project.assets}
                 breakpoint={breakpoint}
                 onUpdate={updateComponent}
                 onReparent={(parentId) =>
@@ -1713,6 +1745,58 @@ function Editor({
                   </article>
                 ))
               )}
+              <div className="asset-manager">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">File del progetto</p>
+                    <h2>Asset</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => assetInput.current?.click()}
+                  >
+                    Carica file
+                  </button>
+                </div>
+                <input
+                  ref={assetInput}
+                  className="visually-hidden"
+                  aria-label="Scegli asset"
+                  type="file"
+                  accept="image/*,audio/*,video/*"
+                  multiple
+                  onChange={(event) => void addAssets(event.target.files)}
+                />
+                {project.assets.length === 0 ? (
+                  <div className="empty-panel compact">
+                    <strong>Nessun asset</strong>
+                    <span>Carica immagini, audio o video fino a 2 MB.</span>
+                  </div>
+                ) : (
+                  <div className="asset-grid">
+                    {project.assets.map((asset) => (
+                      <article key={asset.id}>
+                        <img src={asset.url} alt="" />
+                        <span title={asset.name}>{asset.name}</span>
+                        <button
+                          type="button"
+                          aria-label={`Elimina ${asset.name}`}
+                          onClick={() =>
+                            change({
+                              ...project,
+                              assets: project.assets.filter(
+                                (item) => item.id !== asset.id,
+                              ),
+                            })
+                          }
+                        >
+                          ×
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
           </section>
         </main>
@@ -2317,6 +2401,7 @@ function DesignComponent({
 function Properties({
   component,
   components,
+  assets,
   breakpoint,
   onUpdate,
   onReparent,
@@ -2326,6 +2411,7 @@ function Properties({
 }: {
   component: EditorComponent;
   components: EditorComponent[];
+  assets: Project["assets"];
   breakpoint: Breakpoint;
   onUpdate: (update: (component: EditorComponent) => EditorComponent) => void;
   onReparent: (parentId?: string) => void;
@@ -2338,6 +2424,7 @@ function Properties({
       <VisualProperties
         component={component}
         components={components}
+        assets={assets}
         breakpoint={breakpoint}
         onUpdate={onUpdate}
         onReparent={onReparent}

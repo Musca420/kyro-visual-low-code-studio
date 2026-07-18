@@ -15,6 +15,7 @@
 - preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
 - catalogo ricercabile con nove template completi, ricerca componenti con sinonimi e command palette `Ctrl+K`;
 - procedura dati guidata per IndexedDB, API REST o backend Node generato; CRUD del backend verificato in esecuzione;
+- asset manager visuale con upload immagini/audio/video, assegnazione dall'ispettore e persistenza alla riapertura;
 - skill `frontend-editor-live` validata con script reali.
 
 Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-details.png`, `artifacts/live-canvas-capture.png`, `artifacts/live-preview-capture.png`.
