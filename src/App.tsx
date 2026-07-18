@@ -8,6 +8,7 @@ import { PreviewFrame } from './PreviewFrame'
 import { createDashboardProject, createLandingProject } from './templates'
 import { CodexPanel, type CodexContext } from './CodexPanel'
 import { applyEditorOperation } from './editorOperations'
+import { captureElement, type CaptureResult } from './capture'
 
 type WorkspaceTab = 'design' | 'flow' | 'data' | 'preview' | 'plugins'
 const FlowEditor = lazy(() => import('./FlowEditor'))
@@ -86,6 +87,8 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? '')
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; component: EditorComponent; bounds: CodexContext['bounds'] }>()
   const [codexRequest, setCodexRequest] = useState<{ context: CodexContext; prompt: string }>()
+  const [captureCommand, setCaptureCommand] = useState<{ id: string; tool: 'capture_canvas' | 'capture_preview' }>()
+  const processingCommands = useRef(new Set<string>())
   const currentPage = project.pages.find((page) => page.id === pageId)
   const activeComponent = currentPage?.components.find((component) => component.id === selected[0])
   const flow = project.flows.find((item) => item.id === flowId) ?? project.flows[0]
@@ -150,23 +153,43 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
     return () => window.removeEventListener('keydown', keys)
   })
 
+  const finishBridgeCommand = useCallback(async (id: string, result?: CaptureResult, error?: unknown) => {
+    await fetch(`/api/live/commands/${id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(error ? { ok: false, error: error instanceof Error ? error.message : String(error) } : { ok: true, result }) })
+    processingCommands.current.delete(id)
+    setCaptureCommand((current) => current?.id === id ? undefined : current)
+  }, [])
+
+  useEffect(() => {
+    if (captureCommand?.tool !== 'capture_canvas' || tab !== 'design') return
+    const timer = setTimeout(() => {
+      const canvas = document.querySelector<HTMLElement>('.design-canvas')
+      if (!canvas) return void finishBridgeCommand(captureCommand.id, undefined, new Error('Canvas non disponibile'))
+      void captureElement(canvas).then((result) => finishBridgeCommand(captureCommand.id, result)).catch((error) => finishBridgeCommand(captureCommand.id, undefined, error))
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [captureCommand, tab, finishBridgeCommand])
+
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
         const commands = await fetch(`/api/live/commands?projectId=${project.id}`).then((response) => response.json()) as { id: string; tool: string; args: Record<string, unknown> }[]
         for (const command of commands) {
+          if (processingCommands.current.has(command.id)) continue
+          processingCommands.current.add(command.id)
           try {
+            if (command.tool === 'capture_canvas' || command.tool === 'capture_preview') { setCaptureCommand({ id: command.id, tool: command.tool }); setTab(command.tool === 'capture_canvas' ? 'design' : 'preview'); continue }
             if (command.tool === 'undo_last_transaction') undo()
             else if (command.tool === 'open_preview') setTab('preview')
             else change((value) => applyEditorOperation(value, pageId, { type: command.tool, args: command.args }))
             await fetch(`/api/live/commands/${command.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true }) })
+            processingCommands.current.delete(command.id)
             setFeedback(`Modifica Codex applicata · transazione ${command.id.slice(0, 8)}`)
-          } catch (error) { await fetch(`/api/live/commands/${command.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }) }) }
+          } catch (error) { await finishBridgeCommand(command.id, undefined, error) }
         }
       } catch { /* Il bridge non esiste nella build statica. */ }
     }, 600)
     return () => clearInterval(timer)
-  }, [project.id, pageId, change, undo])
+  }, [project.id, pageId, change, undo, finishBridgeCommand])
 
   const patchPage = (update: (components: EditorComponent[]) => EditorComponent[]) => change((value) => ({ ...value, pages: value.pages.map((page) => page.id === pageId ? { ...page, components: update(page.components) } : page) }))
   const addComponent = (type: EditorComponent['type']) => {
@@ -276,7 +299,7 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
     </div>}
     {tab === 'flow' && <main className="wide-workspace"><div className="section-heading"><div><p className="eyebrow">Comportamento</p><h1>Flow editor</h1><p>Collega eventi e operazioni. I percorsi success ed error sono distinti e validati.</p>{project.flows.length > 0 && <label>Flow attivo<select aria-label="Flow attivo" value={flow?.id} onChange={(event) => setFlowId(event.target.value)}>{project.flows.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</div><button onClick={createFlow}>{project.state.experience === 'landing' ? 'Crea interazioni landing' : project.state.experience === 'dashboard' ? 'Crea flow dashboard' : 'Crea flow dati'}</button></div><Suspense fallback={<div className="flow-canvas">Caricamento editor flow…</div>}><FlowEditor flow={flow} onChange={(updated) => change({ ...project, flows: project.flows.map((item) => item.id === updated.id ? updated : item) })} /></Suspense><LogConsole logs={logs} /></main>}
     {tab === 'data' && <main className="wide-workspace"><div className="section-heading"><div><p className="eyebrow">Provider locale reale</p><h1>Dati & integrazioni</h1><p>IndexedDB conserva i record sul dispositivo. Nessun segreto richiesto o salvato.</p></div></div><section className="data-layout"><form className="settings-card" onSubmit={(event) => { event.preventDefault(); createSource() }}><h2>Nuova sorgente</h2><label>Nome<input value={sourceName} onChange={(event) => setSourceName(event.target.value)} /></label><label>Collezione<input value={collection} onChange={(event) => setCollection(event.target.value)} /></label><fieldset><legend>Schema record</legend>{(project.state.experience === 'dashboard' ? [['id', 'string', 'chiave'], ['name', 'string', 'obbligatorio'], ['description', 'string', 'obbligatorio'], ['status', 'string', 'obbligatorio'], ['priority', 'string', 'obbligatorio'], ['dueDate', 'datetime', 'obbligatorio']] : [['id', 'string', 'chiave'], ['text', 'string', 'obbligatorio'], ['date', 'datetime', 'automatico']]).map(([field, kind, note]) => <div className="schema-row" key={field}><code>{field}</code><span>{kind}</span><strong>{note}</strong></div>)}</fieldset><button type="submit">Crea sorgente IndexedDB</button></form><section><h2>Sorgenti configurate</h2>{project.dataSources.length === 0 ? <div className="empty-panel"><strong>Nessuna sorgente</strong><span>Crea il database locale per collegare la lista.</span></div> : project.dataSources.map((source) => <article className="source-card" key={source.id}><span className="provider-icon">DB</span><div><strong>{source.name}</strong><span>{source.provider} / {source.collection}</span><small>{Object.entries(source.schema).map(([key, value]) => `${key}:${value}`).join(' · ')}</small></div><span className="valid-chip">Valida</span></article>)}</section></section></main>}
-    {tab === 'preview' && <main className="preview-workspace"><div className="preview-toolbar"><div className="segmented">{BREAKPOINTS.map((value) => <button key={value} className={breakpoint === value ? 'active' : ''} onClick={() => setBreakpoint(value)}>{value}</button>)}</div><label className="switch"><input type="checkbox" checked={interactive} onChange={(event) => setInteractive(event.target.checked)} />Modalità interattiva</label></div>{currentPage ? <PreviewFrame project={project} pageId={currentPage.id} breakpoint={breakpoint} interactive={interactive} onAdd={addRecord} onRefresh={refreshRecords} onDashboardAction={dashboardAction} /> : <div className="empty-panel"><strong>Nessuna pagina</strong><span>Crea una pagina per aprire la preview.</span></div>}<LogConsole logs={logs} /></main>}
+    {tab === 'preview' && <main className="preview-workspace"><div className="preview-toolbar"><div className="segmented">{BREAKPOINTS.map((value) => <button key={value} className={breakpoint === value ? 'active' : ''} onClick={() => setBreakpoint(value)}>{value}</button>)}</div><label className="switch"><input type="checkbox" checked={interactive} onChange={(event) => setInteractive(event.target.checked)} />Modalità interattiva</label></div>{currentPage ? <PreviewFrame project={project} pageId={currentPage.id} breakpoint={breakpoint} interactive={interactive} onAdd={addRecord} onRefresh={refreshRecords} onDashboardAction={dashboardAction} captureRequest={captureCommand?.tool === 'capture_preview' ? captureCommand.id : undefined} onCapture={(result) => captureCommand && void finishBridgeCommand(captureCommand.id, result)} onCaptureError={(error) => captureCommand && void finishBridgeCommand(captureCommand.id, undefined, error)} /> : <div className="empty-panel"><strong>Nessuna pagina</strong><span>Crea una pagina per aprire la preview.</span></div>}<LogConsole logs={logs} /></main>}
     {tab === 'plugins' && <main className="wide-workspace"><PluginManager project={project} onChange={change} /></main>}
     {contextMenu && <div className="component-menu" role="menu" aria-label={`Azioni per ${contextMenu.component.name}`} style={{ left: contextMenu.x, top: contextMenu.y }}>{['Chiedi a Codex', 'Crea comportamento', 'Modifica comportamento', 'Collega dati', 'Correggi problema', 'Migliora componente', 'Spiega elemento'].map((action) => <button role="menuitem" key={action} onClick={() => askCodex(action)}>{action === 'Chiedi a Codex' ? '⌘' : '›'}<span>{action}</span></button>)}<button role="menuitem" className="menu-cancel" onClick={() => setContextMenu(undefined)}>Chiudi menu</button></div>}
     <CodexPanel open={Boolean(codexRequest)} context={codexRequest?.context} suggestedPrompt={codexRequest?.prompt ?? ''} onClose={() => setCodexRequest(undefined)} />

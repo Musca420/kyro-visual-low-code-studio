@@ -13,7 +13,7 @@ Invocare con `POST /api/live/tools/<nome>` e JSON `{projectId,pageId,revision,ar
 
 Letture: `get_editor_status`, `get_active_project`, `get_active_page`, `get_current_selection`, `get_component`, `get_component_tree`, `get_component_layout`, `get_computed_styles`, `get_page_flows`, `get_component_flows`, `get_data_sources`, `get_runtime_state`, `get_validation_errors`, `get_console_errors`, `validate_project`.
 
-Mutazioni: `move_component`, `resize_component`, `set_component_property`, `set_component_style`, `set_responsive_style`, `add_component`, `remove_component`, `reorder_component`, `create_flow`, `connect_nodes`, `bind_component_data`, `create_data_source`, `apply_editor_transaction`, `undo_last_transaction`, `open_preview`.
+Operazioni asincrone: `move_component`, `resize_component`, `set_component_property`, `set_component_style`, `set_responsive_style`, `add_component`, `remove_component`, `reorder_component`, `create_flow`, `connect_nodes`, `bind_component_data`, `create_data_source`, `apply_editor_transaction`, `undo_last_transaction`, `open_preview`, `capture_canvas`, `capture_preview`. Le catture restituiscono `{dataUrl,width,height}` nel campo `result` della transazione e non cambiano la revisione.
 
 Usare `scripts/invoke_live_tool.ps1 <tool> '<args-json>'`. Lo script legge automaticamente progetto, pagina e revisione correnti. `remove_component` richiede `confirmed:true`.
 
@@ -23,4 +23,4 @@ Usare `scripts/invoke_live_tool.ps1 <tool> '<args-json>'`. Lo script legge autom
 - `POST /api/codex/run`: `{mode:"plan"|"apply",prompt,context,projectId,revision}`. `plan` usa sandbox read-only; `apply` usa workspace-write. Una revisione obsoleta restituisce `409`.
 - `POST /api/codex/cancel`: termina l’operazione corrente.
 
-Non esiste un endpoint shell generico. `capture_canvas`, `capture_preview`, gerarchie annidate e `wrap_component` non sono ancora esposti: segnalarli come non disponibili invece di simulare il risultato.
+Non esiste un endpoint shell generico. Gerarchie annidate e `wrap_component` non sono ancora esposti: segnalarli come non disponibili invece di simulare il risultato.

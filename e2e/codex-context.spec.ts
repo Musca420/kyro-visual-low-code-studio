@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { writeFile } from 'node:fs/promises'
 
 test('apre Codex dal componente con contesto stabile e bridge protetto', async ({ page, request }) => {
   await page.goto('/')
@@ -18,6 +19,14 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   await expect(panel).toContainText('Button')
   await expect(panel).toContainText('rev. 2')
   await expect(panel.getByLabel('Richiesta in linguaggio naturale')).toBeFocused()
+  const detailTabs = panel.getByRole('navigation', { name: 'Dettagli operazione Codex' })
+  await expect(detailTabs.getByRole('button')).toHaveCount(4)
+  await detailTabs.getByRole('button', { name: 'Operazioni' }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('comandi eseguiti')
+  await detailTabs.getByRole('button', { name: 'File e diff' }).click()
+  await expect(panel).toContainText('Nessun file modificato')
+  await detailTabs.getByRole('button', { name: 'Conversazione' }).click()
+  await page.screenshot({ path: 'artifacts/guided-codex-details.png', fullPage: true })
 
   const projectId = await page.locator('.app-shell').getAttribute('data-project-id')
   await expect.poll(async () => (await request.get(`/api/live/status?projectId=${projectId}`)).status()).toBe(200)
@@ -39,6 +48,22 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   await expect.poll(async () => (await (await request.get(`/api/live/transactions/${undoId}`)).json()).status).toBe('applied')
   await expect(component).not.toHaveCSS('background-color', 'rgb(255, 0, 0)')
   await expect.poll(async () => (await (await request.get(`/api/live/status?projectId=${projectId}`)).json()).revision).toBe(live.revision + 2)
+
+  const captureState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
+  for (const tool of ['capture_canvas', 'capture_preview']) {
+    const capture = await request.post(`/api/live/tools/${tool}`, { data: { projectId: live.projectId, pageId: live.pageId, revision: captureState.revision, args: {} } })
+    expect(capture.status()).toBe(202)
+    const captureId = (await capture.json()).transactionId
+    await expect.poll(async () => (await (await request.get(`/api/live/transactions/${captureId}`)).json()).status, { timeout: 15_000 }).not.toBe('pending')
+    const transaction = await (await request.get(`/api/live/transactions/${captureId}`)).json()
+    expect(transaction.status, `${tool}: ${transaction.error || 'errore sconosciuto'}`).toBe('applied')
+    const result = transaction.result
+    expect(result.dataUrl).toMatch(/^data:image\/png;base64,/)
+    expect(result.dataUrl.length).toBeGreaterThan(1_000)
+    expect(result.width).toBeGreaterThan(100)
+    expect(result.height).toBeGreaterThan(100)
+    await writeFile(`artifacts/live-${tool.replace('capture_', '')}-capture.png`, Buffer.from(result.dataUrl.split(',')[1], 'base64'))
+  }
 
   const stale = await request.post('/api/codex/run', { data: { mode: 'plan', prompt: 'Spiega', context: {}, projectId: live.projectId, revision: live.revision - 1 } })
   expect(stale.status()).toBe(409)

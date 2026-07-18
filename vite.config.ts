@@ -13,7 +13,7 @@ async function body(request: IncomingMessage) {
   let raw = ''
   for await (const chunk of request) {
     raw += chunk
-    if (raw.length > 64_000) throw new Error('Richiesta troppo grande')
+    if (raw.length > 4_000_000) throw new Error('Richiesta troppo grande')
   }
   return JSON.parse(raw || '{}') as Record<string, unknown>
 }
@@ -23,10 +23,17 @@ function reply(response: ServerResponse, status: number, value: unknown) {
   response.end(JSON.stringify(value))
 }
 
+async function gitSnapshot() {
+  try {
+    const [status, diff] = await Promise.all([run('git', ['status', '--short'], { cwd: process.cwd(), timeout: 10_000 }), run('git', ['diff', '--no-ext-diff', '--no-color', 'HEAD'], { cwd: process.cwd(), timeout: 10_000, maxBuffer: 1_000_000 })])
+    return { status: status.stdout, diff: diff.stdout }
+  } catch { return { status: '', diff: '' } }
+}
+
 function liveBridge() {
   let latest: Record<string, unknown> | undefined
   const projects = new Map<string, Record<string, unknown>>()
-  const commands: { id: string; projectId: string; pageId: string; revision: number; tool: string; args: Record<string, unknown>; status: 'pending' | 'applied' | 'error'; error?: string }[] = []
+  const commands: { id: string; projectId: string; pageId: string; revision: number; tool: string; args: Record<string, unknown>; status: 'pending' | 'applied' | 'error'; error?: string; result?: unknown }[] = []
   let agent: ChildProcessWithoutNullStreams | undefined
   return {
     name: 'frontend-editor-live-bridge',
@@ -67,7 +74,7 @@ function liveBridge() {
               validate_project: () => ({ valid: !(state.validationErrors as unknown[])?.length, errors: state.validationErrors }),
             }
             if (reads[tool]) return reply(response, 200, reads[tool]())
-            const mutations = new Set(['move_component', 'resize_component', 'set_component_property', 'set_component_style', 'set_responsive_style', 'add_component', 'remove_component', 'reorder_component', 'create_flow', 'connect_nodes', 'bind_component_data', 'create_data_source', 'apply_editor_transaction', 'undo_last_transaction', 'open_preview'])
+            const mutations = new Set(['move_component', 'resize_component', 'set_component_property', 'set_component_style', 'set_responsive_style', 'add_component', 'remove_component', 'reorder_component', 'create_flow', 'connect_nodes', 'bind_component_data', 'create_data_source', 'apply_editor_transaction', 'undo_last_transaction', 'open_preview', 'capture_canvas', 'capture_preview'])
             if (!mutations.has(tool)) return reply(response, 404, { error: `Tool non disponibile: ${tool}` })
             if (input.revision !== state.revision) return reply(response, 409, { error: 'Revisione obsoleta' })
             if (commands.some((item) => item.projectId === projectId && item.status === 'pending')) return reply(response, 409, { error: 'Una transazione è già in attesa' })
@@ -79,7 +86,7 @@ function liveBridge() {
           if (url.pathname.startsWith('/api/live/commands/') && request.method === 'POST') {
             const command = commands.find((item) => item.id === url.pathname.split('/').at(-1)), result = await body(request)
             if (!command) return reply(response, 404, { error: 'Transazione non trovata' })
-            command.status = result.ok === true ? 'applied' : 'error'; command.error = result.error ? String(result.error) : undefined
+            command.status = result.ok === true ? 'applied' : 'error'; command.error = result.error ? String(result.error) : undefined; command.result = result.result
             return reply(response, 200, command)
           }
           if (url.pathname.startsWith('/api/live/transactions/') && request.method === 'GET') {
@@ -102,7 +109,7 @@ function liveBridge() {
             agent.stdout.on('data', (chunk) => { output += chunk; if (output.length > 250_000) agent?.kill() })
             agent.stderr.on('data', (chunk) => { errors += chunk })
             agent.stdin.end(instruction)
-            agent.on('close', (code) => { agent = undefined; reply(response, code === 0 ? 200 : 500, { code, output, errors }) })
+            agent.on('close', async (code) => { agent = undefined; reply(response, code === 0 ? 200 : 500, { code, output, errors, git: await gitSnapshot() }) })
             return
           }
           if (request.url === '/api/codex/cancel' && request.method === 'POST') { const cancelled = Boolean(agent); agent?.kill(); agent = undefined; return reply(response, 200, { cancelled }) }

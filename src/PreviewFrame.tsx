@@ -11,12 +11,31 @@ type Props = {
   onRefresh: () => Promise<LocalRecord[]>
   onDashboardAction?: (action: string, payload?: Record<string, string>) => Promise<LocalRecord[]>
   error?: string
+  captureRequest?: string
+  onCapture?: (result: { dataUrl: string; width: number; height: number }) => void
+  onCaptureError?: (error: string) => void
 }
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]!)
 const attr = (component?: EditorComponent) => component ? `data-component="${component.id}"` : ''
 const bySlot = (components: EditorComponent[], slot: string) => components.find((component) => component.props.slot === slot)
 const label = (component?: EditorComponent) => escapeHtml(component?.props.label || component?.name || '')
+
+async function rasterizePreview(html: string, width: number, height: number) {
+  const copy = document.createElement('iframe')
+  copy.setAttribute('sandbox', 'allow-same-origin')
+  Object.assign(copy.style, { position: 'fixed', left: '-10000px', top: '0', width: `${width}px`, height: `${height}px`, border: '0' })
+  copy.srcdoc = html.replace(/<script[\s\S]*?<\/script>/gi, '')
+  document.body.append(copy)
+  try {
+    await new Promise<void>((resolve, reject) => { copy.onload = () => resolve(); copy.onerror = () => reject(new Error('Impossibile preparare la cattura preview')) })
+    const root = copy.contentDocument?.documentElement
+    if (!root) throw new Error('DOM preview non disponibile')
+    const { default: html2canvas } = await import('html2canvas')
+    const canvas = await html2canvas(root, { width, height, scale: 1, backgroundColor: '#ffffff', logging: false, useCORS: false })
+    return { dataUrl: canvas.toDataURL('image/png'), width, height }
+  } finally { copy.remove() }
+}
 
 function renderComponent(component: EditorComponent) {
   const text = label(component)
@@ -67,8 +86,9 @@ export function buildExperienceAssets(experience: 'landing' | 'dashboard', compo
     : { markup: dashboardMarkup(components), css: dashboardCss(), script: dashboardScript(true) + dashboardValidationScript() }
 }
 
-export function PreviewFrame({ project, pageId, breakpoint, interactive, onAdd, onRefresh, onDashboardAction, error }: Props) {
+export function PreviewFrame({ project, pageId, breakpoint, interactive, onAdd, onRefresh, onDashboardAction, error, captureRequest, onCapture, onCaptureError }: Props) {
   const frame = useRef<HTMLIFrameElement>(null)
+  const ready = useRef(false)
   const page = project.pages.find((candidate) => candidate.id === pageId)
   const sourceId = project.dataSources[0]?.id
   const experience = project.state.experience
@@ -77,16 +97,24 @@ export function PreviewFrame({ project, pageId, breakpoint, interactive, onAdd, 
     const markup = experience === 'landing' ? landingMarkup(components) : experience === 'dashboard' ? dashboardMarkup(components) : `<main>${components.map(renderComponent).join('\n')}</main>`
     const css = experience === 'landing' ? landingCss() : experience === 'dashboard' ? dashboardCss() : 'body{padding:24px}main{display:grid;gap:14px;width:min(680px,100%);margin:auto}'
     const behavior = experience === 'landing' ? landingScript(interactive) : experience === 'dashboard' ? dashboardScript(interactive) + dashboardValidationScript() : todoScript(interactive)
-    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join('\n')}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${behavior}</script></body></html>`
+    const capture = `addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-capture')return;try{const width=Math.min(2400,Math.max(1,document.documentElement.scrollWidth)),height=Math.min(2400,Math.max(1,document.documentElement.scrollHeight)),copy=document.documentElement.cloneNode(true);copy.querySelectorAll('script').forEach((node)=>node.remove());send('CAPTURE_HTML',{html:'<!doctype html>'+copy.outerHTML,width,height})}catch(error){send('CAPTURE_ERROR',{error:String(error)})}});`
+    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join('\n')}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${capture}${behavior}</script></body></html>`
   }, [page, breakpoint, interactive, experience])
 
   useEffect(() => {
     const listener = async (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.data?.channel !== 'frontend-editor-preview') return
       if (event.data.type === 'READY') {
+        ready.current = true
         const records = sourceId ? await onRefresh() : []
         frame.current?.contentWindow?.postMessage({ channel: 'frontend-editor-host', records, error }, '*')
+        if (captureRequest) frame.current?.contentWindow?.postMessage({ channel: 'frontend-editor-capture' }, '*')
       }
+      if (event.data.type === 'CAPTURE_HTML') {
+        try { onCapture?.(await rasterizePreview(String(event.data.html), Number(event.data.width), Number(event.data.height))) }
+        catch (problem) { onCaptureError?.(problem instanceof Error ? problem.message : String(problem)) }
+      }
+      if (event.data.type === 'CAPTURE_ERROR') onCaptureError?.(String(event.data.error))
       if (event.data.type === 'ADD') {
         try {
           await onAdd(String(event.data.value ?? ''))
@@ -104,7 +132,10 @@ export function PreviewFrame({ project, pageId, breakpoint, interactive, onAdd, 
     }
     window.addEventListener('message', listener)
     return () => window.removeEventListener('message', listener)
-  }, [onAdd, onRefresh, onDashboardAction, sourceId, error])
+  }, [onAdd, onRefresh, onDashboardAction, sourceId, error, captureRequest, onCapture, onCaptureError])
+
+  useEffect(() => { if (captureRequest && ready.current) frame.current?.contentWindow?.postMessage({ channel: 'frontend-editor-capture' }, '*') }, [captureRequest])
+  useEffect(() => { ready.current = false }, [srcDoc])
 
   return <iframe ref={frame} title="Preview isolata" sandbox="allow-scripts allow-modals" srcDoc={srcDoc} className={`preview-frame preview-${breakpoint}`} />
 }
