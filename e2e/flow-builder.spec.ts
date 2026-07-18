@@ -62,4 +62,14 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await queryNode.locator(".react-flow__handle.source").dragTo(page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).locator(".react-flow__handle.target"));
   await expect(page.getByRole("alert")).toContainText("produce list");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-builder.png", fullPage: true });
+
+  await nodePalette.getByRole("button", { name: "Salva stato" }).click();
+  await page.getByLabel("Nome stato").fill("ricerca");
+  await nodePalette.getByRole("button", { name: "Componi testo" }).click();
+  await page.getByLabel("Formato testo").fill("Risultato: {{value}}");
+  await nodePalette.getByRole("button", { name: "Attendi" }).click();
+  await page.getByLabel("Durata attesa").fill("250");
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Salva stato" })).toBeVisible();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Componi testo" })).toContainText("unknown → string");
+  await page.screenshot({ path: "artifacts/frontend-editor-flow-state.png", fullPage: true });
 });

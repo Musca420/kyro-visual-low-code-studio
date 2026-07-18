@@ -670,6 +670,7 @@ function generatedFlowRuntime(project: Project) {
   return `type GraphNode = { id: string; type: string; label: string; position: { x: number; y: number }; config: Record<string, string> }
 type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: 'success' | 'error' }[] }
 const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
+const graphState: Record<string, unknown> = ${JSON.stringify(project.state)}
 const extensionRunners: Record<string, (value: never) => unknown> = { ${runners} }
 const graphField = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
 const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
@@ -681,6 +682,11 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'readInput') value = (document.getElementById(current.config.componentId) as HTMLInputElement | null)?.value ?? input
       if (current.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(current.config.message || 'Il valore è obbligatorio')
       const condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
+      if (current.type === 'getState') value = graphState[current.config.key || '']
+      if (current.type === 'setState') graphState[current.config.key || ''] = value
+      if (current.type === 'resetState') { delete graphState[current.config.key || '']; value = undefined }
+      if (current.type === 'delay') await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(current.config.ms) || 0))))
+      if (current.type === 'format') value = (current.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
       if (current.type === 'insert') { await insert(String(value).trim()); value = { text: String(value).trim() } }
       if (current.type === 'query') value = await query()
       if (current.type === 'update') value = await update(value)

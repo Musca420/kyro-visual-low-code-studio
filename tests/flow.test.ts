@@ -93,4 +93,17 @@ describe('flow runtime', () => {
     const logs = await runFlow(advanced, { input: ' prova ', insert: async () => undefined, refresh: async () => undefined, runModule: (_id, value) => String(value).trim() })
     expect(logs.find((entry) => entry.nodeId === 'module')?.value).toBe('prova')
   })
+
+  it('compone testo, conserva stato e attende senza bloccare il flow', async () => {
+    const state = new Map<string, unknown>()
+    const stateful: Flow = { id: 'state', name: 'State', nodes: [
+      { id: 'event', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'format', type: 'format', label: 'Format', position: { x: 1, y: 0 }, config: { template: 'Ciao {{value}}' } },
+      { id: 'set', type: 'setState', label: 'Save', position: { x: 2, y: 0 }, config: { key: 'greeting' } },
+      { id: 'delay', type: 'delay', label: 'Wait', position: { x: 3, y: 0 }, config: { ms: '1' } },
+      { id: 'get', type: 'getState', label: 'Read', position: { x: 4, y: 0 }, config: { key: 'greeting' } },
+    ], edges: ['event', 'format', 'set', 'delay'].map((source, index) => ({ id: String(index), source, target: ['format', 'set', 'delay', 'get'][index], path: 'success' })) }
+    const logs = await runFlow(stateful, { input: 'Canva', insert: async () => undefined, refresh: async () => undefined, getState: (key) => state.get(key), setState: (key, value) => state.set(key, value), resetState: (key) => void state.delete(key) })
+    expect(logs.at(-1)?.value).toBe('Ciao Canva')
+  })
 })

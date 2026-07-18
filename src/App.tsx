@@ -627,6 +627,7 @@ function Editor({
     tool: "capture_canvas" | "capture_preview";
   }>();
   const processingCommands = useRef(new Set<string>());
+  const runtimeState = useRef<Record<string, unknown>>({ ...initial.state });
   const assetInput = useRef<HTMLInputElement>(null);
   const refreshPlugins = useCallback(
     () => listPlugins().then(setInstalledPlugins),
@@ -1612,6 +1613,9 @@ function Editor({
           if (!module) throw new Error("Modulo avanzato non trovato");
           return runCodeModule(module, value);
         },
+        getState: (key) => runtimeState.current[key],
+        setState: (key, value) => { runtimeState.current[key] = value; },
+        resetState: (key) => { delete runtimeState.current[key]; },
       });
       setLogs(result);
       const error = result.find((entry) => entry.level === "error");

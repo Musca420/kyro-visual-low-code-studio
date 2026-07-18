@@ -14,12 +14,13 @@ project.flows.push({ id: flowId, name: 'Crea attività', nodes: [
   { id: 'read', type: 'readInput', label: 'Leggi', position: { x: 1, y: 0 }, config: { componentId: input.id } },
   { id: 'validate', type: 'validate', label: 'Obbligatorio', position: { x: 2, y: 0 }, config: { message: 'Il valore è obbligatorio' } },
   { id: 'module', type: 'module', label: 'Maiuscolo', position: { x: 3, y: 0 }, config: { moduleId } },
-  { id: 'insert', type: 'insert', label: 'Crea', position: { x: 4, y: 0 }, config: { sourceId } },
-  { id: 'refresh', type: 'refresh', label: 'Aggiorna', position: { x: 5, y: 0 }, config: { componentId: list.id } },
+  { id: 'format', type: 'format', label: 'Etichetta', position: { x: 4, y: 0 }, config: { template: '✓ {{value}}' } },
+  { id: 'insert', type: 'insert', label: 'Crea', position: { x: 5, y: 0 }, config: { sourceId } },
+  { id: 'refresh', type: 'refresh', label: 'Aggiorna', position: { x: 6, y: 0 }, config: { componentId: list.id } },
 ], edges: [
   { id: '1', source: 'event', target: 'read', path: 'success' }, { id: '2', source: 'read', target: 'validate', path: 'success' },
-  { id: '3', source: 'validate', target: 'module', path: 'success' }, { id: '4', source: 'module', target: 'insert', path: 'success' },
-  { id: '5', source: 'insert', target: 'refresh', path: 'success' },
+  { id: '3', source: 'validate', target: 'module', path: 'success' }, { id: '4', source: 'module', target: 'format', path: 'success' },
+  { id: '5', source: 'format', target: 'insert', path: 'success' }, { id: '6', source: 'insert', target: 'refresh', path: 'success' },
 ] })
 button.events.click = flowId
 
