@@ -2129,6 +2129,17 @@ label {
   color: var(--muted);
   line-height: 1.4;
 }
+.capability-plan { border-top: 1px solid #e6c66d; padding-top: 5px; }
+.capability-plan summary { color: var(--ink); cursor: pointer; font-size: 11px; font-weight: 800; }
+.capability-plan > div { display: grid; gap: 5px; padding: 8px 2px 2px; }
+.capability-plan ul { display: grid; gap: 3px; margin: 0; padding-left: 17px; color: var(--ink); font-size: 10px; line-height: 1.45; }
+.capability-plan p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.capability-plan em { color: #785900; font-size: 10px; font-style: normal; font-weight: 750; }
+[data-theme="dark"] .capability-issues article { border-color: #80662b; background: #2b2516; color: var(--ink); }
+[data-theme="dark"] .capability-issues article > span,
+[data-theme="dark"] .capability-plan p { color: #c8bea2; }
+[data-theme="dark"] .capability-plan { border-color: #80662b; }
+[data-theme="dark"] .capability-plan em { color: #ffd36a; }
 .capability-ready {
   display: block;
   padding: 8px;

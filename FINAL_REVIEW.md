@@ -19,11 +19,12 @@ La Definition of Done MVP e il verticale obbligatorio sono verificati. Frontend 
 | Backend esportato persistente con CRUD reale | `tests/generatedBackend.test.ts` | Superato |
 | Android guidato, APK e dispositivo | `e2e/android-build.spec.ts` e screenshot in `artifacts/` | Eseguito nel collaudo dedicato |
 
-Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts/frontend-editor-canva-multiselect.png`, `artifacts/frontend-editor-canva-smart-guides.png`, `artifacts/frontend-editor-reusable-component.png`, `artifacts/frontend-editor-flow-breakpoint.png`, `artifacts/frontend-editor-flow-profile.png`, `artifacts/frontend-editor-flow-ui-action.png`, `artifacts/frontend-editor-get-record.png`, `artifacts/frontend-editor-auth-flow.png`, `artifacts/frontend-editor-runtime-console.png`, `artifacts/frontend-editor-structured-form.png`, `artifacts/frontend-editor-visual-schema.png`, `artifacts/frontend-editor-data-relations.png`, `artifacts/frontend-editor-file-storage.png`, `artifacts/frontend-editor-react-import.png`, `artifacts/frontend-editor-protected-module.png`, `artifacts/frontend-editor-generated-file.png`, `artifacts/generated-app-flow-module.png`, `artifacts/simple-landing-desktop.png`, `artifacts/simple-landing-mobile.png`, `artifacts/project-dashboard-desktop.png`, `artifacts/project-dashboard-mobile.png`, `artifacts/frontend-editor-codex-timeline.png`, `artifacts/android-device-final.png`.
+Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts/frontend-editor-canva-multiselect.png`, `artifacts/frontend-editor-canva-smart-guides.png`, `artifacts/frontend-editor-reusable-component.png`, `artifacts/frontend-editor-flow-breakpoint.png`, `artifacts/frontend-editor-flow-profile.png`, `artifacts/frontend-editor-flow-ui-action.png`, `artifacts/frontend-editor-get-record.png`, `artifacts/frontend-editor-capability-plan.png`, `artifacts/frontend-editor-auth-flow.png`, `artifacts/frontend-editor-runtime-console.png`, `artifacts/frontend-editor-structured-form.png`, `artifacts/frontend-editor-visual-schema.png`, `artifacts/frontend-editor-data-relations.png`, `artifacts/frontend-editor-file-storage.png`, `artifacts/frontend-editor-react-import.png`, `artifacts/frontend-editor-protected-module.png`, `artifacts/frontend-editor-generated-file.png`, `artifacts/generated-app-flow-module.png`, `artifacts/simple-landing-desktop.png`, `artifacts/simple-landing-mobile.png`, `artifacts/project-dashboard-desktop.png`, `artifacts/project-dashboard-mobile.png`, `artifacts/frontend-editor-codex-timeline.png`, `artifacts/android-device-final.png`.
 
 ## Controlli finali riproducibili
 
-- `npm run check`: typecheck e lint senza errori, 12 file Vitest e 67 test superati, build Vite riuscita.
+- `npm run check`: typecheck e lint senza errori, 12 file Vitest e 68 test superati, build Vite riuscita.
+- `npx playwright test e2e/capability-resolver-plan.spec.ts --workers=1`: prerequisiti, alternative, costi e conferma mostrati da un intento pagamento senza configurare servizi.
 - `npx playwright test e2e/flow-profile.spec.ts --workers=1`: tempi per nodo visibili, run persistita e replay riaperto dopo il riavvio del progetto.
 - `npx playwright test e2e/get-record-flow.spec.ts --workers=1`: caricamento singolo per ID configurato e ritrovato alla riapertura; runtime ed export coperti dai test unitari.
 - `npx playwright test e2e/reusable-components.spec.ts --workers=1`: selezione salvata come blocco, nuova istanza nativa modificata e ritrovata alla riapertura.
@@ -35,7 +36,7 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 - `npx playwright test e2e/runtime-observability.spec.ts --workers=1`: 1 test browser superato; errore e oggetto runtime trasferiti dall'iframe isolato alla console visuale.
 - `npm run export:sample` e `npm run build` in `generated-app`: export materializzato e compilato indipendentemente, incluso il runtime autenticazione del grafo.
 - `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
-- `npx playwright test`: 42 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
+- `npx playwright test`: 43 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
 - `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 75 secondi; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
 - `RUN_PACKAGED_DESKTOP=1`: 1 smoke test dedicato superato; eseguibile Windows avviato indipendentemente e cartella progetto aperta.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
@@ -67,7 +68,9 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - Una modal configurata come chiusa manteneva `hidden` nel DOM ma lo stile Grid del componente prevaleva sul foglio utente del browser: preview ed export ora applicano `[hidden]{display:none!important}` e il test visuale ripete la chiusura dal flow.
 - Il click forzato sul contenitore trascinabile del nodo navigazione poteva lasciare selezionato il nodo precedente sotto carico parallelo: il collaudo usa ora il contenuto visibile del nodo e verifica subito l'inspector; prova mirata e suite completa sono verdi.
 - La cronologia profiling poteva perdersi chiudendo il progetto prima del debounce di autosave: ogni run viene ora salvata immediatamente e in sequenza; cinque ripetizioni parallele e la riapertura sono verdi.
-- Aggiungendo un nodo, gli elementi precedenti potevano uscire dall'area visibile del grafo: il Flow Editor esegue ora un auto-fit animato; il controllo manuale Fit View resta disponibile e cinque ripetizioni modal sono verdi.
+- Aggiungendo un nodo, gli elementi precedenti potevano uscire dall'area visibile del grafo: il Flow Editor esegue ora un auto-fit immediato; il controllo manuale Fit View resta disponibile e cinque ripetizioni modal sono verdi.
+- Cronologia e revisione rigeneravano inutilmente l'iframe preview durante il profiling, creando una corsa con l'aggiornamento dei record: la preview dipende ora soltanto da pagina, flow e tema effettivi; vertical slice, form e upload sono tornati verdi in parallelo.
+- Il piano guidato del Capability Resolver ereditava testo chiaro sopra il fondo giallo previsto per il tema chiaro: il tema scuro usa ora superficie e testo semantici con contrasto leggibile; screenshot e test browser sono stati rigenerati.
 
 ## Limiti esterni e rischi residui
 

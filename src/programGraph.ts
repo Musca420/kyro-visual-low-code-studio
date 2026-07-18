@@ -6,6 +6,12 @@ export type CapabilityIssue = {
   title: string;
   explanation: string;
   target: "flow" | "data" | "settings" | "codex";
+  plan?: {
+    requirements: string[];
+    alternatives: string[];
+    costNote: string;
+    confirmationRequired: boolean;
+  };
 };
 
 export type ComponentProgramView = {
@@ -120,6 +126,12 @@ export function resolveCapabilities(
       title: "Spazio file da scegliere",
       explanation: "Il caricamento richiede uno storage o un backend: i file non devono essere simulati nel solo browser.",
       target: "codex",
+      plan: {
+        requirements: ["Scegliere dove conservare i file", "Definire dimensione, formati e permessi", "Tenere eventuali chiavi soltanto nel backend"],
+        alternatives: ["File piccoli nel progetto locale", "Backend incluso e self-hosted", "Servizio storage esterno già usato dal team"],
+        costNote: "La soluzione locale non ha costi di servizio; uno storage esterno può applicare costi per spazio e traffico.",
+        confirmationRequired: true,
+      },
     });
   if (containsAny(meaning, ["login", "accesso", "autentic"]) && project.appConfig.authentication.mode === "none")
     issues.push({
@@ -128,6 +140,12 @@ export function resolveCapabilities(
       title: "Accesso utenti non configurato",
       explanation: "Scegli un accesso gestito oppure collega il provider di identità già usato dal progetto.",
       target: "settings",
+      plan: {
+        requirements: ["Scegliere email/password oppure identità esterna", "Definire ruoli e pagine protette", "Configurare dominio e callback per un servizio esterno"],
+        alternatives: ["Accesso incluso nel backend generato", "Provider OIDC esistente", "Nessun account: dati soltanto locali"],
+        costNote: "Il backend incluso è self-hosted; un provider esterno può avere soglie gratuite e costi per utente.",
+        confirmationRequired: true,
+      },
     });
   if (containsAny(meaning, ["pagamento", "payment", "checkout"]))
     issues.push({
@@ -136,6 +154,12 @@ export function resolveCapabilities(
       title: "Provider di pagamento necessario",
       explanation: "Pagamenti e segreti richiedono un servizio esterno e operazioni sicure lato server.",
       target: "codex",
+      plan: {
+        requirements: ["Account presso il provider scelto", "Chiave pubblica nel client e segreto soltanto nel backend", "Webhook HTTPS per confermare l'esito"],
+        alternatives: ["Link di pagamento ospitato: percorso più semplice", "Checkout incorporato con backend generato", "Modalità demo senza addebiti reali"],
+        costNote: "Frontend Editor non addebita costi, ma il provider può applicare commissioni e richiedere verifica dell'identità.",
+        confirmationRequired: true,
+      },
     });
   if (
     containsAny(meaning, ["notifica", "notification"]) &&
@@ -148,6 +172,12 @@ export function resolveCapabilities(
       title: "Permesso Android mancante",
       explanation: "Le notifiche Android richiedono il permesso POST_NOTIFICATIONS e una richiesta comprensibile all'utente.",
       target: "settings",
+      plan: {
+        requirements: ["Dichiarare il permesso Android", "Spiegare all'utente perché serve", "Scegliere notifiche locali oppure push"],
+        alternatives: ["Notifiche locali sul dispositivo", "Push tramite servizio esterno", "Avvisi interni all'app senza permesso"],
+        costNote: "Le notifiche locali non richiedono un servizio; il push può richiedere account e infrastruttura esterna.",
+        confirmationRequired: true,
+      },
     });
   for (const state of component.intent.requiredStates) {
     const types: Record<typeof state, EditorComponent["type"][]> = {

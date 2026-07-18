@@ -44,7 +44,7 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
   const activeConnectionPath = selectedPaths.includes(connectionPath) ? connectionPath : selectedPaths[0]
   useEffect(() => {
     if (!flowInstance) return
-    const frame = requestAnimationFrame(() => void flowInstance.fitView({ padding: 0.18, duration: 180 }))
+    const frame = requestAnimationFrame(() => void flowInstance.fitView({ padding: 0.18, duration: 0 }))
     return () => cancelAnimationFrame(frame)
   }, [flowInstance, nodes.length])
   const addNode = (type: FlowNode['type']) => {

@@ -72,4 +72,15 @@ describe("unified program graph", () => {
     expect(view.flows[0]).toMatchObject({ id: "flow", nodes: ["Salva atleta"] });
     expect(view.fields).toContainEqual({ name: "name", type: "string" });
   });
+
+  it("spiega prerequisiti costi e alternative prima di una capacità esterna", () => {
+    const project = createProject("Resolver");
+    const button = makeComponent("button");
+    button.intent.expectedResult = "completa pagamento checkout";
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [button] });
+    const payment = inspectComponentProgram(project, "page", button.id).issues.find((issue) => issue.id === "payment-provider");
+    expect(payment?.plan?.requirements).toContain("Webhook HTTPS per confermare l'esito");
+    expect(payment?.plan?.alternatives).toContain("Modalità demo senza addebiti reali");
+    expect(payment?.plan?.confirmationRequired).toBe(true);
+  });
 });

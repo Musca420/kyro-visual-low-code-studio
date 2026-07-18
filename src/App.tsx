@@ -3148,6 +3148,19 @@ function ProgramConnections({
             <article key={issue.id}>
               <strong>{issue.title}</strong>
               <span>{issue.explanation}</span>
+              {issue.plan && (
+                <details className="capability-plan">
+                  <summary>Confronta le soluzioni</summary>
+                  <div>
+                    <strong>Cosa serve</strong>
+                    <ul>{issue.plan.requirements.map((item) => <li key={item}>{item}</li>)}</ul>
+                    <strong>Alternative</strong>
+                    <ul>{issue.plan.alternatives.map((item) => <li key={item}>{item}</li>)}</ul>
+                    <p>{issue.plan.costNote}</p>
+                    {issue.plan.confirmationRequired && <em>Nessun account, costo o segreto verrà configurato senza la tua conferma.</em>}
+                  </div>
+                </details>
+              )}
               <button className="secondary" onClick={() => onResolve(issue)}>
                 {issue.target === "data"
                   ? "Configura archivio"
