@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { access, mkdir, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -9,6 +10,13 @@ import { changedPaths, restoreWorkspace, snapshotWorkspace, type WorkspaceSnapsh
 const run = promisify(execFile)
 const codexCommand = process.platform === 'win32' ? process.execPath : 'codex'
 const codexPrefix = process.platform === 'win32' ? [resolve(process.env.APPDATA ?? '', 'npm/node_modules/@openai/codex/bin/codex.js')] : []
+const npmCommand = process.platform === 'win32' ? process.execPath : 'npm'
+const npmPrefix = process.platform === 'win32' ? [resolve(process.execPath, '../node_modules/npm/bin/npm-cli.js')] : []
+const npxCommand = process.platform === 'win32' ? process.execPath : 'npx'
+const npxPrefix = process.platform === 'win32' ? [resolve(process.execPath, '../node_modules/npm/bin/npx-cli.js')] : []
+const exists = (path: string) => access(path).then(() => true).catch(() => false)
+const sdkCandidates = () => [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, resolve(process.env.LOCALAPPDATA ?? '', 'Android/Sdk')].filter(Boolean) as string[]
+const javaCandidates = () => ['java', resolve(process.env.ProgramFiles ?? 'C:/Program Files', 'Android/Android Studio/jbr/bin/java.exe'), resolve(process.env.LOCALAPPDATA ?? '', 'Programs/Android Studio/jbr/bin/java.exe')]
 
 async function body(request: IncomingMessage) {
   let raw = ''
@@ -43,6 +51,7 @@ function liveBridge() {
   let agentJobId: string | undefined
   let loginProcess: ChildProcessWithoutNullStreams | undefined
   const loginSessions = new Map<string, { id: string; status: 'running' | 'completed' | 'error' | 'cancelled'; output: string; errors: string; code?: number | null }>()
+  const androidJobs = new Map<string, { id: string; status: 'running' | 'completed' | 'error'; directory: string; message: string; output: string; error?: string; apk?: string; build: 'pending' | 'passed' | 'skipped' | 'failed' }>()
   type CodexJob = { id: string; projectId: string; revision: number; mode: 'plan' | 'apply'; status: 'running' | 'completed' | 'error' | 'cancelled' | 'restored'; output: string; errors: string; code?: number | null; startedAt: string; finishedAt?: string; git?: Awaited<ReturnType<typeof gitSnapshot>>; changedFiles: string[]; before?: WorkspaceSnapshot; after?: WorkspaceSnapshot }
   const jobs = new Map<string, CodexJob>()
   return {
@@ -103,12 +112,67 @@ function liveBridge() {
             const command = commands.find((item) => item.id === url.pathname.split('/').at(-1))
             return reply(response, command ? 200 : 404, command ?? { error: 'Transazione non trovata' })
           }
+          if (url.pathname === '/api/android/status' && request.method === 'GET') {
+            const sdkPath = (await Promise.all(sdkCandidates().map(async (path) => await exists(path) ? path : ''))).find(Boolean) ?? ''
+            const studioPaths = [resolve(process.env.ProgramFiles ?? 'C:/Program Files', 'Android/Android Studio/bin/studio64.exe'), resolve(process.env.LOCALAPPDATA ?? '', 'Programs/Android Studio/bin/studio64.exe')]
+            const inspect = async (command: string, args: string[]) => { try { const value = await run(command, args, { cwd: process.cwd(), timeout: 8_000 }); return { available: true, version: `${value.stdout}\n${value.stderr}`.trim().split('\n')[0] } } catch { return { available: false, version: '' } } }
+            const adbPath = sdkPath ? resolve(sdkPath, 'platform-tools', process.platform === 'win32' ? 'adb.exe' : 'adb') : 'adb'
+            const java = (await Promise.all(javaCandidates().map((path) => inspect(path, ['-version'])))).find((item) => item.available) ?? { available: false, version: '' }
+            return reply(response, 200, { java, adb: await inspect(adbPath, ['version']), sdk: { available: Boolean(sdkPath), path: sdkPath }, androidStudio: (await Promise.all(studioPaths.map(exists))).some(Boolean) })
+          }
+          if (url.pathname === '/api/android/prepare' && request.method === 'POST') {
+            const input = await body(request), projectId = String(input.projectId ?? ''), files = input.files
+            if (!projects.has(projectId)) return reply(response, 403, { error: 'Progetto non autorizzato o non aperto' })
+            if (!files || typeof files !== 'object' || Array.isArray(files) || Object.keys(files).length > 250) return reply(response, 400, { error: 'File Android non validi' })
+            const base = resolve(process.cwd(), 'android-builds'), directory = resolve(base, `${projectId}-${Date.now()}`)
+            if (!directory.startsWith(`${base}${process.platform === 'win32' ? '\\' : '/'}`)) return reply(response, 400, { error: 'Percorso Android non sicuro' })
+            await mkdir(directory, { recursive: true })
+            for (const [name, content] of Object.entries(files)) {
+              const target = resolve(directory, name)
+              if (!target.startsWith(`${directory}${process.platform === 'win32' ? '\\' : '/'}`) || typeof content !== 'string') return reply(response, 400, { error: `File non sicuro: ${name}` })
+              await mkdir(resolve(target, '..'), { recursive: true }); await writeFile(target, content, 'utf8')
+            }
+            const id = crypto.randomUUID(), job = { id, status: 'running' as const, directory, message: 'File creati. Installo le dipendenze Capacitor 8…', output: '', build: 'pending' as const } as { id: string; status: 'running' | 'completed' | 'error'; directory: string; message: string; output: string; error?: string; apk?: string; build: 'pending' | 'passed' | 'skipped' | 'failed' }
+            androidJobs.set(id, job)
+            void (async () => {
+              const step = async (command: string, args: string[], message: string, timeout: number, environment?: NodeJS.ProcessEnv) => { job.message = message; const value = await run(command, args, { cwd: directory, timeout, maxBuffer: 4_000_000, env: environment }); job.output += `\n$ ${command} ${args.join(' ')}\n${value.stdout}\n${value.stderr}` }
+              const quietStep = async (command: string, args: string[], message: string, timeout: number, environment: NodeJS.ProcessEnv) => {
+                job.message = message
+                job.output += `\n$ ${command} ${args.join(' ')}\n`
+                await new Promise<void>((resolveStep, rejectStep) => {
+                  const child = spawn(command, args, { cwd: directory, env: environment, stdio: 'ignore', windowsHide: true })
+                  const timer = setTimeout(() => { child.kill(); rejectStep(new Error(`${message} oltre il tempo massimo`)) }, timeout)
+                  child.once('error', (error) => { clearTimeout(timer); rejectStep(error) })
+                  child.once('exit', (code) => { clearTimeout(timer); if (code === 0) resolveStep(); else rejectStep(new Error(`${message} non riuscita (codice ${code ?? 'sconosciuto'})`)) })
+                })
+              }
+              try {
+                await step(npmCommand, [...npmPrefix, 'install', '--no-audit', '--no-fund'], 'Scarico le dipendenze dichiarate…', 300_000)
+                await step(npmCommand, [...npmPrefix, 'run', 'build'], 'Compilo la web app…', 180_000)
+                await step(npxCommand, [...npxPrefix, 'cap', 'add', 'android'], 'Creo la cartella Android nativa…', 180_000)
+                await step(npxCommand, [...npxPrefix, 'cap', 'sync', 'android'], 'Sincronizzo interfaccia e configurazione…', 180_000)
+                const sdkPath = (await Promise.all(sdkCandidates().map(async (path) => await exists(path) ? path : ''))).find(Boolean), javaPath = (await Promise.all(javaCandidates().slice(1).map(async (path) => await exists(path) ? path : ''))).find(Boolean), gradle = resolve(directory, 'android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'), gradleJar = resolve(directory, 'android/gradle/wrapper/gradle-wrapper.jar')
+                if (sdkPath && await exists(sdkPath) && await exists(gradle) && (process.platform !== 'win32' || Boolean(javaPath && await exists(gradleJar)))) {
+                  const gradleCommand = process.platform === 'win32' ? javaPath! : gradle
+                  const gradleArgs = process.platform === 'win32' ? ['-classpath', gradleJar, 'org.gradle.wrapper.GradleWrapperMain', '--no-daemon', '--console=plain', '-p', 'android', 'assembleDebug'] : ['--no-daemon', '--console=plain', '-p', 'android', 'assembleDebug']
+                  try { await quietStep(gradleCommand, gradleArgs, 'Compilo l\'APK di sviluppo…', 600_000, { ...process.env, ANDROID_HOME: sdkPath, ANDROID_SDK_ROOT: sdkPath, ...(javaPath ? { JAVA_HOME: resolve(javaPath, '../..') } : {}) }); job.build = 'passed'; const apk = resolve(directory, 'android/app/build/outputs/apk/debug/app-debug.apk'); if (await exists(apk)) job.apk = apk }
+                  catch (error) { job.build = 'failed'; throw error }
+                } else { job.build = 'skipped'; job.output += '\nBuild APK non eseguita: Android SDK o Gradle wrapper non disponibile.' }
+                job.status = 'completed'; job.message = job.build === 'passed' ? 'Progetto e APK Android verificati.' : 'Progetto Android generato; build APK non disponibile in questo ambiente.'
+              } catch (error) { job.status = 'error'; job.error = error instanceof Error ? error.message : String(error); job.message = 'Preparazione Android interrotta.' }
+            })()
+            return reply(response, 202, { jobId: id, directory })
+          }
+          if (url.pathname === '/api/android/jobs' && request.method === 'GET') return reply(response, 200, [...androidJobs.values()])
+          if (url.pathname.startsWith('/api/android/jobs/') && request.method === 'GET') {
+            const job = androidJobs.get(url.pathname.split('/')[4]); return reply(response, job ? 200 : 404, job ?? { error: 'Build Android non trovata' })
+          }
           if (url.pathname === '/api/codex/jobs' && request.method === 'POST') {
-            if (agent) return reply(response, 409, { error: 'Codex sta giÃ  lavorando' })
+            if (agent) return reply(response, 409, { error: 'Codex sta già lavorando' })
             const input = await body(request), prompt = String(input.prompt ?? ''), mode = input.mode === 'apply' ? 'apply' : 'plan', projectId = String(input.projectId ?? '')
             if (!prompt.trim() || prompt.length > 8_000) return reply(response, 400, { error: 'La richiesta deve contenere da 1 a 8000 caratteri' })
             const current = projects.get(projectId)
-            if (!current || input.revision !== current.revision) return reply(response, 409, { error: 'Il progetto Ã¨ cambiato: aggiorna il contesto prima di continuare' })
+            if (!current || input.revision !== current.revision) return reply(response, 409, { error: 'Il progetto è cambiato: aggiorna il contesto prima di continuare' })
             const id = crypto.randomUUID(), job: CodexJob = { id, projectId, revision: Number(input.revision), mode, status: 'running', output: '', errors: '', startedAt: new Date().toISOString(), changedFiles: [], before: mode === 'apply' ? await snapshotWorkspace(process.cwd()) : undefined }
             jobs.set(id, job); agentJobId = id
             const instruction = `${mode === 'plan' ? 'Analizza e proponi un piano. Non modificare file.' : 'Applica la modifica richiesta e verifica il risultato. Limita ogni scrittura alla cartella di lavoro.'}\n\n${prompt}\n\nContesto Frontend Editor:\n${JSON.stringify(input.context)}`
@@ -145,7 +209,7 @@ function liveBridge() {
             catch (error) { return reply(response, 200, { authenticated: false, message: error instanceof Error ? error.message : String(error), workspace: process.cwd() }) }
           }
           if (url.pathname === '/api/codex/login' && request.method === 'POST') {
-            if (loginProcess) return reply(response, 409, { error: 'Accesso Codex giÃ  in corso' })
+            if (loginProcess) return reply(response, 409, { error: 'Accesso Codex già in corso' })
             const input = await body(request), id = crypto.randomUUID(), session = { id, status: 'running' as const, output: '', errors: '' } as { id: string; status: 'running' | 'completed' | 'error' | 'cancelled'; output: string; errors: string; code?: number | null }
             loginSessions.set(id, session)
             loginProcess = spawn(codexCommand, [...codexPrefix, 'login', ...(input.deviceAuth === true ? ['--device-auth'] : [])], { cwd: process.cwd(), stdio: 'pipe' })
@@ -165,7 +229,7 @@ function liveBridge() {
             session.status = 'cancelled'; loginProcess?.kill(); return reply(response, 200, { cancelled: true })
           }
           if (url.pathname === '/api/codex/logout' && request.method === 'POST') {
-            if (agent || loginProcess) return reply(response, 409, { error: 'Attendi la fine dellâ€™operazione in corso' })
+            if (agent || loginProcess) return reply(response, 409, { error: 'Attendi la fine dell’operazione in corso' })
             try { const result = await run(codexCommand, [...codexPrefix, 'logout'], { cwd: process.cwd(), timeout: 10_000 }); return reply(response, 200, { loggedOut: true, message: result.stdout.trim() || result.stderr.trim() }) }
             catch (error) { return reply(response, 500, { error: error instanceof Error ? error.message : String(error) }) }
           }
@@ -194,5 +258,6 @@ function liveBridge() {
 
 export default defineConfig({
   plugins: [react(), liveBridge()],
+  server: { watch: { ignored: ['**/android-builds/**'] } },
   test: { environment: 'jsdom', setupFiles: './tests/setup.ts', include: ['tests/**/*.test.{ts,tsx}'] },
 })

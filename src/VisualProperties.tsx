@@ -30,7 +30,7 @@ export function VisualProperties({ component, components, breakpoint, onUpdate, 
       <div className="field-pair">{field('Min. orizzontale', 'minWidth')}{field('Max. orizzontale', 'maxWidth')}</div>
       <div className="field-pair">{field('Altezza min.', 'minHeight')}{field('Altezza max.', 'maxHeight')}</div>
       <div className="field-pair">{field('Posizione X', 'marginLeft')}{field('Posizione Y', 'marginTop')}</div>
-      <div className="field-pair">{select('VisibilitÃ  / layout', 'display', ['block', 'flex', 'grid', 'none'], `Vale per il breakpoint ${breakpoint}. Scegli none per nascondere solo qui.`)}{field('Proporzioni', 'aspectRatio', 'Esempi: 16 / 9, 1 / 1 oppure auto.')}</div>
+      <div className="field-pair">{select('Visibilità / layout', 'display', ['block', 'flex', 'grid', 'none'], `Vale per il breakpoint ${breakpoint}. Scegli none per nascondere solo qui.`)}{field('Proporzioni', 'aspectRatio', 'Esempi: 16 / 9, 1 / 1 oppure auto.')}</div>
     </div></details>
 
     <details open><summary>Allineamento e griglia</summary><div className="property-section">

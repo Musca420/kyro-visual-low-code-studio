@@ -138,7 +138,10 @@ export const projectSchema = z.object({
   assets: z.array(z.object({ id: z.string(), name: z.string(), url: z.string() })),
   plugins: z.array(z.object({ id: z.string(), version: z.string(), enabled: z.boolean() })),
   dependencies: z.record(z.string(), z.string()),
-  exportConfig: z.object({ target: z.literal('web'), capacitor: z.boolean() }),
+  exportConfig: z.object({
+    target: z.enum(['web', 'pwa', 'android']).default('web'), capacitor: z.boolean().default(false),
+    android: z.object({ packageId: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/), appName: z.string().min(1), orientation: z.enum(['any', 'portrait', 'landscape']), themeColor: z.string(), versionName: z.string(), versionCode: z.number().int().positive(), permissions: z.array(z.string()), statusBarStyle: z.enum(['light', 'dark']), keyboardResize: z.boolean(), backButton: z.boolean() }).optional(),
+  }),
 })
 
 export type Project = z.infer<typeof projectSchema>
@@ -167,7 +170,7 @@ export function createProject(name: string): Project {
   return projectSchema.parse({
     formatVersion: 1, id: crypto.randomUUID(), name: name.trim(), revision: 0, createdAt: now, updatedAt: now,
     pages: [], flows: [], state: {}, dataSources: [], theme: { tokens: { primary: '#6d5dfc', surface: '#ffffff' } },
-    animations: [], assets: [], plugins: [], dependencies: {}, exportConfig: { target: 'web', capacitor: true },
+    animations: [], assets: [], plugins: [], dependencies: {}, exportConfig: { target: 'web', capacitor: false },
   })
 }
 
@@ -195,7 +198,7 @@ function migrateProject(input: unknown): unknown {
     assets: legacy.assets ?? [],
     plugins: legacy.plugins ?? [],
     dependencies: legacy.dependencies ?? {},
-    exportConfig: legacy.exportConfig ?? { target: 'web', capacitor: true },
+    exportConfig: legacy.exportConfig ?? { target: 'web', capacitor: false },
   }
 }
 

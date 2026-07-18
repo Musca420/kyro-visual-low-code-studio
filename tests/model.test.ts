@@ -48,6 +48,6 @@ describe('project model', () => {
     const legacy = { ...current, formatVersion: 0, theme: undefined, exportConfig: undefined }
     const migrated = parseProject(legacy)
     expect(migrated.formatVersion).toBe(1)
-    expect(migrated.exportConfig).toEqual({ target: 'web', capacitor: true })
+    expect(migrated.exportConfig).toEqual({ target: 'web', capacitor: false })
   })
 })

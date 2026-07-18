@@ -1,6 +1,7 @@
 node_modules/
 dist/
 generated-app/
+android-builds/
 playwright-report/
 test-results/
 artifacts/

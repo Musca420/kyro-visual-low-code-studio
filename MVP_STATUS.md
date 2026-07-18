@@ -10,6 +10,9 @@
 - Codex CLI ufficiale, analisi read-only reale e approvazione prima di workspace-write;
 - pannello con cronologia persistente per progetto, avanzamento reale, comandi locali, file Git, diff, test e ripristino transazionale protetto;
 - ispettore visuale completo per layout, responsive, tipografia, bordi, effetti, animazioni e stati interattivi, verificato anche nell'export;
+- onboarding guidato Web/PWA/Android e pannello Pubblica con configurazione visuale;
+- export PWA con manifest e service worker; export Android con Capacitor 8;
+- preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
 - skill `frontend-editor-live` validata con script reali.
 
 Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperations.test.ts`, `artifacts/guided-codex-details.png`, `artifacts/live-canvas-capture.png`, `artifacts/live-preview-capture.png`.
@@ -32,7 +35,7 @@ Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperat
 | Import/export progetto | JSON validato e deterministico | unit test modello + controlli dashboard |
 | App indipendente | ZIP Vite/TS, install/build/start e CRUD | `npm run export:sample`, build e `npm run test:generated` |
 | Plugin manager | install/enable/disable/remove, collisioni e manifest Zod | secondo test Playwright |
-| Capacitor | config generata e istruzioni | `capacitor.config.ts` nell'export; limite JDK/adb documentato |
+| Web/PWA/Android | target guidati, manifest/service worker, Capacitor 8, rilevamento toolchain e build APK | `e2e/onboarding-targets.spec.ts`, `e2e/android-build.spec.ts`, test generatore |
 | Sicurezza/a11y | niente segreti, iframe sandbox, DOM textContent, focus/label/semantic HTML | review sorgenti + E2E controlli accessibili |
 
 ## Vertical slice obbligatorio

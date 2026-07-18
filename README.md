@@ -76,7 +76,9 @@ Segreti, token e password non appartengono al modello. Il provider MVP non richi
 
 ## Android / Capacitor
 
-Ogni export include `capacitor.config.ts`. Dopo la build web:
+Selezionando Android nell'onboarding, la scheda **Pubblica** permette di configurare nome, package ID, orientamento, tema, versione, permessi, tastiera e back button. **Verifica strumenti** rileva Java, Android SDK, ADB e Android Studio; **Prepara progetto Android** crea un workspace separato, installa Capacitor 8, sincronizza la cartella nativa e compila l'APK quando la toolchain è disponibile.
+
+Ogni export Android include `capacitor.config.ts`. Il percorso manuale equivalente è:
 
 ```bash
 npm install @capacitor/core @capacitor/cli @capacitor/android
@@ -84,7 +86,7 @@ npx cap add android
 npx cap sync
 ```
 
-In questo ambiente è presente `C:\Users\david\AppData\Local\Android\Sdk`, ma `java` e `adb` non sono nel `PATH`; perciò APK e sync Android non sono verificabili qui senza installare/configurare JDK e platform tools.
+In questo ambiente il rilevamento automatico trova Android SDK e il JBR di Android Studio anche se non sono nel `PATH`. Il test UI-only `RUN_ANDROID_E2E=1 npx playwright test e2e/android-build.spec.ts --workers=1` ha generato e compilato realmente `app-debug.apk`. L'installazione su emulatore o dispositivo resta condizionata alla presenza di un target ADB disponibile.
 
 ## Limiti dichiarati
 
@@ -93,6 +95,6 @@ In questo ambiente è presente `C:\Users\david\AppData\Local\Android\Sdk`, ma `j
 - Il runtime MVP esegue i nodi del vertical slice; HTTP, autenticazione, database remoti e marketplace remoto sono contributi futuri, non simulati.
 - Snap/guide, componenti riutilizzabili avanzati, animazioni visuali e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
-- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale e ripristino protetto dell’intera operazione file. Resta da completare il terminale PTY interattivo; non Ã¨ simulato.
+- La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale e ripristino protetto dell’intera operazione file. Resta da completare il terminale PTY interattivo; non è simulato.
 
 Stato verificato e matrice dei requisiti: [MVP_STATUS.md](./MVP_STATUS.md).

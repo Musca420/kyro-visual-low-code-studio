@@ -39,6 +39,29 @@ function commonExportFiles(project: Project) {
   }
 }
 
+function platformFiles(project: Project, files: Record<string, string>): Record<string, string> {
+  if (project.exportConfig.target === 'web') return files
+  const themeColor = project.exportConfig.android?.themeColor ?? project.theme.tokens.primary ?? '#6d5dfc'
+  if (project.exportConfig.target === 'pwa') {
+    files['index.html'] = files['index.html'].replace('</head>', `<meta name="theme-color" content="${htmlEscape(themeColor)}"><link rel="manifest" href="/app.webmanifest"></head>`)
+    files['src/main.ts'] += `\nif ('serviceWorker' in navigator) addEventListener('load', () => void navigator.serviceWorker.register('/service-worker.js'))\n`
+    files['public/app.webmanifest'] = JSON.stringify({ name: project.name, short_name: project.name.slice(0, 12), start_url: '/', scope: '/', display: 'standalone', background_color: '#ffffff', theme_color: themeColor, icons: [{ src: '/app-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }] }, null, 2)
+    files['public/app-icon.svg'] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${htmlEscape(themeColor)}"/><text x="256" y="310" text-anchor="middle" font-family="system-ui" font-size="190" font-weight="800" fill="white">${htmlEscape(project.name.slice(0, 1).toUpperCase())}</text></svg>`
+    files['public/service-worker.js'] = `const CACHE='frontend-editor-v1';const CORE=['/','/app.webmanifest','/app-icon.svg'];self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE))));self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response}).catch(()=>caches.match(event.request).then(value=>value||caches.match('/'))))})`
+    return files
+  }
+  const android = project.exportConfig.android ?? { packageId: `com.frontendeditor.${project.id.replace(/-/g, '').slice(0, 12)}`, appName: project.name, orientation: 'any' as const, themeColor, versionName: '1.0.0', versionCode: 1, permissions: [], statusBarStyle: 'dark' as const, keyboardResize: true, backButton: true }
+  const pkg = JSON.parse(files['package.json']) as { scripts: Record<string, string>; dependencies?: Record<string, string>; devDependencies: Record<string, string> }
+  pkg.dependencies = { ...pkg.dependencies, '@capacitor/core': '^8.0.0', '@capacitor/android': '^8.0.0' }
+  pkg.devDependencies = { ...pkg.devDependencies, '@capacitor/cli': '^8.0.0' }
+  pkg.scripts = { ...pkg.scripts, 'android:add': 'npx cap add android', 'android:sync': 'npm run build && npx cap sync android', 'android:open': 'npx cap open android', 'android:run': 'npm run build && npx cap run android' }
+  files['package.json'] = JSON.stringify(pkg, null, 2)
+  files['capacitor.config.ts'] = `import type { CapacitorConfig } from '@capacitor/cli'\nconst config: CapacitorConfig = { appId: ${JSON.stringify(android.packageId)}, appName: ${JSON.stringify(android.appName)}, webDir: 'dist', backgroundColor: ${JSON.stringify(themeColor)}, android: { backgroundColor: ${JSON.stringify(themeColor)}, allowMixedContent: false, captureInput: true } }\nexport default config\n`
+  files['android.frontend-editor.json'] = JSON.stringify(android, null, 2)
+  files['README-ANDROID.md'] = `# Android\n\nTarget: Capacitor 8 / Android API 24+.\n\nFrontend Editor può preparare automaticamente la cartella nativa. Manualmente: npm install, npm run build, npm run android:add, npm run android:sync. Aprire con npm run android:open. La firma di pubblicazione resta intenzionalmente esterna.\n\nOrientamento: ${android.orientation}. Permessi richiesti: ${android.permissions.join(', ') || 'nessuno'}. Versione: ${android.versionName} (${android.versionCode}).`
+  return files
+}
+
 function generateExperienceFiles(project: Project, experience: 'landing' | 'dashboard'): Record<string, string> {
   const page = project.pages[0]
   const assets = buildExperienceAssets(experience, page.components)
@@ -87,7 +110,7 @@ export function generateFiles(input: Project): Record<string, string> {
   if (project.state.experience === 'landing' || project.state.experience === 'dashboard') {
     if (!project.flows.length) throw new Error('Configura i flow prima dell’export')
     if (project.state.experience === 'dashboard' && !project.dataSources.length) throw new Error('Configura la sorgente dati prima dell’export')
-    return generateExperienceFiles(project, project.state.experience)
+    return platformFiles(project, generateExperienceFiles(project, project.state.experience))
   }
   const inputComponent = page.components.find((component) => component.type === 'input')
   const button = page.components.find((component) => component.type === 'button')
@@ -133,7 +156,7 @@ document.getElementById('${button?.id ?? ''}')?.addEventListener('click', async 
 })
 void refresh()
 `
-  return {
+  return platformFiles(project, {
     'package.json': JSON.stringify({ name: project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'generated-app', private: true, version: '1.0.0', type: 'module', scripts: { dev: 'vite', build: 'tsc && vite build', preview: 'vite preview' }, devDependencies: { typescript: '^5.8.3', vite: '^7.1.4' } }, null, 2),
     'index.html': `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body><main>${body}</main><script type="module" src="/src/main.ts"></script></body></html>`,
     'src/main.ts': main,
@@ -142,7 +165,7 @@ void refresh()
     'capacitor.config.ts': `export default { appId: 'com.frontendeditor.${project.id.replace(/-/g, '').slice(0, 12)}', appName: ${JSON.stringify(project.name)}, webDir: 'dist' }`,
     'project.frontend-editor.json': serializeProject(project),
     'README.md': `# ${project.name}\n\n\`npm install\`, poi \`npm run dev\`. Build: \`npm run build\`. Per Android installare @capacitor/cli e @capacitor/android, quindi \`npx cap add android\` e \`npx cap sync\`. Nessun segreto è incluso.`,
-  }
+  })
 }
 
 export async function downloadGeneratedApp(project: Project) {

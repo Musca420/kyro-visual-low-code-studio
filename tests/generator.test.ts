@@ -34,4 +34,22 @@ describe('web generator', () => {
     expect(files['src/style.css']).toContain('[id="action"]:hover{transform:scale(1.05);box-shadow:0 10px 30px #0003}')
     expect(files['src/style.css']).toMatch(/@media\(max-width:600px\)[^{]*\{[^]*display:none/)
   })
+
+  it('generates installable PWA assets without a plugin dependency', () => {
+    const project = createProject('Offline Notes'); project.exportConfig = { target: 'pwa', capacitor: false }; project.pages.push({ id: 'page', name: 'Home', path: '/', components: [makeComponent('title')] })
+    const files = generateFiles(project)
+    expect(files['index.html']).toContain('rel="manifest"')
+    expect(files['src/main.ts']).toContain('serviceWorker.register')
+    expect(JSON.parse(files['public/app.webmanifest'])).toMatchObject({ name: 'Offline Notes', display: 'standalone' })
+    expect(files['public/service-worker.js']).toContain("caches.open")
+  })
+
+  it('generates a Capacitor 8 Android configuration and guided scripts', () => {
+    const project = createProject('Field App'); project.exportConfig = { target: 'android', capacitor: true, android: { packageId: 'com.example.fieldapp', appName: 'Field App', orientation: 'portrait', themeColor: '#123456', versionName: '1.0.0', versionCode: 1, permissions: ['camera'], statusBarStyle: 'dark', keyboardResize: true, backButton: true } }; project.pages.push({ id: 'page', name: 'Home', path: '/', components: [makeComponent('title')] })
+    const files = generateFiles(project), pkg = JSON.parse(files['package.json'])
+    expect(pkg.dependencies).toMatchObject({ '@capacitor/core': '^8.0.0', '@capacitor/android': '^8.0.0' })
+    expect(pkg.scripts['android:sync']).toContain('cap sync android')
+    expect(files['capacitor.config.ts']).toContain("appId: \"com.example.fieldapp\"")
+    expect(JSON.parse(files['android.frontend-editor.json'])).toMatchObject({ orientation: 'portrait', permissions: ['camera'] })
+  })
 })

@@ -11,8 +11,9 @@ import { applyEditorOperation } from './editorOperations'
 import { captureElement, type CaptureResult } from './capture'
 import { canContain, componentPath, componentTree, descendantIds, type ComponentBranch } from './hierarchy'
 import { VisualProperties } from './VisualProperties'
+import { ProjectSettings } from './ProjectSettings'
 
-type WorkspaceTab = 'design' | 'flow' | 'data' | 'preview' | 'plugins'
+type WorkspaceTab = 'design' | 'flow' | 'data' | 'preview' | 'plugins' | 'settings'
 const FlowEditor = lazy(() => import('./FlowEditor'))
 
 export function App() {
@@ -51,11 +52,15 @@ export function App() {
 function Dashboard({ loading, projects, onOpen, onRefresh }: { loading: boolean; projects: Project[]; onOpen: (id: string) => void; onRefresh: () => Promise<void> }) {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [target, setTarget] = useState<'web' | 'pwa' | 'android'>('web')
+  const [themeColor, setThemeColor] = useState('#6d5dfc')
   const importRef = useRef<HTMLInputElement>(null)
   const create = async (template: 'blank' | 'todo' | 'landing' | 'dashboard' = 'blank') => {
     if (!name.trim()) return setError('Inserisci un nome per il progetto')
     let project = template === 'landing' ? createLandingProject(name) : template === 'dashboard' ? createDashboardProject(name) : createProject(name)
     if (template === 'todo') project = addVerticalTemplate(project)
+    const packageName = `com.frontendeditor.${name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'app'}`
+    project = { ...project, theme: { tokens: { ...project.theme.tokens, primary: themeColor } }, exportConfig: target === 'android' ? { target, capacitor: true, android: { packageId: packageName, appName: name.trim(), orientation: 'any', themeColor, versionName: '1.0.0', versionCode: 1, permissions: [], statusBarStyle: 'dark', keyboardResize: true, backButton: true } } : { target, capacitor: false } }
     await saveProject(project)
     setName('')
     setError('')
@@ -101,9 +106,12 @@ function Dashboard({ loading, projects, onOpen, onRefresh }: { loading: boolean;
           <p className="eyebrow">Nuovo progetto</p>
           <h2 id="create-title">Da dove vuoi iniziare?</h2>
         </div>
+        <fieldset className="target-picker"><legend>1. Dove vuoi usarlo?</legend>{([['web', 'Sito Web', 'Si apre nel browser e si pubblica su qualsiasi hosting.'], ['pwa', 'PWA installabile', 'Si installa dal browser e conserva una base offline.'], ['android', 'Applicazione Android', 'Genera configurazione Capacitor e progetto Android guidato.']] as const).map(([value, label, help]) => <label data-help={help} key={value} className={target === value ? 'active' : ''}><input type="radio" name="target" value={value} checked={target === value} onChange={() => setTarget(value)} /><strong>{label}</strong><small>{help}</small></label>)}</fieldset>
+        <label className="theme-choice">2. Colore principale<span className="color-field"><input aria-label="Colore tema" type="color" value={themeColor} onChange={(event) => setThemeColor(event.target.value)} /><output>{themeColor}</output></span></label>
         <label>
-          Nome progetto
+          3. Nome progetto
           <input
+            aria-label="Nome progetto"
             value={name}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
@@ -117,7 +125,7 @@ function Dashboard({ loading, projects, onOpen, onRefresh }: { loading: boolean;
             {error}
           </p>
         )}
-        <div className="template-grid">
+        <p className="template-step">4. Scegli un punto di partenza</p><div className="template-grid">
           <button className="template" onClick={() => create('blank')}>
             <span>＋</span>
             <strong>Progetto vuoto</strong>
@@ -762,6 +770,7 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
             ['data', 'Dati', 'Crea e collega archivi locali per i contenuti.'],
             ['preview', 'Preview', 'Prova l’app esattamente come la userà una persona.'],
             ['plugins', 'Plugin', 'Aggiungi capacità controllate all’editor.'],
+            ['settings', 'Pubblica', 'Scegli Web, PWA o Android e configura il risultato senza terminale.'],
           ] as [WorkspaceTab, string, string][]
         ).map(([value, label, help]) => (
           <button key={value} data-help={help} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>
@@ -1056,6 +1065,7 @@ function Editor({ initial, onClose }: { initial: Project; onClose: () => void })
           <LogConsole logs={logs} />
         </main>
       )}
+      {tab === 'settings' && <ProjectSettings project={project} onChange={(next) => change(next)} />}
       {tab === 'plugins' && (
         <main className="wide-workspace">
           <PluginManager project={project} onChange={change} />

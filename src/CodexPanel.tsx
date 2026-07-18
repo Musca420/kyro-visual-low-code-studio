@@ -162,7 +162,7 @@ export function CodexPanel({
   };
   const login = async (deviceAuth = false) => {
     setAuthBusy(true);
-    setStatus(deviceAuth ? "Codice dispositivo in preparazioneâ€¦" : "Apertura accesso ChatGPTâ€¦");
+    setStatus(deviceAuth ? "Codice dispositivo in preparazione…" : "Apertura accesso ChatGPT…");
     try {
       const response = await fetch("/api/codex/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceAuth }) });
       const value = await response.json();
@@ -172,7 +172,7 @@ export function CodexPanel({
       do {
         await new Promise((resolve) => setTimeout(resolve, 500));
         session = await fetch(`/api/codex/login/${value.sessionId}`).then((result) => result.json());
-        setStatus(session.output || session.errors || "Completa lâ€™accesso nel browserâ€¦");
+        setStatus(session.output || session.errors || "Completa l’accesso nel browser…");
       } while (session.status === "running");
       if (session.status !== "completed") throw new Error(session.errors || `Accesso ${session.status}`);
       await refreshAuth();
@@ -187,7 +187,7 @@ export function CodexPanel({
   const execute = async (mode: "plan" | "apply") => {
     if (!context || !prompt.trim()) return;
     setBusy(true);
-    setLiveText(mode === "plan" ? "Analisi in corsoâ€¦" : "Applicazione in corsoâ€¦");
+    setLiveText(mode === "plan" ? "Analisi in corso…" : "Applicazione in corso…");
     if (mode === "plan")
       setHistory((items) => [
         ...items,
@@ -267,7 +267,7 @@ export function CodexPanel({
                 : ""
             }
           >
-            {busy ? "Operazione in corsoâ€¦" : status}
+            {busy ? "Operazione in corso…" : status}
           </small>
         </div>
         <div>
@@ -375,8 +375,8 @@ export function CodexPanel({
               <button className="secondary" data-help="Disconnette l'account tramite il comando ufficiale codex logout. Frontend Editor non legge le credenziali." onClick={() => void logout()}>Esci da Codex</button>
             ) : (
               <>
-                <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corsoâ€¦" : "Accedi con ChatGPT"}</button>
-                <button className="secondary" disabled={authBusy} data-help="Mostra il flusso con codice dispositivo quando il browser non puÃ² tornare automaticamente all'app." onClick={() => void login(true)}>Usa codice dispositivo</button>
+                <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corso…" : "Accedi con ChatGPT"}</button>
+                <button className="secondary" disabled={authBusy} data-help="Mostra il flusso con codice dispositivo quando il browser non può tornare automaticamente all'app." onClick={() => void login(true)}>Usa codice dispositivo</button>
               </>
             )}
             {authBusy && loginSession && <button className="danger" onClick={() => void fetch(`/api/codex/login/${loginSession}/cancel`, { method: "POST" })}>Annulla accesso</button>}
