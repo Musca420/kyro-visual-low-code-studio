@@ -23,7 +23,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "export:sample": "vite-node scripts/materialize-export.ts",
+    "export:specialized": "vite-node scripts/materialize-specialized-exports.ts",
     "test:generated": "playwright test --config=playwright.generated.config.ts",
+    "test:specialized": "playwright test --config=playwright.specialized.config.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {

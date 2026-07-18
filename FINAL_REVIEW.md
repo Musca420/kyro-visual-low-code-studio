@@ -23,12 +23,13 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 
 ## Controlli finali riproducibili
 
-- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 57 test superati, build Vite riuscita.
+- `npm run check`: typecheck e lint senza errori, 11 file Vitest e 58 test superati, build Vite riuscita.
 - `npx playwright test e2e/file-flow.spec.ts --workers=1`: 1 test browser superato; upload configurato interamente nell'editor, record persistito e ritrovato alla riapertura.
 - `npx playwright test e2e/data-evolution.spec.ts --workers=1`: 1 test browser superato; due entità create, relazione configurata, schema migrato a v2 e riaperto senza perdita.
 - `npx playwright test e2e/auth-flow.spec.ts --workers=1`: 1 test browser superato; ruolo lettore bloccato e ruolo editor autorizzato dallo stesso flow.
 - `npx playwright test e2e/runtime-observability.spec.ts --workers=1`: 1 test browser superato; errore e oggetto runtime trasferiti dall'iframe isolato alla console visuale.
 - `npm run export:sample` e `npm run build` in `generated-app`: export materializzato e compilato indipendentemente, incluso il runtime autenticazione del grafo.
+- `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
 - `npx playwright test`: 32 test browser superati; 3 test dedicati saltati per variabili d'ambiente o artefatti opzionali intenzionali.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
 - `npm run desktop:test`: 2/2, renderer di produzione e apertura cartella nella shell Electron.

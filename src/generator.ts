@@ -365,21 +365,31 @@ function generateExperienceFiles(
     landingSource?.provider === "generated"
       ? `const endpoint = ${JSON.stringify(landingSource.endpoint)}
 async function query(): Promise<SiteItem[]> { const response = await fetch(endpoint, { headers: authToken ? { authorization: 'Bearer ' + authToken } : {} }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); const value = await response.json(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value }
-async function insert(text: string): Promise<void> { const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}) }, body: JSON.stringify({ text }) }); if (!response.ok) throw new Error('Salvataggio non riuscito (' + response.status + ')') }`
+async function insert(value: unknown): Promise<void> { const fields = value && typeof value === 'object' ? value : { text: String(value) }; const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}) }, body: JSON.stringify(fields) }); if (!response.ok) throw new Error('Salvataggio non riuscito (' + response.status + ')') }
+async function update(value: unknown) { const item = value as Record<string, unknown>; const response = await fetch(endpoint + '/' + encodeURIComponent(String(item.id ?? '')), { method: 'PUT', headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}) }, body: JSON.stringify(item) }); if (!response.ok) throw new Error('Aggiornamento non riuscito (' + response.status + ')'); return response.json() }
+async function remove(value: unknown) { const item = value as Record<string, unknown>; const response = await fetch(endpoint + '/' + encodeURIComponent(String(item.id ?? value ?? '')), { method: 'DELETE', headers: authToken ? { authorization: 'Bearer ' + authToken } : {} }); if (!response.ok) throw new Error('Eliminazione non riuscita (' + response.status + ')') }`
       : landingSource
         ? `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('frontend-editor-export', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId') }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
 async function query(): Promise<SiteItem[]> { const db = await openDb(); return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve((request.result as SiteItem[]).sort((a, b) => b.date.localeCompare(a.date))); request.onerror = () => reject(request.error) }) }
-async function insert(text: string): Promise<void> { const db = await openDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }`
+async function insert(value: unknown): Promise<void> { const db = await openDb(); const fields = value && typeof value === 'object' ? value as Record<string, unknown> : { text: String(value) }; await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put({ ...fields, id: crypto.randomUUID(), sourceId, text: String(fields.text ?? fields.name ?? 'Elemento'), date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }
+async function update(value: unknown) { const db = await openDb(), item = value as SiteItem; await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }); return item }
+async function remove(value: unknown) { const db = await openDb(), item = value as Partial<SiteItem>; await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(String(item.id ?? value)); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }`
         : `async function query(): Promise<SiteItem[]> { return [] }
-async function insert(): Promise<void> { throw new Error('Configura una sorgente dati per salvare le richieste') }`;
+async function insert(_value?: unknown): Promise<void> { throw new Error('Configura una sorgente dati per salvare le richieste') }
+async function update(_value?: unknown): Promise<void> { throw new Error('Configura una sorgente dati') }
+async function remove(_value?: unknown): Promise<void> { throw new Error('Configura una sorgente dati') }`;
   const landingMain = `import './style.css'
+${moduleImports(project)}
 ${auth.runtime}
 type SiteItem = { id: string; sourceId: string; text: string; date: string }
 const sourceId = ${JSON.stringify(landingSource?.id ?? "")}
 ${landingDataRuntime}
 declare global { interface Window { siteData: { query: () => Promise<SiteItem[]>; insert: (text: string) => Promise<void> } } }
-window.siteData = { query, insert }
+const status = document.querySelector<HTMLElement>('[role="status"]')
+const refresh = async () => { const records = await query(); dispatchEvent(new MessageEvent('message', { data: { channel: 'frontend-editor-host', records } })) }
+window.siteData = { query, insert: (text) => insert(text) }
 await import('./ui.js')
+${project.flows.length ? generatedFlowRuntime(project) : ""}
 `;
   const dashboardSource = project.dataSources[0];
   const dashboardDataRuntime =
@@ -389,7 +399,9 @@ await import('./ui.js')
 const request = async (path = '', init?: RequestInit) => { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
 async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value }
 async function save(input: ProjectInput): Promise<void> { if (input.name.trim().length < 2 || input.description.trim().length < 4 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dueDate)) throw new Error('Complete all required fields with valid values.'); await request(input.id ? '/' + encodeURIComponent(input.id) : '', { method: input.id ? 'PUT' : 'POST', body: JSON.stringify({ ...input, text: input.name }) }) }
-async function remove(id: string): Promise<void> { await request('/' + encodeURIComponent(id), { method: 'DELETE' }) }`
+async function remove(value: unknown): Promise<void> { const item = value as Record<string, unknown>; await request('/' + encodeURIComponent(String(item.id ?? value)), { method: 'DELETE' }) }
+async function insert(value: unknown) { const input = value as ProjectInput; await save(input); return value }
+async function update(value: unknown) { const input = value as ProjectInput; await save(input); return value }`
       : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('frontend-editor-export', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId') }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
 async function query(): Promise<Item[]> { const db = await openDb(); return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve((request.result as Item[]).sort((a, b) => b.date.localeCompare(a.date))); request.onerror = () => reject(request.error) }) }
 async function save(input: ProjectInput): Promise<void> {
@@ -398,8 +410,11 @@ async function save(input: ProjectInput): Promise<void> {
   const item: Item = { id: existing?.id ?? crypto.randomUUID(), sourceId, text: input.name.trim(), description: input.description.trim(), status: input.status, priority: input.priority, dueDate: input.dueDate, date: new Date().toISOString() }
   await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }
-async function remove(id: string): Promise<void> { const db = await openDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }`;
+async function remove(value: unknown): Promise<void> { const db = await openDb(); const item = value as Partial<Item>; await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(String(item.id ?? value)); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }
+async function insert(value: unknown) { const input = value as ProjectInput; await save(input); return value }
+async function update(value: unknown) { const input = value as ProjectInput; await save(input); return value }`;
   const dashboardMain = `import './style.css'
+${moduleImports(project)}
 
 ${auth.runtime}
 
@@ -410,9 +425,12 @@ type Item = { id: string; sourceId: string; text: string; description: string; s
 const sourceId = ${JSON.stringify(project.dataSources[0]?.id ?? "")}
 if (!sourceId) throw new Error('Sorgente dati dashboard non configurata')
 ${dashboardDataRuntime}
+const status = document.querySelector<HTMLElement>('[role="status"]')
+const refresh = async () => { const records = await query(); dispatchEvent(new MessageEvent('message', { data: { channel: 'frontend-editor-host', records } })) }
 declare global { interface Window { dashboardData: { query: () => Promise<Item[]>; action: (action: string, payload: ProjectInput) => Promise<Item[]> } } }
 window.dashboardData = { query, action: async (action, payload) => { if (action === 'delete') await remove(String(payload.id)); else await save(payload); return query() } }
 await import('./ui.js')
+${project.flows.length ? generatedFlowRuntime(project) : ""}
 ${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource(${JSON.stringify(project.appConfig.realtime.url)}); updates.addEventListener('records', () => void window.dashboardData.query().then((records) => dispatchEvent(new MessageEvent('message', { data: { channel: 'frontend-editor-host', records } }))))` : ""}
 `;
   const ui =
@@ -678,6 +696,7 @@ const graphState: Record<string, unknown> = ${JSON.stringify(project.state)}
 const graphDebounce = new Map<string, number>()
 const extensionRunners: Record<string, (value: never) => unknown> = { ${runners} }
 const graphField = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
+const graphElement = (id = '') => document.getElementById(id) ?? document.querySelector<HTMLElement>('[data-component="' + CSS.escape(id) + '"]')
 const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
 const graphRole = () => { try { const payload = authToken.split('.')[0]; return String(JSON.parse(atob(payload.replaceAll('-', '+').replaceAll('_', '/'))).role || 'viewer') } catch { return 'viewer' } }
 const graphSignOut = () => { authToken = ''; sessionStorage.removeItem('frontend-editor-session'); location.reload() }
@@ -687,7 +706,7 @@ async function runGraph(flowId: string, input: unknown = '') {
   const nodes = new Map(flow.nodes.map((node) => [node.id, node])); let node: GraphNode | undefined = flow.nodes.find((item) => item.type === 'event'), value = input, path = 'success', steps = 0; const visited = new Map<string, number>(), loops = new Map<string, { items: unknown[]; index: number }>()
   while (node) { if (++steps > 1000) throw new Error('Il flow ha superato il limite di 1000 passaggi'); const current: GraphNode = node, count = (visited.get(current.id) ?? 0) + 1; visited.set(current.id, count); if (count > 1 && loops.size === 0) throw new Error('Loop non controllato al nodo ' + current.label)
     try {
-      if (current.type === 'readInput') value = (document.getElementById(current.config.componentId) as HTMLInputElement | null)?.value ?? input
+      if (current.type === 'readInput') value = (graphElement(current.config.componentId) as HTMLInputElement | null)?.value ?? input
       if (current.type === 'validate') { const actual = current.config.field ? graphField(value, current.config.field) : value, rule = current.config.rule || 'required', expected = current.config.value || ''; const valid = rule === 'required' ? actual !== undefined && actual !== null && String(actual).trim() !== '' : rule === 'email' ? /^\\S+@\\S+\\.\\S+$/.test(String(actual ?? '')) : rule === 'minLength' ? String(actual ?? '').length >= Math.max(0, Number(expected) || 0) : rule === 'min' ? Number(actual) >= Number(expected) : rule === 'max' ? Number(actual) <= Number(expected) : false; if (!valid) throw new Error(current.config.message || 'Il valore non è valido') }
       const condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
       const switchValue = current.type === 'switch' ? String(current.config.field ? graphField(value, current.config.field) ?? '' : value ?? '') : '', switchMatch = current.type === 'switch' ? (current.config.cases || '').split(',').map((item) => item.trim()).filter(Boolean).find((item) => item === switchValue) : undefined
@@ -714,8 +733,8 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'module') { const runner = extensionRunners[current.config.moduleId]; if (!runner) throw new Error('Modulo non trovato'); value = runner(value as never) }
       if (current.type === 'refresh') await refresh()
       if (current.type === 'navigate') location.hash = current.config.path || '/'
-      if (current.type === 'openModal') document.getElementById(current.config.componentId)?.removeAttribute('hidden')
-      if (current.type === 'updateUI') { const element = document.getElementById(current.config.componentId) as (HTMLElement & { value?: string; disabled?: boolean }) | null, operation = current.config.operation || 'show', next = current.config.value || ''; if (!element) throw new Error('Elemento da cambiare non trovato'); if (operation === 'show') element.hidden = false; if (operation === 'hide') element.hidden = true; if (operation === 'enable') element.disabled = false; if (operation === 'disable') element.disabled = true; if (operation === 'text') element.textContent = next; if (operation === 'value') element.value = next; if (['background', 'color', 'opacity'].includes(operation)) element.style[operation as 'background' | 'color' | 'opacity'] = next }
+      if (current.type === 'openModal') graphElement(current.config.componentId)?.removeAttribute('hidden')
+      if (current.type === 'updateUI') { const element = graphElement(current.config.componentId) as (HTMLElement & { value?: string; disabled?: boolean }) | null, operation = current.config.operation || 'show', next = current.config.value || ''; if (!element) throw new Error('Elemento da cambiare non trovato'); if (operation === 'show') element.hidden = false; if (operation === 'hide') element.hidden = true; if (operation === 'enable') element.disabled = false; if (operation === 'disable') element.disabled = true; if (operation === 'text') element.textContent = next; if (operation === 'value') element.value = next; if (['background', 'color', 'opacity'].includes(operation)) element.style[operation as 'background' | 'color' | 'opacity'] = next }
       if (current.type === 'notify' && status) status.textContent = current.config.message || String(value)
       if (current.type === 'log') console.debug(current.config.message || current.label, value)
       path = loopPath ?? (current.type === 'switch' ? (switchMatch ? 'case:' + switchMatch : 'error') : condition ? 'success' : 'error')
@@ -723,7 +742,7 @@ async function runGraph(flowId: string, input: unknown = '') {
     const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
   }
 }
-${bindings.map((binding) => `{ const element = document.getElementById(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement; const input = event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.type === 'file' ? target.files?.[0] : target?.value ?? ''; void runGraph(${JSON.stringify(binding.flowId)}, input) }; element?.addEventListener(${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
+${bindings.map((binding) => `{ const element = graphElement(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement; const input = event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.type === 'file' ? target.files?.[0] : target?.value ?? ''; void runGraph(${JSON.stringify(binding.flowId)}, input) }; element?.addEventListener(${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
 ${automatic.map((item) => item.trigger === "pageLoad" ? `void runGraph(${JSON.stringify(item.flowId)})` : `setInterval(() => { void runGraph(${JSON.stringify(item.flowId)}) }, ${item.interval})`).join("\n")}`;
 }
 

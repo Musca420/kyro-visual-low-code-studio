@@ -190,6 +190,25 @@ describe("web generator", () => {
     expect(files["index.html"]).toContain("Un punto di partenza completo");
   });
 
+  it("mantiene il grafo unificato negli export landing e dashboard rifiniti", () => {
+    for (const template of ["landing", "dashboard"] as const) {
+      const project = createTemplateProject(template, `Graph ${template}`);
+      const button = project.pages.flatMap((page) => page.components).find((component) => component.type === "button")!;
+      const flowId = `flow-${template}`;
+      button.events.click = flowId;
+      project.flows.push({ id: flowId, name: "Azione personalizzata", nodes: [
+        { id: "event", type: "event", label: "Click", position: { x: 0, y: 0 }, config: { trigger: "click", componentId: button.id } },
+        { id: "ui", type: "updateUI", label: "Cambia", position: { x: 1, y: 0 }, config: { componentId: button.id, operation: "text", value: "Fatto" } },
+      ], edges: [{ id: "edge", source: "event", target: "ui", path: "success" }] });
+      if (template === "dashboard" && !project.dataSources.length) project.dataSources.push({ id: "source", name: "Progetti", provider: "indexeddb", collection: "projects", schema: { id: "string", text: "string", date: "datetime" }, capabilities: ["get", "query", "insert", "update", "delete"], secretStrategy: "none" });
+      const files = generateFiles(project);
+      expect(files["src/main.ts"]).toContain("async function runGraph");
+      expect(files["src/main.ts"]).toContain(`void runGraph(${JSON.stringify(flowId)}`);
+      expect(files["index.html"]).toContain(`data-component="${button.id}"`);
+      expect(files["src/main.ts"]).toContain("const graphElement");
+    }
+  });
+
   it("generates a Capacitor 8 Android configuration and guided scripts", () => {
     const project = createProject("Field App");
     project.exportConfig = {

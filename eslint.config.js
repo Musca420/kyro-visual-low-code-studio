@@ -13,6 +13,7 @@ export default tseslint.config(
       "generated-app",
       "android-builds",
       "artifacts",
+      "out",
     ],
   },
   {
