@@ -41,6 +41,8 @@ function liveBridge() {
   const commands: { id: string; projectId: string; pageId: string; revision: number; tool: string; args: Record<string, unknown>; status: 'pending' | 'applied' | 'error'; error?: string; result?: unknown }[] = []
   let agent: ChildProcessWithoutNullStreams | undefined
   let agentJobId: string | undefined
+  let loginProcess: ChildProcessWithoutNullStreams | undefined
+  const loginSessions = new Map<string, { id: string; status: 'running' | 'completed' | 'error' | 'cancelled'; output: string; errors: string; code?: number | null }>()
   type CodexJob = { id: string; projectId: string; revision: number; mode: 'plan' | 'apply'; status: 'running' | 'completed' | 'error' | 'cancelled' | 'restored'; output: string; errors: string; code?: number | null; startedAt: string; finishedAt?: string; git?: Awaited<ReturnType<typeof gitSnapshot>>; changedFiles: string[]; before?: WorkspaceSnapshot; after?: WorkspaceSnapshot }
   const jobs = new Map<string, CodexJob>()
   return {
@@ -141,6 +143,31 @@ function liveBridge() {
           if (request.url === '/api/codex/status' && request.method === 'GET') {
             try { const result = await run(codexCommand, [...codexPrefix, 'login', 'status'], { cwd: process.cwd(), timeout: 10_000 }); return reply(response, 200, { authenticated: true, message: result.stdout.trim() || result.stderr.trim(), workspace: process.cwd() }) }
             catch (error) { return reply(response, 200, { authenticated: false, message: error instanceof Error ? error.message : String(error), workspace: process.cwd() }) }
+          }
+          if (url.pathname === '/api/codex/login' && request.method === 'POST') {
+            if (loginProcess) return reply(response, 409, { error: 'Accesso Codex giÃ  in corso' })
+            const input = await body(request), id = crypto.randomUUID(), session = { id, status: 'running' as const, output: '', errors: '' } as { id: string; status: 'running' | 'completed' | 'error' | 'cancelled'; output: string; errors: string; code?: number | null }
+            loginSessions.set(id, session)
+            loginProcess = spawn(codexCommand, [...codexPrefix, 'login', ...(input.deviceAuth === true ? ['--device-auth'] : [])], { cwd: process.cwd(), stdio: 'pipe' })
+            loginProcess.stdout.on('data', (chunk) => { session.output += chunk })
+            loginProcess.stderr.on('data', (chunk) => { session.errors += chunk })
+            loginProcess.on('close', (code) => { session.code = code; session.status = session.status === 'cancelled' ? 'cancelled' : code === 0 ? 'completed' : 'error'; loginProcess = undefined })
+            loginProcess.on('error', (error) => { session.errors += error.message; session.status = 'error'; loginProcess = undefined })
+            return reply(response, 202, { sessionId: id, status: session.status })
+          }
+          if (url.pathname.startsWith('/api/codex/login/') && request.method === 'GET') {
+            const session = loginSessions.get(url.pathname.split('/')[4])
+            return reply(response, session ? 200 : 404, session ?? { error: 'Sessione di accesso non trovata' })
+          }
+          if (url.pathname.endsWith('/cancel') && url.pathname.startsWith('/api/codex/login/') && request.method === 'POST') {
+            const session = loginSessions.get(url.pathname.split('/')[4])
+            if (!session || session.status !== 'running') return reply(response, 409, { error: 'Accesso non annullabile' })
+            session.status = 'cancelled'; loginProcess?.kill(); return reply(response, 200, { cancelled: true })
+          }
+          if (url.pathname === '/api/codex/logout' && request.method === 'POST') {
+            if (agent || loginProcess) return reply(response, 409, { error: 'Attendi la fine dellâ€™operazione in corso' })
+            try { const result = await run(codexCommand, [...codexPrefix, 'logout'], { cwd: process.cwd(), timeout: 10_000 }); return reply(response, 200, { loggedOut: true, message: result.stdout.trim() || result.stderr.trim() }) }
+            catch (error) { return reply(response, 500, { error: error instanceof Error ? error.message : String(error) }) }
           }
           if (request.url === '/api/codex/run' && request.method === 'POST') {
             if (agent) return reply(response, 409, { error: 'Codex sta già lavorando' })

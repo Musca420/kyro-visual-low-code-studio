@@ -2,6 +2,8 @@
 
 Editor visuale low-code locale per creare UI responsive, collegare flow deterministici, usare IndexedDB e generare un'app TypeScript/Vite indipendente.
 
+I requisiti di prodotto e la Definition of Done complessiva sono definiti da `PROJECT_SPEC.md`, `versione 2.md` e `aggiunta.md`. In particolare, i flussi principali devono restare completabili da utenti non tecnici senza codice o terminale.
+
 ## Avvio
 
 Richiede Node.js 20 o successivo.

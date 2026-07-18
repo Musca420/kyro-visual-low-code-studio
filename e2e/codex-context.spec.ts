@@ -18,6 +18,7 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   await expect(panel).toBeVisible()
   await expect(panel).toContainText('Button')
   await expect(panel).toContainText('rev. 2')
+  await expect(panel.getByRole('button', { name: 'Esci da Codex' })).toBeVisible()
   await expect(panel.getByLabel('Richiesta in linguaggio naturale')).toBeFocused()
   const detailTabs = panel.getByRole('navigation', { name: 'Dettagli operazione Codex' })
   await expect(detailTabs.getByRole('button')).toHaveCount(4)

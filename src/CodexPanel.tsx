@@ -96,6 +96,9 @@ export function CodexPanel({
   const [prompt, setPrompt] = useState(suggestedPrompt);
   const [status, setStatus] = useState("Controllo accesso…");
   const [workspace, setWorkspace] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [loginSession, setLoginSession] = useState<string>();
+  const [authBusy, setAuthBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState("");
   const [history, setHistory] = useState<
@@ -142,6 +145,7 @@ export function CodexPanel({
     fetch("/api/codex/status")
       .then((response) => response.json())
       .then((value) => {
+        setAuthenticated(Boolean(value.authenticated));
         setStatus(
           value.authenticated
             ? value.message || "Accesso attivo"
@@ -151,6 +155,35 @@ export function CodexPanel({
       })
       .catch(() => setStatus("Bridge locale non raggiungibile"));
   }, [open]);
+  const refreshAuth = async () => {
+    const value = await fetch("/api/codex/status").then((response) => response.json());
+    setAuthenticated(Boolean(value.authenticated));
+    setStatus(value.authenticated ? value.message || "Accesso attivo" : "Accesso richiesto");
+  };
+  const login = async (deviceAuth = false) => {
+    setAuthBusy(true);
+    setStatus(deviceAuth ? "Codice dispositivo in preparazioneâ€¦" : "Apertura accesso ChatGPTâ€¦");
+    try {
+      const response = await fetch("/api/codex/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceAuth }) });
+      const value = await response.json();
+      if (!response.ok) throw new Error(value.error || "Accesso non avviato");
+      setLoginSession(value.sessionId);
+      let session;
+      do {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        session = await fetch(`/api/codex/login/${value.sessionId}`).then((result) => result.json());
+        setStatus(session.output || session.errors || "Completa lâ€™accesso nel browserâ€¦");
+      } while (session.status === "running");
+      if (session.status !== "completed") throw new Error(session.errors || `Accesso ${session.status}`);
+      await refreshAuth();
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setAuthBusy(false); setLoginSession(undefined); }
+  };
+  const logout = async () => {
+    const response = await fetch("/api/codex/logout", { method: "POST" }), value = await response.json();
+    if (!response.ok) return setStatus(value.error || "Logout non riuscito");
+    await refreshAuth();
+  };
   const execute = async (mode: "plan" | "apply") => {
     if (!context || !prompt.trim()) return;
     setBusy(true);
@@ -337,6 +370,17 @@ export function CodexPanel({
           )}
           <small>Workspace locale</small>
           <code>{workspace || "non disponibile"}</code>
+          <div className="codex-auth" aria-label="Accesso Codex">
+            {authenticated ? (
+              <button className="secondary" data-help="Disconnette l'account tramite il comando ufficiale codex logout. Frontend Editor non legge le credenziali." onClick={() => void logout()}>Esci da Codex</button>
+            ) : (
+              <>
+                <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corsoâ€¦" : "Accedi con ChatGPT"}</button>
+                <button className="secondary" disabled={authBusy} data-help="Mostra il flusso con codice dispositivo quando il browser non puÃ² tornare automaticamente all'app." onClick={() => void login(true)}>Usa codice dispositivo</button>
+              </>
+            )}
+            {authBusy && loginSession && <button className="danger" onClick={() => void fetch(`/api/codex/login/${loginSession}/cancel`, { method: "POST" })}>Annulla accesso</button>}
+          </div>
         </aside>
         <main>
           <div className="codex-history" aria-live="polite">
