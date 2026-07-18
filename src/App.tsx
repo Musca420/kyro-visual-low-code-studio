@@ -422,6 +422,7 @@ function Dashboard({
           className="visually-hidden"
           type="file"
           accept="application/json,.json"
+          aria-label="File progetto da importare"
           onChange={(event) => void importFile(event.target.files?.[0])}
         />
         <button
@@ -479,6 +480,7 @@ function Dashboard({
               className="visually-hidden"
               type="file"
               accept="application/json,.json"
+              aria-label="File backup da ripristinare"
               onChange={(event) => void restoreBackupFile(event.target.files?.[0])}
             />
           </div>
@@ -1605,7 +1607,7 @@ function Editor({
                     onClick={() => addComponent(type)}
                   >
                     <span>{icon(type)}</span>
-                    {type}
+                    {componentNames[type] ?? type}
                   </button>
                 ))}
               {!componentTypes.some((type) =>
@@ -1632,6 +1634,33 @@ function Editor({
                   </button>
                 ))}
               </div>
+              {activeComponent && canContain(activeComponent) && (
+                <div className="canvas-layout-tools" aria-label="Colonne del contenitore">
+                  <span>Colonne</span>
+                  {[1, 2, 3].map((count) => (
+                    <button
+                      key={count}
+                      aria-label={`${count === 1 ? "Una" : count === 2 ? "Due" : "Tre"} ${count === 1 ? "colonna" : "colonne"}`}
+                      onClick={() =>
+                        updateComponent((component) => ({
+                          ...component,
+                          styles: {
+                            ...component.styles,
+                            [breakpoint]: {
+                              ...component.styles[breakpoint],
+                              display: "grid",
+                              gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
+                              gap: "16px",
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="zoom">
                 <button
                   onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
@@ -1701,6 +1730,25 @@ function Editor({
                       }}
                       onMove={reorder}
                       onAdd={addComponent}
+                      zoom={zoom}
+                      onDirectStyle={(componentId, values) =>
+                        patchPage((components) =>
+                          components.map((component) =>
+                            component.id === componentId
+                              ? {
+                                  ...component,
+                                  styles: {
+                                    ...component.styles,
+                                    [breakpoint]: {
+                                      ...component.styles[breakpoint],
+                                      ...values,
+                                    },
+                                  },
+                                }
+                              : component,
+                          ),
+                        )
+                      }
                     />
                   ))
                 )}
@@ -2454,6 +2502,9 @@ const componentHelp = Object.fromEntries(
   ]),
 ) as Record<EditorComponent["type"], string>;
 const componentAliases: Partial<Record<EditorComponent["type"], string>> = {
+  grid: "colonne griglia layout",
+  stack: "fila colonna gruppo layout",
+  container: "sezione contenitore gruppo",
   chart: "grafico statistiche dati",
   sidebar: "barra laterale menu laterale",
   navbar: "navigazione intestazione",
@@ -2470,6 +2521,11 @@ const componentAliases: Partial<Record<EditorComponent["type"], string>> = {
   card: "scheda riquadro",
   carousel: "carosello scorrimento",
   accordion: "fisarmonica domande",
+};
+const componentNames: Partial<Record<EditorComponent["type"], string>> = {
+  container: "Sezione",
+  stack: "Fila / colonna",
+  grid: "Colonne",
 };
 
 function GuideBar({
@@ -2645,6 +2701,8 @@ function DesignBranch({
   onMove,
   onContextMenu,
   onAdd,
+  zoom,
+  onDirectStyle,
 }: {
   branch: ComponentBranch;
   breakpoint: Breakpoint;
@@ -2657,6 +2715,11 @@ function DesignBranch({
     point: { x: number; y: number },
   ) => void;
   onAdd: (type: EditorComponent["type"], parentId?: string) => void;
+  zoom: number;
+  onDirectStyle: (
+    componentId: string,
+    values: Partial<EditorComponent["styles"]["desktop"]>,
+  ) => void;
 }) {
   const { component, children } = branch;
   return (
@@ -2670,6 +2733,8 @@ function DesignBranch({
       onDrop={
         canContain(component) ? (type) => onAdd(type, component.id) : undefined
       }
+      zoom={zoom}
+      onDirectStyle={(values) => onDirectStyle(component.id, values)}
     >
       {children.length > 0
         ? children.map((child) => (
@@ -2682,6 +2747,8 @@ function DesignBranch({
               onMove={onMove}
               onContextMenu={onContextMenu}
               onAdd={onAdd}
+              zoom={zoom}
+              onDirectStyle={onDirectStyle}
             />
           ))
         : undefined}
@@ -2815,6 +2882,8 @@ function DesignComponent({
   onMove,
   onContextMenu,
   onDrop,
+  zoom,
+  onDirectStyle,
   children,
 }: {
   component: EditorComponent;
@@ -2827,13 +2896,96 @@ function DesignComponent({
     point: { x: number; y: number },
   ) => void;
   onDrop?: (type: EditorComponent["type"]) => void;
+  zoom: number;
+  onDirectStyle: (values: Partial<EditorComponent["styles"]["desktop"]>) => void;
   children?: React.ReactNode;
 }) {
+  const [directPreview, setDirectPreview] = useState<
+    Partial<EditorComponent["styles"]["desktop"]>
+  >({});
   const style = {
     ...component.styles.desktop,
     ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
+    ...directPreview,
   };
+  // The generated component applies its layout to its real children. In the
+  // editor those children sit inside a drop-zone wrapper, so mirror the layout
+  // there instead of arranging editor chrome (tag, label and handles).
+  const childrenLayoutStyle = canContain(component)
+    ? {
+        display: style.display,
+        flexDirection: style.flexDirection,
+        flexWrap: style.flexWrap,
+        alignItems: style.alignItems,
+        justifyContent: style.justifyContent,
+        gridTemplateColumns: style.gridTemplateColumns,
+        gap: style.gap,
+      }
+    : undefined;
+  const canvasStyle = canContain(component)
+    ? {
+        ...style,
+        display: "block",
+        position: style.position === "static" ? "relative" : style.position,
+      }
+    : {
+        ...style,
+        position: style.position === "static" ? "relative" : style.position,
+      };
   const content = designContent(component);
+  const snap = (value: number) => Math.round(value / 8) * 8;
+  const startMove = (event: React.PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const start = { x: event.clientX, y: event.clientY };
+    const initial = {
+      x: Number.parseFloat(style.marginLeft) || 0,
+      y: Number.parseFloat(style.marginTop) || 0,
+    };
+    let next = initial;
+    const move = (pointer: PointerEvent) => {
+      next = {
+        x: snap(initial.x + (pointer.clientX - start.x) / zoom),
+        y: snap(initial.y + (pointer.clientY - start.y) / zoom),
+      };
+      setDirectPreview({ marginLeft: `${next.x}px`, marginTop: `${next.y}px` });
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", move);
+      setDirectPreview({});
+      onDirectStyle({ marginLeft: `${next.x}px`, marginTop: `${next.y}px` });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+  };
+  const startResize = (event: React.PointerEvent, axis: "x" | "y" | "both") => {
+    event.preventDefault();
+    event.stopPropagation();
+    const box = event.currentTarget.parentElement!.getBoundingClientRect();
+    const start = { x: event.clientX, y: event.clientY };
+    const initial = { width: box.width / zoom, height: box.height / zoom };
+    let next = initial;
+    const move = (pointer: PointerEvent) => {
+      next = {
+        width: axis === "y" ? initial.width : Math.max(32, snap(initial.width + (pointer.clientX - start.x) / zoom)),
+        height: axis === "x" ? initial.height : Math.max(32, snap(initial.height + (pointer.clientY - start.y) / zoom)),
+      };
+      setDirectPreview({
+        ...(axis === "y" ? {} : { width: `${next.width}px` }),
+        ...(axis === "x" ? {} : { height: `${next.height}px` }),
+      });
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", move);
+      setDirectPreview({});
+      onDirectStyle({
+        ...(axis === "y" ? {} : { width: `${next.width}px` }),
+        ...(axis === "x" ? {} : { height: `${next.height}px` }),
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+  };
   return (
     <article
       className={`canvas-component ${selected ? "selected" : ""}`}
@@ -2841,7 +2993,7 @@ function DesignComponent({
       title={String(component.props.tooltip || "") || undefined}
       aria-disabled={component.props.disabled === true || undefined}
       tabIndex={0}
-      style={style}
+      style={canvasStyle}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(event.ctrlKey || event.metaKey);
@@ -2886,7 +3038,10 @@ function DesignComponent({
       <span className="component-tag">{component.type}</span>
       {content}
       {canContain(component) && (
-        <div className={`component-children ${children ? "has-children" : ""}`}>
+        <div
+          className={`component-children ${children ? "has-children" : ""}`}
+          style={childrenLayoutStyle}
+        >
           <span className="drop-hint">
             {children ? component.name : "Trascina qui gli elementi"}
           </span>
@@ -2895,6 +3050,13 @@ function DesignComponent({
       )}
       {selected && (
         <div className="component-tools">
+          <button
+            className="move-handle"
+            aria-label="Trascina per spostare"
+            onPointerDown={startMove}
+          >
+            ::
+          </button>
           <button
             aria-label="Sposta indietro"
             onClick={(event) => {
@@ -2914,6 +3076,31 @@ function DesignComponent({
             ↓
           </button>
         </div>
+      )}
+      {selected && (
+        <>
+          <button
+            className="resize-handle resize-east"
+            aria-label="Ridimensionamento orizzontale"
+            onPointerDown={(event) => startResize(event, "x")}
+          />
+          <button
+            className="resize-handle resize-south"
+            aria-label="Ridimensionamento verticale"
+            onPointerDown={(event) => startResize(event, "y")}
+          />
+          <button
+            className="resize-handle resize-corner"
+            aria-label="Ridimensionamento libero"
+            onPointerDown={(event) => startResize(event, "both")}
+          />
+          {Object.keys(directPreview).length > 0 && (
+            <>
+              <span className="alignment-guide guide-horizontal" />
+              <span className="alignment-guide guide-vertical" />
+            </>
+          )}
+        </>
       )}
     </article>
   );

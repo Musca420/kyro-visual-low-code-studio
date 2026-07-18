@@ -837,6 +837,19 @@ label {
   border-bottom: 1px solid #d9dde6;
   padding: 6px 14px;
 }
+.canvas-layout-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline: auto;
+  padding: 3px 5px 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-raised);
+}
+.canvas-layout-tools span { margin-right: 3px; color: var(--muted); font-size: 10px; }
+.canvas-layout-tools button { min-width: 28px; padding: 5px 7px; background: transparent; color: var(--ink); }
+.canvas-layout-tools button:hover { background: var(--purple); color: #062f34; }
 .segmented {
   display: flex;
   background: #e9ebf1;
@@ -968,6 +981,27 @@ label {
   border-radius: 4px;
   font-size: 11px;
 }
+.component-tools .move-handle { cursor: grab; touch-action: none; }
+.component-tools .move-handle:active { cursor: grabbing; }
+.canvas-component > .resize-handle {
+  position: absolute;
+  z-index: 4;
+  width: 12px;
+  height: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid var(--surface-raised);
+  border-radius: 50%;
+  background: var(--purple);
+  touch-action: none;
+}
+.canvas-component > .resize-east { right: -7px; top: calc(50% - 6px); cursor: ew-resize; }
+.canvas-component > .resize-south { bottom: -7px; left: calc(50% - 6px); cursor: ns-resize; }
+.canvas-component > .resize-corner { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.alignment-guide { position: absolute; z-index: 3; pointer-events: none; background: var(--purple); opacity: 0.8; }
+.guide-horizontal { left: -100vw; top: 50%; width: 200vw; height: 1px; }
+.guide-vertical { top: -100vh; left: 50%; width: 1px; height: 200vh; }
 .empty-panel {
   display: grid;
   justify-items: start;

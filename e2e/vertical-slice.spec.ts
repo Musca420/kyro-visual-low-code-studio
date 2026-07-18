@@ -124,7 +124,7 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   exportedProject.id = crypto.randomUUID();
   exportedProject.name = "Progetto importato E2E";
   await page
-    .locator('input[type="file"][accept*="json"]')
+    .getByLabel("File progetto da importare")
     .setInputFiles({
       name: "project.json",
       mimeType: "application/json",

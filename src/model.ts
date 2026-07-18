@@ -400,6 +400,12 @@ export function makeComponent(type: EditorComponent["type"]): EditorComponent {
     title: "Titolo",
     text: "Testo",
   };
+  const layout =
+    type === "grid"
+      ? { display: "grid" as const, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" }
+      : ["container", "stack"].includes(type)
+        ? { display: "flex" as const, flexDirection: "column" as const, gap: "12px" }
+        : {};
   return componentSchema.parse({
     id: crypto.randomUUID(),
     type,
@@ -408,7 +414,7 @@ export function makeComponent(type: EditorComponent["type"]): EditorComponent {
       label: label[type] ?? type,
       placeholder: type === "input" ? "Scrivi qualcosa…" : "",
     },
-    styles: { desktop: baseStyle, tablet: {}, mobile: { fontSize: "15px" } },
+    styles: { desktop: { ...baseStyle, ...layout }, tablet: {}, mobile: { fontSize: "15px" } },
     events: {},
     accessibility: { label: label[type] ?? type },
   });

@@ -8,6 +8,8 @@ Il refactoring UI e la trasformazione in prodotto desktop installabile fanno par
 
 Per chi arriva da Canva, il pannello proprietà parte in modalità **Essenziale**: palette, colori, gradienti, immagini di sfondo, font, allineamento, angoli, spaziatura, ombre e animazioni aggiornano subito canvas e preview. Senza selezione, lo stesso pannello modifica lo sfondo globale di pagina. **Avanzata** espone tutti i valori precisi senza cambiare modello.
 
+Sul canvas un contenitore selezionato offre layout guidati a una, due o tre colonne per ogni breakpoint. Gli elementi possono essere trascinati nelle colonne; maniglia di spostamento, resize orizzontale/verticale, griglia a 8 px e guide rendono le modifiche dirette annullabili come una singola operazione. Il test `e2e/canva-canvas.spec.ts` verifica anche salvataggio, riapertura, preview desktop/mobile ed export avviabile separatamente.
+
 I requisiti di prodotto e la Definition of Done complessiva sono definiti da `PROJECT_SPEC.md`, `versione 2.md` e `aggiunta.md`. In particolare, i flussi principali devono restare completabili da utenti non tecnici senza codice o terminale.
 
 La dashboard può anche importare una cartella Web, PWA o Capacitor esistente. Se trova `project.frontend-editor.json` ripristina integralmente canvas, flow, dati e configurazione; altrimenti converte l'HTML semantico in componenti visuali e conserva CSS/JavaScript non ancora convertiti. Dipendenze e cartelle di build vengono ignorate, il codice importato non viene eseguito durante l'analisi e l'export mantiene i file originali sotto `original-project/`.

@@ -15,7 +15,7 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 | Area | Requisito | Criterio verificabile | Stato |
 |---|---|---|---|
 | Identità | Palette neutra scura, accenti semantici UI/dati/flow/errori, chiaro/scuro | Screenshot desktop/mobile; contrasto testo normale almeno 4.5:1; preferenza persistente | Base verificata |
-| Canvas | Facilità Canva con potenza di programmazione completa | Spostare, ridimensionare, allineare, creare colonne/griglie e responsive senza codice; logica/dati restano visuali o Codex | Base responsive verificata; manipolazione diretta avanzata in corso |
+| Canvas | Facilità Canva con potenza di programmazione completa | Spostare, ridimensionare, allineare, creare colonne/griglie e responsive senza codice; logica/dati restano visuali o Codex | Primo incremento verificato: maniglie dirette, snapping 8 px, guide, layout 1/2/3 colonne per breakpoint, drag nelle colonne, undo/redo, riapertura, preview ed export indipendente. Restano multiselezione, snapping tra elementi e sessioni persona complete |
 | Accessibilità | WCAG 2.2 AA nei percorsi principali | Tastiera, focus visibile, nomi accessibili e audit automatico/manuale | In corso |
 | Home | Recenti, ricerca, template, backup e ripristino | Chiudere/riaprire, cercare, esportare backup, cancellare/ripristinare senza perdita | Verificato |
 | Desktop | Avvio da icona su Windows/macOS/Linux | Bundle prodotti in CI per i tre sistemi; installazione e smoke test nativo per sistema | Windows verificato; macOS/Linux da eseguire sui sistemi target |
