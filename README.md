@@ -10,6 +10,8 @@ Le cinque prove browser per persona visuale e i limiti della simulazione sono re
 
 La policy e il formato del canale desktop firmato sono descritti in [UPDATE_SECURITY.md](./UPDATE_SECURITY.md). Firma del manifest, anti-downgrade, canale/piattaforma e SHA-256 sono verificati localmente; la pubblicazione resta disabilitata senza chiavi e certificati di release esterni.
 
+La review conclusiva con matrice delle prove, comandi, difetti corretti e limiti realmente osservati è in [FINAL_REVIEW.md](./FINAL_REVIEW.md).
+
 Ogni autosalvataggio conserva una revisione ripristinabile (massimo 40 per progetto). Gli ultimi 10 export JSON/ZIP restano nello storico locale e possono essere riscaricati dopo un riavvio; versioni ed export sono inclusi nel backup completo. `e2e/persistence-history.spec.ts` verifica modifica, restore, export, reload, nuovo download e contenuto del backup.
 
 `.github/workflows/desktop-build.yml` prepara artefatti non firmati su Windows, macOS e Linux; la promozione a release resta separata e richiede firma del sistema operativo. `e2e/accessibility-primary.spec.ts` verifica nomi dei controlli, focus visibile, tastiera e assenza di overflow; `e2e/design-system.spec.ts` copre contrasto, temi e layout mobile.

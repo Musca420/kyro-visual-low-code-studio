@@ -58,7 +58,7 @@ button {
   color: var(--button-ink);
   font-weight: 700;
   cursor: pointer;
-  transition: 0.16s ease;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 button:hover {
   background: var(--purple-dark);

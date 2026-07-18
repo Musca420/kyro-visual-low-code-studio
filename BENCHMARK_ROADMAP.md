@@ -44,4 +44,4 @@ Revisione: 18 luglio 2026. Il confronto usa solo comportamenti documentati pubbl
 10. **Export Android — MVP verificato.** Uscita successiva: catalogo API native e test multi-device automatizzati.
 11. **Test con utenti non tecnici — 5/5 percorsi persona automatizzati completati; sessioni umane ancora aperte.** Uscita: almeno cinque sessioni umane osservate, metriche task completion/errori/tempo e correzioni riprovate da zero.
 
-Il prossimo incremento consigliato è la timeline Codex persistente con screenshot prima/dopo, revisione, modifiche al grafo, test e undo riuniti in una singola operazione verificabile.
+La roadmap MVP verificabile è chiusa. Le voci ancora indicate come lavoro mancante sono evoluzioni post-MVP o verifiche esterne (sessioni umane, firma e distribuzione pubblica, collaudo nativo su macOS/Linux), non funzionalità simulate presentate come complete.
