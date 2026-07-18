@@ -1641,7 +1641,7 @@ function Editor({
     const activeFlow = project.flows.find((item) => item.id === flowId);
     const source = project.dataSources[0];
     if (!activeFlow) throw new Error("Flow non trovato");
-    let notification: string | undefined, level: string | undefined, navigate: string | undefined, modalId: string | undefined;
+    let notification: string | undefined, level: string | undefined, navigate: string | undefined, modalId: string | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
     setLogs([]);
     const result = await runFlow(activeFlow, {
       input,
@@ -1659,6 +1659,7 @@ function Editor({
       refresh: async () => { if (source) await refreshRecords(); },
       navigate: (path) => { navigate = path; },
       openModal: (componentId) => { modalId = componentId; },
+      updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
       notify: (message, kind) => { notification = message; level = kind; },
       runModule: (moduleId, value) => {
         const module = project.codeModules.find((item) => item.id === moduleId);
@@ -1682,7 +1683,7 @@ function Editor({
     setLogs(result);
     const failure = result.find((entry) => entry.level === "error");
     if (failure) throw new Error(failure.message);
-    return { notification, level, navigate, modalId };
+    return { notification, level, navigate, modalId, ui };
   }, [project.flows, project.dataSources, project.codeModules, refreshRecords]);
 
   const dashboardAction = useCallback(

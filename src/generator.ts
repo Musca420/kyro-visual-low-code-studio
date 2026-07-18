@@ -706,6 +706,7 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'refresh') await refresh()
       if (current.type === 'navigate') location.hash = current.config.path || '/'
       if (current.type === 'openModal') document.getElementById(current.config.componentId)?.removeAttribute('hidden')
+      if (current.type === 'updateUI') { const element = document.getElementById(current.config.componentId) as (HTMLElement & { value?: string; disabled?: boolean }) | null, operation = current.config.operation || 'show', next = current.config.value || ''; if (!element) throw new Error('Elemento da cambiare non trovato'); if (operation === 'show') element.hidden = false; if (operation === 'hide') element.hidden = true; if (operation === 'enable') element.disabled = false; if (operation === 'disable') element.disabled = true; if (operation === 'text') element.textContent = next; if (operation === 'value') element.value = next; if (['background', 'color', 'opacity'].includes(operation)) element.style[operation as 'background' | 'color' | 'opacity'] = next }
       if (current.type === 'notify' && status) status.textContent = current.config.message || String(value)
       if (current.type === 'log') console.debug(current.config.message || current.label, value)
       path = loopPath ?? (current.type === 'switch' ? (switchMatch ? 'case:' + switchMatch : 'error') : condition ? 'success' : 'error')

@@ -10,6 +10,7 @@ export type FlowContext = {
   refresh: (componentId?: string) => Promise<void>
   navigate?: (path: string) => Promise<void> | void
   openModal?: (componentId: string) => Promise<void> | void
+  updateUI?: (componentId: string, operation: string, value: string) => Promise<void> | void
   notify?: (message: string, level: string) => Promise<void> | void
   runModule?: (moduleId: string, value: unknown) => Promise<unknown> | unknown
   getState?: (key: string) => unknown
@@ -78,6 +79,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'refresh') await guarded(context.refresh(node.config.componentId), context)
       if (node.type === 'navigate') await context.navigate?.(node.config.path || '/')
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
+      if (node.type === 'updateUI') await required(context.updateUI, 'Aggiornamento interfaccia non disponibile')(node.config.componentId || '', node.config.operation || 'show', node.config.value || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
       path = loopPath ?? switchPath ?? (conditionResult === false ? 'error' : 'success')

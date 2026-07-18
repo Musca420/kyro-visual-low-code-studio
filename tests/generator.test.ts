@@ -68,7 +68,7 @@ describe("web generator", () => {
     input.events.change = "search-flow";
     project.pages.push({ id: "page", name: "Home", path: "/", components: [input] });
     project.flows.push(
-      { id: "search-flow", name: "Cerca", nodes: [{ id: "change", type: "event", label: "Quando cambia", position: { x: 0, y: 0 }, config: { trigger: "change", componentId: "search" } }], edges: [] },
+      { id: "search-flow", name: "Cerca", nodes: [{ id: "change", type: "event", label: "Quando cambia", position: { x: 0, y: 0 }, config: { trigger: "change", componentId: "search" } }, { id: "ui", type: "updateUI", label: "Cambia campo", position: { x: 1, y: 0 }, config: { componentId: "search", operation: "background", value: "#22d3ee" } }], edges: [{ id: "edge", source: "change", target: "ui", path: "success" }] },
       { id: "load-flow", name: "Carica", nodes: [{ id: "load", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } }], edges: [] },
       { id: "timer-flow", name: "Aggiorna", nodes: [{ id: "timer", type: "event", label: "Timer", position: { x: 0, y: 0 }, config: { trigger: "timer", interval: "1200" } }], edges: [] },
     );
@@ -76,6 +76,7 @@ describe("web generator", () => {
     expect(source).toContain('addEventListener("change"');
     expect(source).toContain('void runGraph("load-flow")');
     expect(source).toContain('setInterval(() => { void runGraph("timer-flow") }, 1200)');
+    expect(source).toContain("current.type === 'updateUI'");
   });
 
   it("preserves nested containers in the exported markup", () => {

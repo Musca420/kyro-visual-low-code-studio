@@ -233,6 +233,7 @@ export const flowNodeTypes = [
   "refresh",
   "navigate",
   "openModal",
+  "updateUI",
   "notify",
   "module",
   "log",

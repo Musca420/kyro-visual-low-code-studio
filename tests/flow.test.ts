@@ -186,4 +186,14 @@ describe('flow runtime', () => {
     await runFlow(paused, { input: 'Vai', insert, refresh: async () => undefined, onBreakpoint })
     expect(onBreakpoint).not.toHaveBeenCalled()
   })
+
+  it('cambia un elemento visuale attraverso un nodo guidato', async () => {
+    const visual: Flow = { id: 'visual', name: 'Visual', nodes: [
+      { id: 'event', type: 'event', label: 'Click', position: { x: 0, y: 0 }, config: {} },
+      { id: 'ui', type: 'updateUI', label: 'Nascondi pannello', position: { x: 1, y: 0 }, config: { componentId: 'panel', operation: 'hide', value: '' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'ui', path: 'success' }] }
+    const updateUI = vi.fn()
+    await runFlow(visual, { input: '', insert: async () => undefined, refresh: async () => undefined, updateUI })
+    expect(updateUI).toHaveBeenCalledWith('panel', 'hide', '')
+  })
 })
