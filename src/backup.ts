@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { codexTimelineEntrySchema, listAllCodexTimeline, listAllRecords, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
+import { codexTimelineEntrySchema, listAllCodexTimeline, listAllExports, listAllProjectVersions, listAllRecords, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
 import { pluginManifestSchema, projectSchema } from "./model";
 
 const localRecordSchema = z.object({
@@ -22,6 +22,14 @@ const backupSchema = z.object({
   plugins: z.array(pluginManifestSchema).max(500),
   preferences: z.record(z.string(), z.string()),
   codexTimeline: z.array(codexTimelineEntrySchema).max(2_000).default([]),
+  versions: z.array(z.object({
+    id: z.string(), projectId: z.string(), revision: z.number().int().nonnegative(),
+    createdAt: z.string(), project: projectSchema,
+  })).max(5_000).default([]),
+  exports: z.array(z.object({
+    id: z.string(), projectId: z.string(), fileName: z.string(), target: z.string(),
+    createdAt: z.string(), type: z.string(), data: z.string().max(14_000_000),
+  })).max(200).default([]),
 });
 
 export type FrontendEditorBackup = z.infer<typeof backupSchema>;
@@ -38,6 +46,7 @@ export async function createBackup(): Promise<FrontendEditorBackup> {
     const value = localStorage.getItem(key);
     if (value !== null) preferences[key] = value;
   }
+  const exports = await listAllExports();
   return backupSchema.parse({
     format: "frontend-editor-backup",
     version: 1,
@@ -47,12 +56,31 @@ export async function createBackup(): Promise<FrontendEditorBackup> {
     plugins: await listPlugins(),
     preferences,
     codexTimeline: await listAllCodexTimeline(),
+    versions: await listAllProjectVersions(),
+    exports: await Promise.all(exports.map(async (record) => {
+      const bytes = new Uint8Array(await record.blob.arrayBuffer());
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 0x8000)
+        binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+      return { ...record, blob: undefined, type: record.blob.type, data: btoa(binary) };
+    })),
   });
 }
 
 export async function restoreBackup(input: unknown) {
   const backup = backupSchema.parse(input);
-  await mergeDatabaseBackup(backup.projects, backup.records, backup.plugins, backup.codexTimeline);
+  await mergeDatabaseBackup(
+    backup.projects,
+    backup.records,
+    backup.plugins,
+    backup.codexTimeline,
+    backup.versions,
+    backup.exports.map((record) => {
+      const binary = atob(record.data);
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      return { id: record.id, projectId: record.projectId, fileName: record.fileName, target: record.target, createdAt: record.createdAt, blob: new Blob([bytes], { type: record.type }) };
+    }),
+  );
   Object.entries(backup.preferences).forEach(([key, value]) => {
     if (persistedKey(key)) localStorage.setItem(key, value);
   });
@@ -60,6 +88,8 @@ export async function restoreBackup(input: unknown) {
     projects: backup.projects.length,
     records: backup.records.length,
     plugins: backup.plugins.length,
+    versions: backup.versions.length,
+    exports: backup.exports.length,
   };
 }
 

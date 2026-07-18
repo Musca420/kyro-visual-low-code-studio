@@ -16,6 +16,7 @@
     "desktop:make": "npm run build && electron-forge make",
     "desktop:test": "playwright test e2e/desktop-shell.spec.ts e2e/desktop-production.spec.ts --workers=1",
     "desktop:test:packaged": "node scripts/test-desktop-packaged.mjs",
+    "update:manifest": "node scripts/sign-update.cjs",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",

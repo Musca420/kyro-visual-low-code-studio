@@ -156,6 +156,20 @@ label {
     radial-gradient(circle at 92% 88%, #ff6b5f18 0, transparent 28%),
     var(--workspace);
 }
+.desktop-update-status {
+  width: min(760px, calc(100% - 32px));
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  border: 1px solid var(--data);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--data) 12%, var(--surface-raised));
+  color: var(--ink);
+  text-align: center;
+}
+.desktop-update-status.rejected {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-raised));
+}
 .hero {
   padding-top: 20px;
 }
@@ -355,6 +369,45 @@ label {
   gap: 8px;
   align-items: center;
 }
+.history-menu {
+  position: relative;
+}
+.history-menu > summary {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+  list-style: none;
+}
+.history-menu > div {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 250px;
+  max-height: 320px;
+  display: grid;
+  gap: 6px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.history-menu > div button {
+  display: grid;
+  justify-items: start;
+  text-align: left;
+}
+.history-menu > div small { color: var(--muted); }
 .top-actions button {
   padding: 8px 12px;
 }

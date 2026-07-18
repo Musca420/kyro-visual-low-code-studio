@@ -8,6 +8,10 @@ I plugin seguono l'[SDK dichiarativo](./PLUGIN_SDK.md): possono contribuire pres
 
 Le cinque prove browser per persona visuale e i limiti della simulazione sono registrati in [PERSONA_TEST_REPORT.md](./PERSONA_TEST_REPORT.md).
 
+La policy e il formato del canale desktop firmato sono descritti in [UPDATE_SECURITY.md](./UPDATE_SECURITY.md). Firma del manifest, anti-downgrade, canale/piattaforma e SHA-256 sono verificati localmente; la pubblicazione resta disabilitata senza chiavi e certificati di release esterni.
+
+Ogni autosalvataggio conserva una revisione ripristinabile (massimo 40 per progetto). Gli ultimi 10 export JSON/ZIP restano nello storico locale e possono essere riscaricati dopo un riavvio; versioni ed export sono inclusi nel backup completo. `e2e/persistence-history.spec.ts` verifica modifica, restore, export, reload, nuovo download e contenuto del backup.
+
 Il refactoring UI e la trasformazione in prodotto desktop installabile fanno parte della Definition of Done in [DESKTOP_PRODUCT_ROADMAP.md](./DESKTOP_PRODUCT_ROADMAP.md). La shell scelta è Electron perché riusa i servizi Node locali già necessari a Live Bridge, Codex, terminale, import ed export; formato ed applicazioni esportate restano aperti e indipendenti.
 
 Per chi arriva da Canva, il pannello proprietà parte in modalità **Essenziale**: palette, colori, gradienti, immagini di sfondo, font, allineamento, angoli, spaziatura, ombre e animazioni aggiornano subito canvas e preview. Senza selezione, lo stesso pannello modifica lo sfondo globale di pagina. **Avanzata** espone tutti i valori precisi senza cambiare modello.

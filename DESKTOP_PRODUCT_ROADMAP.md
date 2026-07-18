@@ -20,8 +20,8 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 | Home | Recenti, ricerca, template, backup e ripristino | Chiudere/riaprire, cercare, esportare backup, cancellare/ripristinare senza perdita | Verificato |
 | Desktop | Avvio da icona su Windows/macOS/Linux | Bundle prodotti in CI per i tre sistemi; installazione e smoke test nativo per sistema | Windows verificato; macOS/Linux da eseguire sui sistemi target |
 | CLI | `frontend-editor [cartella]` globale | Installazione locale del comando, apertura cartella valida, errore comprensibile per percorso non valido | Verificato su Windows |
-| Persistenza | Progetti, cronologia, conversazioni, versioni ed export | Riavvio del processo desktop conserva ogni elemento; backup/restore round-trip | In corso |
-| Aggiornamenti | Canale firmato, rollback/rifiuto pacchetto invalido | Test manifest/versione/firma; prova reale dopo disponibilità certificati e hosting | Da fare |
+| Persistenza | Progetti, cronologia, conversazioni, versioni ed export | Riavvio del processo desktop conserva ogni elemento; backup/restore round-trip | Verificata: versioni ripristinabili, ZIP riscaricabile dopo reload e inclusione nel backup |
+| Aggiornamenti | Canale firmato, rollback/rifiuto pacchetto invalido | Test manifest/versione/firma; prova reale dopo disponibilità certificati e hosting | Policy verificata: Ed25519, HTTPS, canale/piattaforma, anti-downgrade, dimensione e SHA-256; pubblicazione/installazione firmata bloccata da certificati e hosting esterni |
 | Codex | Contesto live, transazione, before/after, test e undo | Timeline persistente con screenshot e revisione; rollback atomico riprovato | Verificato |
 | Plugin | Componenti, nodi, provider e temi estendibili senza compromettere l'editor | Manifest e permessi validati; contributi utilizzabili, disabilitabili e materializzati nell'export aperto | SDK dichiarativo e verticale UI verificati; firma/catalogo distribuito futuri |
 | Apertura | Formato locale/versionabile, import cartella, export web/Android | Progetto continua fuori dall'editor e file non convertiti non vengono persi | Base verificata |

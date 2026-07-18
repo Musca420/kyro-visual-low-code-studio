@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const { readdir, readFile, stat } = require("node:fs/promises");
 const { basename, extname, join, relative, resolve } = require("node:path");
+const { verifyUpdateManifest } = require("./updatePolicy.cjs");
 
 if (require("electron-squirrel-startup")) app.quit();
 
@@ -49,6 +50,39 @@ async function readWorkspace(root) {
 
 let mainWindow;
 let currentProject = projectArgument();
+let updateStatus = { state: "disabled", message: "Canale aggiornamenti non configurato" };
+
+async function checkSecureUpdate() {
+  const manifestUrl = process.env.FRONTEND_EDITOR_UPDATE_MANIFEST_URL;
+  const publicKey = process.env.FRONTEND_EDITOR_UPDATE_PUBLIC_KEY?.replaceAll("\\n", "\n");
+  const channel = process.env.FRONTEND_EDITOR_UPDATE_CHANNEL || "stable";
+  if (!manifestUrl || !publicKey) return updateStatus;
+  try {
+    const url = new URL(manifestUrl);
+    if (url.protocol !== "https:") throw new Error("Il manifest aggiornamenti richiede HTTPS");
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new Error(`Manifest aggiornamenti non disponibile (${response.status})`);
+    const text = await response.text();
+    if (Buffer.byteLength(text) > 64_000) throw new Error("Manifest aggiornamenti troppo grande");
+    const manifest = verifyUpdateManifest(JSON.parse(text), {
+      currentVersion: app.getVersion(), channel, platform: process.platform,
+      arch: process.arch, publicKey,
+    });
+    updateStatus = {
+      state: "available",
+      message: `Aggiornamento ${manifest.version} verificato per il canale ${channel}`,
+      version: manifest.version,
+      channel,
+    };
+  } catch (error) {
+    updateStatus = {
+      state: "rejected",
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+  mainWindow?.webContents.send("desktop:update-status", updateStatus);
+  return updateStatus;
+}
 const gotLock = app.requestSingleInstanceLock({ project: currentProject });
 if (!gotLock) app.quit();
 
@@ -66,6 +100,7 @@ app.on("second-instance", (_event, argv) => {
 
 app.whenReady().then(async () => {
   ipcMain.handle("desktop:workspace", () => currentProject ? readWorkspace(currentProject) : null);
+  ipcMain.handle("desktop:update-status", () => updateStatus);
   ipcMain.handle("desktop:reveal", async (_event, path) => {
     if (!currentProject || typeof path !== "string") return false;
     const target = resolve(path);
@@ -100,6 +135,7 @@ app.whenReady().then(async () => {
     if (!allowed) event.preventDefault();
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.webContents.once("did-finish-load", () => void checkSecureUpdate());
   if (process.env.FRONTEND_EDITOR_DEV_URL) {
     await mainWindow.loadURL(process.env.FRONTEND_EDITOR_DEV_URL);
   } else {

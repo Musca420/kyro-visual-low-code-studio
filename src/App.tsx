@@ -13,11 +13,16 @@ import {
   insertProjectRecord,
   insertRecord,
   listPlugins,
+  listExports,
+  listProjectVersions,
   listProjects,
   queryRecords,
   saveProject,
+  saveExport,
   updateProjectRecord,
   type LocalRecord,
+  type ExportRecord,
+  type ProjectVersion,
 } from "./db";
 import { runFlow, type FlowLog } from "./flow";
 import {
@@ -142,9 +147,16 @@ function Dashboard({
   const [templateQuery, setTemplateQuery] = useState("");
   const [projectQuery, setProjectQuery] = useState("");
   const [importResult, setImportResult] = useState("");
+  const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus>();
   const importRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const backupRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const desktop = window.frontendEditorDesktop;
+    if (!desktop) return;
+    void desktop.getUpdateStatus().then(setUpdateStatus);
+    return desktop.onUpdateStatus(setUpdateStatus);
+  }, []);
   useEffect(() => {
     const desktop = window.frontendEditorDesktop;
     if (!desktop || loading || desktopImportStarted.current) return;
@@ -294,6 +306,14 @@ function Dashboard({
   return (
     <main className="dashboard">
       <ThemeToggle theme={uiTheme} onToggle={onToggleTheme} />
+      {updateStatus && updateStatus.state !== "disabled" && (
+        <p
+          className={`desktop-update-status ${updateStatus.state}`}
+          role={updateStatus.state === "rejected" ? "alert" : "status"}
+        >
+          {updateStatus.state === "available" ? "Aggiornamento sicuro disponibile" : "Aggiornamento rifiutato"}: {updateStatus.message}
+        </p>
+      )}
       <header className="hero">
         <div className="brand-mark">FE</div>
         <p className="eyebrow">Visual low-code studio</p>
@@ -573,6 +593,8 @@ function Editor({
   const [commandQuery, setCommandQuery] = useState("");
   const [history, setHistory] = useState<Project[]>([]);
   const [future, setFuture] = useState<Project[]>([]);
+  const [versions, setVersions] = useState<ProjectVersion[]>([]);
+  const [exportHistory, setExportHistory] = useState<ExportRecord[]>([]);
   const [saveState, setSaveState] = useState("Salvato");
   const [logs, setLogs] = useState<FlowLog[]>([]);
   const [sourceName, setSourceName] = useState("Attività locali");
@@ -610,6 +632,15 @@ function Editor({
   useEffect(() => {
     void refreshPlugins();
   }, [refreshPlugins]);
+  useEffect(() => {
+    void Promise.all([
+      listProjectVersions(project.id),
+      listExports(project.id),
+    ]).then(([savedVersions, savedExports]) => {
+      setVersions(savedVersions);
+      setExportHistory(savedExports);
+    });
+  }, [project.id]);
   const currentPage = project.pages.find((page) => page.id === pageId);
   const activeComponent = currentPage?.components.find(
     (component) => component.id === selected[0],
@@ -781,7 +812,10 @@ function Editor({
   useEffect(() => {
     const timer = setTimeout(() => {
       void saveProject(project)
-        .then(() => setSaveState("Salvato automaticamente"))
+        .then(async () => {
+          setSaveState("Salvato automaticamente");
+          setVersions(await listProjectVersions(project.id));
+        })
         .catch((error) =>
           setSaveState(
             `Errore salvataggio: ${error instanceof Error ? error.message : String(error)}`,
@@ -1614,13 +1648,33 @@ function Editor({
     [project.dataSources, refreshRecords],
   );
 
-  const exportProject = () => {
+  const archiveExport = async (blob: Blob, fileName: string, target: string) => {
+    await saveExport({
+      id: crypto.randomUUID(),
+      projectId: project.id,
+      fileName,
+      target,
+      createdAt: new Date().toISOString(),
+      blob,
+    });
+    setExportHistory(await listExports(project.id));
+  };
+  const exportProject = async () => {
     const blob = new Blob([serializeProject(project)], {
       type: "application/json",
     });
+    const fileName = `${project.name}.frontend-editor.json`;
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `${project.name}.frontend-editor.json`;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    await archiveExport(blob, fileName, "project");
+  };
+  const downloadStoredExport = (record: ExportRecord) => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(record.blob);
+    link.download = record.fileName;
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -1775,6 +1829,41 @@ function Editor({
           >
             ⌘
           </button>
+          <details className="history-menu">
+            <summary>Versioni {versions.length}</summary>
+            <div>
+              {versions.slice(0, 8).map((version) => (
+                <button
+                  key={version.id}
+                  className="secondary"
+                  onClick={() => {
+                    change(version.project);
+                    setFeedback(`Ripristinata revisione ${version.revision}`);
+                  }}
+                >
+                  Revisione {version.revision}
+                  <small>{new Date(version.createdAt).toLocaleString("it")}</small>
+                </button>
+              ))}
+            </div>
+          </details>
+          <details className="history-menu">
+            <summary>Export {exportHistory.length}</summary>
+            <div>
+              {exportHistory.length === 0 ? (
+                <span>Nessun export archiviato</span>
+              ) : exportHistory.slice(0, 8).map((record) => (
+                <button
+                  key={record.id}
+                  className="secondary"
+                  onClick={() => downloadStoredExport(record)}
+                >
+                  {record.fileName}
+                  <small>{new Date(record.createdAt).toLocaleString("it")}</small>
+                </button>
+              ))}
+            </div>
+          </details>
           <button className="secondary" onClick={exportProject}>
             Esporta JSON
           </button>
@@ -1784,7 +1873,10 @@ function Editor({
                 .then(({ downloadGeneratedApp }) =>
                   downloadGeneratedApp(project),
                 )
-                .then(() => setFeedback("App TypeScript esportata come ZIP"))
+                .then(async ({ blob, fileName }) => {
+                  await archiveExport(blob, fileName, project.exportConfig.target);
+                  setFeedback("App TypeScript esportata come ZIP e archiviata");
+                })
                 .catch((error) =>
                   setFeedback(
                     error instanceof Error ? error.message : String(error),

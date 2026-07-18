@@ -3,7 +3,7 @@ import { parseProject, pluginManifestSchema } from './model'
 import { z } from 'zod'
 
 const DB_NAME = 'frontend-editor'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -14,6 +14,8 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('records')) db.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId')
       if (!db.objectStoreNames.contains('plugins')) db.createObjectStore('plugins', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('codexTimeline')) db.createObjectStore('codexTimeline', { keyPath: 'id' }).createIndex('projectId', 'projectId')
+      if (!db.objectStoreNames.contains('projectVersions')) db.createObjectStore('projectVersions', { keyPath: 'id' }).createIndex('projectId', 'projectId')
+      if (!db.objectStoreNames.contains('exports')) db.createObjectStore('exports', { keyPath: 'id' }).createIndex('projectId', 'projectId')
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -42,11 +44,48 @@ export async function getProject(id: string): Promise<Project | undefined> {
 
 export async function saveProject(project: Project) {
   const value = parseProject({ ...project, updatedAt: new Date().toISOString() })
-  await request('projects', 'readwrite', (store) => store.put(value))
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(['projects', 'projectVersions'], 'readwrite')
+    transaction.objectStore('projects').put(value)
+    transaction.objectStore('projectVersions').put({ id: `${value.id}:${value.revision}`, projectId: value.id, revision: value.revision, createdAt: value.updatedAt, project: value })
+    transaction.oncomplete = () => { db.close(); resolve() }
+    transaction.onerror = () => { db.close(); reject(transaction.error) }
+  })
+  const obsolete = (await listProjectVersions(value.id)).slice(40)
+  await Promise.all(obsolete.map((item) => request('projectVersions', 'readwrite', (store) => store.delete(item.id))))
   return value
 }
 
-export const deleteProject = (id: string) => request('projects', 'readwrite', (store) => store.delete(id))
+export type ProjectVersion = { id: string; projectId: string; revision: number; createdAt: string; project: Project }
+export type ExportRecord = { id: string; projectId: string; fileName: string; target: string; createdAt: string; blob: Blob }
+
+export const listProjectVersions = (projectId: string) => request<ProjectVersion[]>('projectVersions', 'readonly', (store) => store.index('projectId').getAll(projectId))
+  .then((items) => items.map((item) => ({ ...item, project: parseProject(item.project) })).sort((a, b) => b.revision - a.revision))
+export const listAllProjectVersions = () => request<ProjectVersion[]>('projectVersions', 'readonly', (store) => store.getAll())
+  .then((items) => items.map((item) => ({ ...item, project: parseProject(item.project) })))
+export const listExports = (projectId: string) => request<ExportRecord[]>('exports', 'readonly', (store) => store.index('projectId').getAll(projectId))
+  .then((items) => items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+export const listAllExports = () => request<ExportRecord[]>('exports', 'readonly', (store) => store.getAll())
+export async function saveExport(record: ExportRecord) {
+  if (record.blob.size > 10_000_000) throw new Error('Export troppo grande per lo storico locale (10 MB)')
+  await request('exports', 'readwrite', (store) => store.put(record))
+  const obsolete = (await listExports(record.projectId)).slice(10)
+  await Promise.all(obsolete.map((item) => request('exports', 'readwrite', (store) => store.delete(item.id))))
+}
+
+export async function deleteProject(id: string) {
+  const [versions, exports] = await Promise.all([listProjectVersions(id), listExports(id)])
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(['projects', 'projectVersions', 'exports'], 'readwrite')
+    transaction.objectStore('projects').delete(id)
+    versions.forEach((item) => transaction.objectStore('projectVersions').delete(item.id))
+    exports.forEach((item) => transaction.objectStore('exports').delete(item.id))
+    transaction.oncomplete = () => { db.close(); resolve() }
+    transaction.onerror = () => { db.close(); reject(transaction.error) }
+  })
+}
 
 export type LocalRecord = {
   id: string
@@ -129,18 +168,22 @@ export async function queryRecords(sourceId: string): Promise<LocalRecord[]> {
 export const listPlugins = () => request<PluginManifest[]>('plugins', 'readonly', (store) => store.getAll())
 export const listAllRecords = () => request<LocalRecord[]>('records', 'readonly', (store) => store.getAll())
 
-export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = []) {
+export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = [], versions: ProjectVersion[] = [], exports: ExportRecord[] = []) {
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline'], 'readwrite')
+    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline', 'projectVersions', 'exports'], 'readwrite')
     const projectStore = transaction.objectStore('projects')
     const recordStore = transaction.objectStore('records')
     const pluginStore = transaction.objectStore('plugins')
     const timelineStore = transaction.objectStore('codexTimeline')
+    const versionStore = transaction.objectStore('projectVersions')
+    const exportStore = transaction.objectStore('exports')
     projects.forEach((project) => projectStore.put(parseProject(project)))
     records.forEach((record) => recordStore.put(record))
     plugins.forEach((plugin) => pluginStore.put(pluginManifestSchema.parse(plugin)))
     timeline.forEach((entry) => timelineStore.put(codexTimelineEntrySchema.parse(entry)))
+    versions.forEach((version) => versionStore.put({ ...version, project: parseProject(version.project) }))
+    exports.forEach((item) => exportStore.put(item))
     transaction.oncomplete = () => { db.close(); resolve() }
     transaction.onerror = () => { db.close(); reject(transaction.error) }
     transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error('Ripristino annullato')) }

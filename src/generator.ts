@@ -637,7 +637,9 @@ export async function downloadGeneratedApp(project: Project) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "app"}.zip`;
+  const fileName = `${project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "app"}.zip`;
+  link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+  return { blob, fileName };
 }
