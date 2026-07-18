@@ -1232,6 +1232,34 @@ label {
   color: #9ca5b8;
   font-size: 12px;
 }
+.flow-builder {
+  display: grid;
+  grid-template-columns: 210px minmax(420px, 1fr) 240px;
+  min-height: 520px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.flow-palette,
+.flow-inspector {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface-raised);
+}
+.flow-palette > span,
+.flow-inspector p { color: var(--muted); font-size: 12px; }
+.flow-palette > div { display: grid; gap: 6px; max-height: 430px; overflow: auto; }
+.flow-palette button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left; }
+.flow-palette i { width: 9px; height: 9px; border-radius: 50%; }
+.flow-inspector { border-left: 1px solid var(--line); }
+.flow-inspector label { display: grid; gap: 5px; font-size: 11px; }
+.flow-builder .flow-canvas { border: 0; border-radius: 0; min-height: 520px; }
+@media (max-width: 900px) {
+  .flow-builder { grid-template-columns: 150px minmax(380px, 1fr); overflow: auto; }
+  .flow-inspector { grid-column: 1 / -1; border-top: 1px solid var(--line); border-left: 0; }
+}
 .log-console ol {
   display: grid;
   gap: 6px;
@@ -1249,6 +1277,7 @@ label {
 .log-console li.error code {
   color: #ff8f83;
 }
+.log-console pre { margin: 4px 0 0; white-space: pre-wrap; color: #d5dbe8; }
 .data-layout {
   display: grid;
   grid-template-columns: minmax(300px, 420px) 1fr;

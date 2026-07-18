@@ -3,8 +3,14 @@ import type { Flow } from './model'
 export type FlowLog = { nodeId: string; level: 'info' | 'error'; message: string; value?: unknown }
 export type FlowContext = {
   input: string
-  insert: (text: string) => Promise<unknown>
-  refresh: () => Promise<void>
+  insert: (text: string, sourceId?: string) => Promise<unknown>
+  query?: (sourceId?: string) => Promise<unknown[]>
+  update?: (value: unknown, sourceId?: string) => Promise<unknown>
+  delete?: (value: unknown, sourceId?: string) => Promise<unknown>
+  refresh: (componentId?: string) => Promise<void>
+  navigate?: (path: string) => Promise<void> | void
+  openModal?: (componentId: string) => Promise<void> | void
+  notify?: (message: string, level: string) => Promise<void> | void
   signal?: AbortSignal
   timeoutMs?: number
 }
@@ -26,8 +32,17 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     try {
       if (node.type === 'readInput') value = context.input
       if (node.type === 'validate' && (typeof value !== 'string' || !value.trim())) throw new Error(node.config.message || 'Il valore è obbligatorio')
-      if (node.type === 'insert') value = await guarded(context.insert(String(value).trim()), context)
-      if (node.type === 'refresh') await guarded(context.refresh(), context)
+      if (node.type === 'insert') value = await guarded(node.config.sourceId ? context.insert(String(value).trim(), node.config.sourceId) : context.insert(String(value).trim()), context)
+      if (node.type === 'query') value = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
+      if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
+      if (node.type === 'delete') value = await guarded(required(context.delete, 'Eliminazione dati non disponibile')(value, node.config.sourceId), context)
+      if (node.type === 'filter') value = filter(value, node.config.field, node.config.value)
+      if (node.type === 'sort') value = sort(value, node.config.field, node.config.direction === 'desc')
+      if (node.type === 'kpi') value = aggregate(value, node.config.operation, node.config.field)
+      if (node.type === 'refresh') await guarded(context.refresh(node.config.componentId), context)
+      if (node.type === 'navigate') await context.navigate?.(node.config.path || '/')
+      if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
+      if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       logs.push({ nodeId: node.id, level: 'info', message: `${node.label}: completato`, value })
       path = 'success'
     } catch (error) {
@@ -44,6 +59,33 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     node = next
   }
   return logs
+}
+
+const required = <T>(value: T | undefined, message: string): T => {
+  if (!value) throw new Error(message)
+  return value
+}
+
+const field = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
+
+const filter = (value: unknown, key = '', expected = '') => {
+  if (!Array.isArray(value)) throw new Error('Il nodo filtro richiede un elenco')
+  const needle = expected.toLowerCase()
+  return value.filter((item) => String(field(item, key) ?? '').toLowerCase().includes(needle))
+}
+
+const sort = (value: unknown, key = '', descending = false) => {
+  if (!Array.isArray(value)) throw new Error('Il nodo ordinamento richiede un elenco')
+  return [...value].sort((left, right) => String(field(left, key) ?? '').localeCompare(String(field(right, key) ?? '')) * (descending ? -1 : 1))
+}
+
+const aggregate = (value: unknown, operation = 'count', key = '') => {
+  if (!Array.isArray(value)) throw new Error('Il nodo KPI richiede un elenco')
+  if (operation === 'count') return value.length
+  const numbers = value.map((item) => Number(field(item, key))).filter(Number.isFinite)
+  if (operation === 'sum') return numbers.reduce((total, item) => total + item, 0)
+  if (operation === 'average') return numbers.length ? numbers.reduce((total, item) => total + item, 0) / numbers.length : 0
+  throw new Error(`Operazione KPI non supportata: ${operation}`)
 }
 
 function guarded<T>(operation: Promise<T>, context: FlowContext): Promise<T> {

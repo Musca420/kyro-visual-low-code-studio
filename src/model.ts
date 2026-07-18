@@ -208,7 +208,7 @@ export const componentSchema = z.object({
 
 export type EditorComponent = z.infer<typeof componentSchema>;
 
-const nodeTypeSchema = z.enum([
+export const flowNodeTypes = [
   "event",
   "readInput",
   "validate",
@@ -224,7 +224,8 @@ const nodeTypeSchema = z.enum([
   "openModal",
   "notify",
   "log",
-]);
+] as const;
+const nodeTypeSchema = z.enum(flowNodeTypes);
 
 const nodeSchema = z.object({
   id: z.string(),
@@ -432,6 +433,7 @@ export const projectSchema = z.object({
 
 export type Project = z.infer<typeof projectSchema>;
 export type Flow = Project["flows"][number];
+export type FlowNode = Flow["nodes"][number];
 
 const baseStyle = {
   width: "100%",

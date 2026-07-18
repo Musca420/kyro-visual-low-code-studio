@@ -24,7 +24,7 @@ describe('flow runtime', () => {
     const insert = vi.fn(async (text: string) => ({ text }))
     const refresh = vi.fn(async () => undefined)
     const logs = await runFlow(flow, { input: ' Ship it ', insert, refresh })
-    expect(insert).toHaveBeenCalledWith('Ship it')
+    expect(insert).toHaveBeenCalledWith('Ship it', 'db')
     expect(refresh).toHaveBeenCalledOnce()
     expect(logs.map((log) => log.nodeId)).toEqual(['event', 'read', 'validate', 'insert', 'refresh'])
   })
@@ -46,5 +46,21 @@ describe('flow runtime', () => {
     const logs = await runFlow(flow, { input: 'slow', insert: () => new Promise(() => undefined), refresh: async () => undefined, timeoutMs: 10 })
     expect(logs.some((log) => log.level === 'error' && log.message === 'Timeout del flow')).toBe(true)
     expect(logs.at(-1)?.nodeId).toBe('error')
+  })
+
+  it('carica, filtra, ordina e calcola un KPI mostrando il valore attraversato', async () => {
+    const nodes: Flow['nodes'] = [
+      { id: 'start', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'query', type: 'query', label: 'Query', position: { x: 1, y: 0 }, config: { sourceId: 'db' } },
+      { id: 'filter', type: 'filter', label: 'Filter', position: { x: 2, y: 0 }, config: { field: 'status', value: 'done' } },
+      { id: 'sort', type: 'sort', label: 'Sort', position: { x: 3, y: 0 }, config: { field: 'name', direction: 'desc' } },
+      { id: 'kpi', type: 'kpi', label: 'Count', position: { x: 4, y: 0 }, config: { operation: 'count' } },
+      { id: 'notify', type: 'notify', label: 'Notify', position: { x: 5, y: 0 }, config: { message: 'Calcolo pronto', level: 'success' } },
+    ]
+    const visual: Flow = { id: 'visual', name: 'Visual', nodes, edges: nodes.slice(1).map((node, index) => ({ id: String(index), source: nodes[index].id, target: node.id, path: 'success' })) }
+    const notify = vi.fn()
+    const logs = await runFlow(visual, { input: '', insert: async () => undefined, refresh: async () => undefined, query: async () => [{ name: 'Alpha', status: 'done' }, { name: 'Beta', status: 'todo' }, { name: 'Gamma', status: 'done' }], notify })
+    expect(logs.find((entry) => entry.nodeId === 'kpi')?.value).toBe(2)
+    expect(notify).toHaveBeenCalledWith('Calcolo pronto', 'success')
   })
 })

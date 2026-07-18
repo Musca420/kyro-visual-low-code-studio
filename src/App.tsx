@@ -1600,7 +1600,8 @@ function Editor({
       }
       const result = await runFlow(activeFlow, {
         input,
-        insert: (text) => insertRecord(source.id, text),
+        insert: (text, sourceId) => insertRecord(sourceId || source.id, text),
+        query: (sourceId) => queryRecords(sourceId || source.id),
         refresh: async () => {
           await queryRecords(source.id);
         },
@@ -2337,6 +2338,9 @@ function Editor({
           >
             <FlowEditor
               flow={flow}
+              components={project.pages.flatMap((page) => page.components)}
+              sources={project.dataSources}
+              selectedNodeId={selectedFlowNodeId}
               onNodeSelect={setSelectedFlowNodeId}
               onChange={(updated) =>
                 change({
@@ -3896,7 +3900,7 @@ function LogConsole({ logs }: { logs: FlowLog[] }) {
           {logs.map((log, index) => (
             <li key={`${log.nodeId}-${index}`} className={log.level}>
               <code>{log.level}</code>
-              <span>{log.message}</span>
+              <span>{log.message}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</span>
             </li>
           ))}
         </ol>
