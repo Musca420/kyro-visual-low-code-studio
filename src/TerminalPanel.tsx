@@ -11,6 +11,7 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
   const [command, setCommand] = useState("");
   const [output, setOutput] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const cursor = useRef(0);
   const screen = useRef<HTMLPreElement>(null);
 
@@ -75,17 +76,22 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
     event.preventDefault();
     if (!session || !command.trim()) return;
     setError("");
-    const response = await fetch(
-      `/api/terminal/sessions/${session.sessionId}/input`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ projectId, command }),
-      },
-    );
-    const value = await response.json();
-    if (!response.ok) return setError(value.error || "Comando non accettato");
-    setCommand("");
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        `/api/terminal/sessions/${session.sessionId}/input`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ projectId, command }),
+        },
+      );
+      const value = await response.json();
+      if (!response.ok) return setError(value.error || "Comando non accettato");
+      setCommand("");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const close = async () => {
@@ -133,12 +139,12 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
             onChange={(event) => setCommand(event.target.value)}
             placeholder="Esempio: git status --short"
             autoComplete="off"
-            disabled={session?.status !== "running"}
+            disabled={session?.status !== "running" || submitting}
           />
         </label>
         <button
           type="submit"
-          disabled={session?.status !== "running" || !command.trim()}
+          disabled={session?.status !== "running" || submitting || !command.trim()}
         >
           Esegui
         </button>

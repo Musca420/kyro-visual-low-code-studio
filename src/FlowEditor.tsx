@@ -29,6 +29,7 @@ const nodeTypes = { editor: FlowNode }
 export default function FlowEditor({ flow, components, sources, modules, selectedNodeId, onChange, onModulesChange, onCreateModule, onNodeSelect }: { flow?: Flow; components: EditorComponent[]; sources: Project['dataSources']; modules: Project['codeModules']; selectedNodeId?: string; onChange: (flow: Flow) => void; onModulesChange: (modules: Project['codeModules']) => void; onCreateModule: (module: Project['codeModules'][number], nodeId: string) => void; onNodeSelect?: (nodeId: string) => void }) {
   const [connectionError, setConnectionError] = useState('')
   const [paletteQuery, setPaletteQuery] = useState('')
+  const [connectionPath, setConnectionPath] = useState('success')
   const portFor = (node: FlowNode) => node.type === 'module' ? (() => {
     const module = modules.find((item) => item.id === node.config.moduleId)
     return module ? { input: module.inputType, output: module.outputType } : ports.module
@@ -36,6 +37,8 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
   const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type, cases: node.type === 'switch' ? node.config.cases?.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 4) : undefined, ...portFor(node) } }))
   const edges: Edge[] = (flow?.edges ?? []).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.path, label: edge.path, animated: edge.path === 'success' }))
   const selected = flow?.nodes.find((node) => node.id === selectedNodeId)
+  const selectedPaths = selected?.type === 'switch' ? [...(selected.config.cases ?? '').split(',').map((item) => `case:${item.trim()}`).filter((item) => item !== 'case:').slice(0, 4), 'error'] : selected?.type === 'loop' ? ['each', 'done'] : selected && ['validate', 'condition'].includes(selected.type) ? ['success', 'error'] : ['success']
+  const activeConnectionPath = selectedPaths.includes(connectionPath) ? connectionPath : selectedPaths[0]
   const addNode = (type: FlowNode['type']) => {
     if (!flow) return
     const index = flow.nodes.length
@@ -59,6 +62,16 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
     setConnectionError('')
     const updated = addEdge(connection, edges)
     onChange({ ...flow, edges: updated.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, path: edge.sourceHandle || 'success' })) })
+  }
+  const connectGuided = (path: string, targetId: string) => {
+    if (!flow || !selected) return
+    if (!targetId) { setConnectionError(''); return onChange({ ...flow, edges: flow.edges.filter((edge) => !(edge.source === selected.id && edge.path === path)) }) }
+    const target = flow.nodes.find((node) => node.id === targetId)
+    if (!target) return
+    const output = portFor(selected).output, input = portFor(target).input
+    if (output !== 'unknown' && input !== 'unknown' && output !== input) return setConnectionError(`Collegamento non valido: ${labels[selected.type]} produce ${output}, ${labels[target.type]} richiede ${input}.`)
+    setConnectionError('')
+    onChange({ ...flow, edges: [...flow.edges.filter((edge) => !(edge.source === selected.id && edge.path === path)), { id: crypto.randomUUID(), source: selected.id, target: targetId, path }] })
   }
   if (!flow) return <div className="empty-panel"><strong>Nessun flow</strong><span>Crea il flow dati dopo aver aggiunto input, pulsante, lista e sorgente locale.</span></div>
   const matchingTypes = flowNodeTypes.filter((type) => `${labels[type]} ${type}`.toLowerCase().includes(paletteQuery.trim().toLowerCase()))
@@ -119,6 +132,7 @@ export default function FlowEditor({ flow, components, sources, modules, selecte
           const module = { id: crypto.randomUUID(), name: 'Pulisci testo', description: '', inputType: 'string' as const, outputType: 'string' as const, operation: 'trim' as const, config: {}, tests: [{ id: crypto.randomUUID(), input: ' prova ', expected: 'prova' }] };
           onCreateModule(module, selected.id);
         }}>Nuovo modulo protetto</button>{modules.find((module) => module.id === selected.config.moduleId) && <CodeModuleEditor module={modules.find((module) => module.id === selected.config.moduleId)!} onChange={(updated) => onModulesChange(modules.map((module) => module.id === updated.id ? updated : module))} />}</>}
+        <fieldset><legend>Collegamento guidato</legend>{selectedPaths.length > 1 && <label>Uscita da collegare<select aria-label="Uscita da collegare" value={activeConnectionPath} onChange={(event) => setConnectionPath(event.target.value)}>{selectedPaths.map((path) => <option key={path} value={path}>{path}</option>)}</select></label>}<label>Passo successivo<select aria-label="Passo successivo" value={flow.edges.find((edge) => edge.source === selected.id && edge.path === activeConnectionPath)?.target ?? ''} onChange={(event) => connectGuided(activeConnectionPath, event.target.value)}><option value="">Nessuno / fine flow</option>{flow.nodes.filter((node) => node.id !== selected.id).map((node) => <option key={node.id} value={node.id}>{node.label}</option>)}</select></label><small>Alternativa accessibile al trascinamento dei pallini.</small></fieldset>
         <button type="button" className="danger" onClick={removeSelected}>Elimina nodo</button>
       </> : <p>Seleziona un nodo per configurarlo.</p>}
       {connectionError && <p role="alert" className="flow-connection-error">{connectionError}</p>}

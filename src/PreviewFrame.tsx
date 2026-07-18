@@ -397,7 +397,8 @@ export function PreviewFrame({
           const outcome = await onRunFlow(String(event.data.flowId ?? ""), event.data.input);
           frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", records: sourceId ? await onRefresh() : [], ...outcome }, "*");
         } catch (problem) {
-          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", notification: problem instanceof Error ? problem.message : String(problem), level: "error" }, "*");
+          const message = problem instanceof Error ? problem.message : String(problem);
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", notification: message, error: message, records: sourceId ? await onRefresh() : [], level: "error" }, "*");
         }
       }
       if (event.data.type === "DASHBOARD_ACTION" && onDashboardAction) {

@@ -32,7 +32,8 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   const queryNode = page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" });
   const refreshNode = page.locator(".react-flow__node").filter({ hasText: "Aggiorna lista" });
   await expect(queryNode).toBeVisible();
-  await refreshNode.locator(".react-flow__handle.source").dragTo(queryNode.locator(".react-flow__handle.target"));
+  await refreshNode.click();
+  await page.getByLabel("Passo successivo").selectOption({ label: "Carica attività recenti" });
   await page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).click();
   await page.getByLabel("Ferma qui durante il debug").check();
 
@@ -83,7 +84,8 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.locator(".react-flow__node").filter({ hasText: "Funzione avanzata" }).click();
   await expect(page.getByLabel("Modulo collegato")).toHaveValue(/.+/);
 
-  await queryNode.locator(".react-flow__handle.source").dragTo(page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).locator(".react-flow__handle.target"));
+  await queryNode.click();
+  await page.getByLabel("Passo successivo").selectOption({ label: "Inserisci record" });
   await expect(page.getByRole("alert")).toContainText("produce list");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-builder.png", fullPage: true });
 
@@ -110,10 +112,9 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await addNode("Mostra notifica");
   await page.getByLabel("Nome nodo").fill("Caso in corso");
   const caseEdge = page.locator(".react-flow__edge-text").filter({ hasText: "case:in corso" });
-  for (let attempt = 0; attempt < 3 && await caseEdge.count() === 0; attempt += 1) {
-    await switchNode.locator('[title="in corso"]').dragTo(page.locator(".react-flow__node").filter({ hasText: "Caso in corso" }).locator(".react-flow__handle.target"));
-    await page.waitForTimeout(150);
-  }
+  await switchNode.click();
+  await page.getByLabel("Uscita da collegare").selectOption("case:in corso");
+  await page.getByLabel("Passo successivo").selectOption({ label: "Caso in corso" });
   await expect(caseEdge).toBeVisible();
   await addNode("Per ogni elemento");
   await page.getByLabel("Limite ciclo").fill("25");
