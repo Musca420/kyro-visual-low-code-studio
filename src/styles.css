@@ -1261,7 +1261,13 @@ label {
 .generated-file-backdrop header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .generated-file-backdrop h2 { margin: 0; font-size: 18px; }
 .generated-file-backdrop pre { margin: 0; padding: 18px; overflow: auto; color: var(--ink); font-size: 12px; white-space: pre-wrap; }
-.flow-inspector { border-left: 1px solid var(--line); }
+.code-module-editor { display: grid; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.code-module-editor p { margin: 0; color: var(--muted); font-size: 12px; }
+.code-module-editor fieldset { display: grid; gap: 8px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.code-module-editor output { display: block; font-size: 12px; }
+.module-signature { width: max-content; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font: 12px ui-monospace, monospace; }
+.module-test-pass { color: var(--success); }
+.flow-inspector { max-height: max(520px, calc(100vh - 180px)); overflow-y: auto; border-left: 1px solid var(--line); }
 .flow-inspector label { display: grid; gap: 5px; font-size: 11px; }
 .flow-builder .flow-canvas { border: 0; border-radius: 0; min-height: 520px; }
 @media (max-width: 900px) {
@@ -1989,6 +1995,11 @@ label {
 [data-theme="dark"] .palette button:hover {
   background: #1d2a2d;
   color: var(--purple);
+}
+[data-theme="dark"] .secondary:hover,
+[data-theme="dark"] .icon-button:hover {
+  background: #223135;
+  color: #7ce8f0;
 }
 [data-theme="dark"] .canvas-toolbar,
 [data-theme="dark"] .guide-strip,

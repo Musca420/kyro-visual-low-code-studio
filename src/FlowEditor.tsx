@@ -1,30 +1,35 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Background, Controls, Handle, Position, ReactFlow, addEdge, type Connection, type Edge, type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { flowNodeTypes, type EditorComponent, type Flow, type FlowNode, type Project } from './model'
+import { CodeModuleEditor } from './CodeModuleEditor'
 
-const colors: Record<string, string> = { event: '#7c3aed', readInput: '#2563eb', validate: '#d97706', condition: '#ea580c', insert: '#059669', query: '#0f766e', update: '#15803d', delete: '#b91c1c', filter: '#9333ea', sort: '#4f46e5', kpi: '#c2410c', refresh: '#0891b2', navigate: '#0369a1', openModal: '#be185d', notify: '#db2777', log: '#64748b' }
-const labels: Record<FlowNode['type'], string> = { event: 'Evento', readInput: 'Leggi input', validate: 'Valida', condition: 'Condizione', insert: 'Crea record', query: 'Carica dati', update: 'Aggiorna record', delete: 'Elimina record', filter: 'Filtra', sort: 'Ordina', kpi: 'Calcola KPI', refresh: 'Aggiorna UI', navigate: 'Vai alla pagina', openModal: 'Apri modal', notify: 'Mostra notifica', log: 'Debug' }
-const defaults: Record<FlowNode['type'], Record<string, string>> = { event: {}, readInput: {}, validate: { message: 'Questo valore è obbligatorio' }, condition: { field: '', operator: 'equals', value: '' }, insert: {}, query: {}, update: {}, delete: {}, filter: { field: 'text', value: '' }, sort: { field: 'date', direction: 'asc' }, kpi: { operation: 'count' }, refresh: {}, navigate: { path: '/' }, openModal: {}, notify: { message: 'Operazione completata', level: 'success' }, log: { message: 'Valore corrente' } }
+const colors: Record<string, string> = { event: '#7c3aed', readInput: '#2563eb', validate: '#d97706', condition: '#ea580c', insert: '#059669', query: '#0f766e', update: '#15803d', delete: '#b91c1c', filter: '#9333ea', sort: '#4f46e5', kpi: '#c2410c', refresh: '#0891b2', navigate: '#0369a1', openModal: '#be185d', notify: '#db2777', module: '#06b6d4', log: '#64748b' }
+const labels: Record<FlowNode['type'], string> = { event: 'Evento', readInput: 'Leggi input', validate: 'Valida', condition: 'Condizione', insert: 'Crea record', query: 'Carica dati', update: 'Aggiorna record', delete: 'Elimina record', filter: 'Filtra', sort: 'Ordina', kpi: 'Calcola KPI', refresh: 'Aggiorna UI', navigate: 'Vai alla pagina', openModal: 'Apri modal', notify: 'Mostra notifica', module: 'Funzione avanzata', log: 'Debug' }
+const defaults: Record<FlowNode['type'], Record<string, string>> = { event: {}, readInput: {}, validate: { message: 'Questo valore è obbligatorio' }, condition: { field: '', operator: 'equals', value: '' }, insert: {}, query: {}, update: {}, delete: {}, filter: { field: 'text', value: '' }, sort: { field: 'date', direction: 'asc' }, kpi: { operation: 'count' }, refresh: {}, navigate: { path: '/' }, openModal: {}, notify: { message: 'Operazione completata', level: 'success' }, module: {}, log: { message: 'Valore corrente' } }
 type ValueType = 'unknown' | 'string' | 'record' | 'list' | 'number'
-const ports: Record<FlowNode['type'], { input: ValueType; output: ValueType }> = { event: { input: 'unknown', output: 'unknown' }, readInput: { input: 'unknown', output: 'string' }, validate: { input: 'unknown', output: 'unknown' }, condition: { input: 'unknown', output: 'unknown' }, insert: { input: 'string', output: 'record' }, query: { input: 'unknown', output: 'list' }, update: { input: 'record', output: 'record' }, delete: { input: 'record', output: 'unknown' }, filter: { input: 'list', output: 'list' }, sort: { input: 'list', output: 'list' }, kpi: { input: 'list', output: 'number' }, refresh: { input: 'unknown', output: 'unknown' }, navigate: { input: 'unknown', output: 'unknown' }, openModal: { input: 'unknown', output: 'unknown' }, notify: { input: 'unknown', output: 'unknown' }, log: { input: 'unknown', output: 'unknown' } }
+const ports: Record<FlowNode['type'], { input: ValueType; output: ValueType }> = { event: { input: 'unknown', output: 'unknown' }, readInput: { input: 'unknown', output: 'string' }, validate: { input: 'unknown', output: 'unknown' }, condition: { input: 'unknown', output: 'unknown' }, insert: { input: 'string', output: 'record' }, query: { input: 'unknown', output: 'list' }, update: { input: 'record', output: 'record' }, delete: { input: 'record', output: 'unknown' }, filter: { input: 'list', output: 'list' }, sort: { input: 'list', output: 'list' }, kpi: { input: 'list', output: 'number' }, refresh: { input: 'unknown', output: 'unknown' }, navigate: { input: 'unknown', output: 'unknown' }, openModal: { input: 'unknown', output: 'unknown' }, notify: { input: 'unknown', output: 'unknown' }, module: { input: 'unknown', output: 'unknown' }, log: { input: 'unknown', output: 'unknown' } }
 
 function FlowNode({ data }: NodeProps) {
-  const value = data as { label: string; type: string }
+  const value = data as { label: string; type: string; input: ValueType; output: ValueType }
   return <div className="flow-node" style={{ borderColor: colors[value.type] ?? '#64748b' }}>
     {value.type !== 'event' && <Handle type="target" position={Position.Left} />}
     <small>{value.type}</small><strong>{value.label}</strong>
     <Handle type="source" position={Position.Right} id="success" />
-    <span className="port-types">{ports[value.type as FlowNode['type']].input} → {ports[value.type as FlowNode['type']].output}</span>
+    <span className="port-types">{value.input} → {value.output}</span>
     {['validate', 'condition'].includes(value.type) && <Handle type="source" position={Position.Bottom} id="error" />}
   </div>
 }
 
 const nodeTypes = { editor: FlowNode }
 
-export default function FlowEditor({ flow, components, sources, selectedNodeId, onChange, onNodeSelect }: { flow?: Flow; components: EditorComponent[]; sources: Project['dataSources']; selectedNodeId?: string; onChange: (flow: Flow) => void; onNodeSelect?: (nodeId: string) => void }) {
+export default function FlowEditor({ flow, components, sources, modules, selectedNodeId, onChange, onModulesChange, onCreateModule, onNodeSelect }: { flow?: Flow; components: EditorComponent[]; sources: Project['dataSources']; modules: Project['codeModules']; selectedNodeId?: string; onChange: (flow: Flow) => void; onModulesChange: (modules: Project['codeModules']) => void; onCreateModule: (module: Project['codeModules'][number], nodeId: string) => void; onNodeSelect?: (nodeId: string) => void }) {
   const [connectionError, setConnectionError] = useState('')
-  const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type } }))
+  const portFor = (node: FlowNode) => node.type === 'module' ? (() => {
+    const module = modules.find((item) => item.id === node.config.moduleId)
+    return module ? { input: module.inputType, output: module.outputType } : ports.module
+  })() : ports[node.type]
+  const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type, ...portFor(node) } }))
   const edges: Edge[] = (flow?.edges ?? []).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.path, label: edge.path, animated: edge.path === 'success' }))
   const selected = flow?.nodes.find((node) => node.id === selectedNodeId)
   const addNode = (type: FlowNode['type']) => {
@@ -41,16 +46,16 @@ export default function FlowEditor({ flow, components, sources, selectedNodeId, 
     onChange({ ...flow, nodes: flow.nodes.filter((node) => node.id !== selected.id), edges: flow.edges.filter((edge) => edge.source !== selected.id && edge.target !== selected.id) })
     onNodeSelect?.('')
   }
-  const connect = useCallback((connection: Connection) => {
+  const connect = (connection: Connection) => {
     if (!flow || !connection.source || !connection.target) return
     const source = flow.nodes.find((node) => node.id === connection.source), target = flow.nodes.find((node) => node.id === connection.target)
     if (!source || !target) return
-    const output = ports[source.type].output, input = ports[target.type].input
+    const output = portFor(source).output, input = portFor(target).input
     if (output !== 'unknown' && input !== 'unknown' && output !== input) return setConnectionError(`Collegamento non valido: ${labels[source.type]} produce ${output}, ${labels[target.type]} richiede ${input}.`)
     setConnectionError('')
     const updated = addEdge(connection, edges)
     onChange({ ...flow, edges: updated.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, path: edge.sourceHandle === 'error' ? 'error' : 'success' })) })
-  }, [flow, edges, onChange])
+  }
   if (!flow) return <div className="empty-panel"><strong>Nessun flow</strong><span>Crea il flow dati dopo aver aggiunto input, pulsante, lista e sorgente locale.</span></div>
   return <div className="flow-builder">
     <aside className="flow-palette" aria-label="Aggiungi nodi al flow">
@@ -87,6 +92,10 @@ export default function FlowEditor({ flow, components, sources, selectedNodeId, 
         {selected.type === 'navigate' && <label>Pagina<input aria-label="Percorso navigazione" value={selected.config.path ?? '/'} onChange={(event) => setConfig('path', event.target.value)} /></label>}
         {['notify', 'log'].includes(selected.type) && <label>Messaggio<input aria-label="Messaggio nodo" value={selected.config.message ?? ''} onChange={(event) => setConfig('message', event.target.value)} /></label>}
         {selected.type === 'notify' && <label>Tipo notifica<select aria-label="Tipo notifica" value={selected.config.level ?? 'success'} onChange={(event) => setConfig('level', event.target.value)}><option value="success">Successo</option><option value="error">Errore</option><option value="info">Informazione</option></select></label>}
+        {selected.type === 'module' && <><label>Modulo<select aria-label="Modulo collegato" value={selected.config.moduleId ?? ''} onChange={(event) => setConfig('moduleId', event.target.value)}><option value="">Scegli modulo…</option>{modules.map((module) => <option key={module.id} value={module.id}>{module.name}</option>)}</select></label><button type="button" className="secondary" onClick={() => {
+          const module = { id: crypto.randomUUID(), name: 'Pulisci testo', description: '', inputType: 'string' as const, outputType: 'string' as const, operation: 'trim' as const, config: {}, tests: [{ id: crypto.randomUUID(), input: ' prova ', expected: 'prova' }] };
+          onCreateModule(module, selected.id);
+        }}>Nuovo modulo protetto</button>{modules.find((module) => module.id === selected.config.moduleId) && <CodeModuleEditor module={modules.find((module) => module.id === selected.config.moduleId)!} onChange={(updated) => onModulesChange(modules.map((module) => module.id === updated.id ? updated : module))} />}</>}
         <button type="button" className="danger" onClick={removeSelected}>Elimina nodo</button>
       </> : <p>Seleziona un nodo per configurarlo.</p>}
       {connectionError && <p role="alert" className="flow-connection-error">{connectionError}</p>}

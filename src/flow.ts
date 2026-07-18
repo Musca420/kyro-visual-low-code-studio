@@ -11,6 +11,7 @@ export type FlowContext = {
   navigate?: (path: string) => Promise<void> | void
   openModal?: (componentId: string) => Promise<void> | void
   notify?: (message: string, level: string) => Promise<void> | void
+  runModule?: (moduleId: string, value: unknown) => Promise<unknown> | unknown
   signal?: AbortSignal
   timeoutMs?: number
 }
@@ -44,6 +45,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'navigate') await context.navigate?.(node.config.path || '/')
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
+      if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
       path = conditionResult === false ? 'error' : 'success'
       logs.push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value })
     } catch (error) {

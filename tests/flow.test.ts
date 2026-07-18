@@ -80,4 +80,17 @@ describe('flow runtime', () => {
     expect(logs.some((entry) => entry.level === 'error')).toBe(false)
     expect(notify).toHaveBeenCalledWith('No', 'error')
   })
+
+  it('esegue un modulo protetto come nodo del flow', async () => {
+    const advanced: Flow = { id: 'advanced', name: 'Advanced', nodes: [
+      { id: 'start', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'module', type: 'module', label: 'Pulisci', position: { x: 1, y: 0 }, config: { moduleId: 'clean' } },
+      { id: 'log', type: 'log', label: 'Result', position: { x: 2, y: 0 }, config: {} },
+    ], edges: [
+      { id: '1', source: 'start', target: 'module', path: 'success' },
+      { id: '2', source: 'module', target: 'log', path: 'success' },
+    ] }
+    const logs = await runFlow(advanced, { input: ' prova ', insert: async () => undefined, refresh: async () => undefined, runModule: (_id, value) => String(value).trim() })
+    expect(logs.find((entry) => entry.nodeId === 'module')?.value).toBe('prova')
+  })
 })

@@ -3,6 +3,7 @@ import type { Breakpoint, EditorComponent, Project } from "./model";
 import { parseProject, serializeProject } from "./model";
 import { buildExperienceAssets } from "./PreviewFrame";
 import { canContain, componentTree, type ComponentBranch } from "./hierarchy";
+import { generateCodeModule } from "./codeModules";
 
 const htmlEscape = (value: unknown) =>
   String(value ?? "").replace(
@@ -502,13 +503,14 @@ export function generateFiles(input: Project): Record<string, string> {
       throw new Error("Configura i flow prima dell’export");
     if (project.state.experience === "dashboard" && !project.dataSources.length)
       throw new Error("Configura la sorgente dati prima dell’export");
-    return withGeneratedBackend(
+    const files = withGeneratedBackend(
       project,
       platformFiles(
         project,
         generateExperienceFiles(project, project.state.experience),
       ),
     );
+    return withCodeModules(project, files);
   }
   const inputComponent = page.components.find(
     (component) => component.type === "input",
@@ -551,6 +553,7 @@ async function insert(text: string) {
   return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }`;
   const main = `import './style.css'
+${moduleImports(project)}
 
 ${auth.runtime}
 
@@ -570,7 +573,7 @@ addEventListener('hashchange', route); route()
 document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
   const input = document.getElementById('${inputComponent?.id ?? ""}') as HTMLInputElement | null
   if (!input?.value.trim()) { input?.setAttribute('aria-invalid', 'true'); status!.textContent = 'Il valore è obbligatorio'; return }
-  await insert(input.value.trim()); input.value = ''; input.removeAttribute('aria-invalid'); await refresh()
+  const value = ${modulePipeline(project, "input.value.trim()")}; await insert(String(value)); input.value = ''; input.removeAttribute('aria-invalid'); await refresh()
 })
 ${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource(${JSON.stringify(project.appConfig.realtime.url)}); updates.addEventListener('records', () => void refresh())` : ""}
 void refresh()
@@ -626,7 +629,29 @@ void refresh()
       .map((item) => `# ${item.description}\n${item.name}=`)
       .join("\n\n");
   Object.assign(files, preservedSourceFiles(project));
-  return withGeneratedBackend(project, files);
+  return withCodeModules(project, withGeneratedBackend(project, files));
+}
+
+function withCodeModules(project: Project, files: Record<string, string>) {
+  if (!project.codeModules.length) return files;
+  for (const module of project.codeModules)
+    files[`src/extensions/${moduleFile(module.id)}.ts`] = generateCodeModule(module);
+  return files;
+}
+
+const moduleFile = (id: string) => `module-${id.replace(/[^a-z0-9-]/gi, "").slice(0, 36)}`;
+
+function referencedModules(project: Project) {
+  const ids = project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "module").map((node) => node.config.moduleId));
+  return project.codeModules.filter((module) => ids.includes(module.id));
+}
+
+function moduleImports(project: Project) {
+  return referencedModules(project).map((module, index) => `import { run as runExtension${index} } from './extensions/${moduleFile(module.id)}'`).join("\n");
+}
+
+function modulePipeline(project: Project, initial: string) {
+  return referencedModules(project).reduce((value, _module, index) => `runExtension${index}(${value} as never)`, initial);
 }
 
 export async function downloadGeneratedApp(project: Project) {

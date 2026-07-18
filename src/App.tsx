@@ -25,6 +25,7 @@ import {
   type ProjectVersion,
 } from "./db";
 import { runFlow, type FlowLog } from "./flow";
+import { runCodeModule } from "./codeModules";
 import {
   BREAKPOINTS,
   componentTypes,
@@ -1606,12 +1607,17 @@ function Editor({
         refresh: async () => {
           await queryRecords(source.id);
         },
+        runModule: (moduleId, value) => {
+          const module = project.codeModules.find((item) => item.id === moduleId);
+          if (!module) throw new Error("Modulo avanzato non trovato");
+          return runCodeModule(module, value);
+        },
       });
       setLogs(result);
       const error = result.find((entry) => entry.level === "error");
       if (error) throw new Error(error.message);
     },
-    [project.flows, project.dataSources, refreshRecords],
+    [project.flows, project.dataSources, project.codeModules, refreshRecords],
   );
 
   const dashboardAction = useCallback(
@@ -2355,8 +2361,18 @@ function Editor({
               flow={flow}
               components={project.pages.flatMap((page) => page.components)}
               sources={project.dataSources}
+              modules={project.codeModules}
               selectedNodeId={selectedFlowNodeId}
               onNodeSelect={setSelectedFlowNodeId}
+              onModulesChange={(codeModules) => change({ ...project, codeModules })}
+              onCreateModule={(module, nodeId) => change({
+                ...project,
+                codeModules: [...project.codeModules, module],
+                flows: project.flows.map((item) => item.id === flow?.id ? {
+                  ...item,
+                  nodes: item.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, moduleId: module.id } } : node),
+                } : item),
+              })}
               onChange={(updated) =>
                 change({
                   ...project,

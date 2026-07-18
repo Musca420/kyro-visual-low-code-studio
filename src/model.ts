@@ -224,6 +224,7 @@ export const flowNodeTypes = [
   "navigate",
   "openModal",
   "notify",
+  "module",
   "log",
 ] as const;
 const nodeTypeSchema = z.enum(flowNodeTypes);
@@ -361,6 +362,18 @@ export const projectSchema = z.object({
   assets: z.array(
     z.object({ id: z.string(), name: z.string(), url: z.string() }),
   ),
+  codeModules: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string().min(1),
+      description: z.string().default(""),
+      inputType: z.enum(["unknown", "string", "number", "record", "list"]),
+      outputType: z.enum(["unknown", "string", "number", "record", "list"]),
+      operation: z.enum(["trim", "uppercase", "lowercase", "template", "pick", "count"]),
+      config: z.record(z.string(), z.string()).default({}),
+      tests: z.array(z.object({ id: z.string(), input: z.string(), expected: z.string() })).default([]),
+    }),
+  ).default([]),
   appConfig: z
     .object({
       authentication: z.object({
@@ -494,6 +507,7 @@ export function createProject(name: string): Project {
     theme: { tokens: { primary: "#6d5dfc", surface: "#ffffff" } },
     animations: [],
     assets: [],
+    codeModules: [],
     appConfig: {
       authentication: {
         mode: "none",
@@ -548,6 +562,7 @@ function migrateProject(input: unknown): unknown {
     theme: legacy.theme ?? { tokens: {} },
     animations: legacy.animations ?? [],
     assets: legacy.assets ?? [],
+    codeModules: legacy.codeModules ?? [],
     appConfig: legacy.appConfig ?? {
       authentication: {
         mode: "none",
@@ -571,6 +586,7 @@ export function validateReferences(project: Project) {
   );
   const flowIds = new Set(project.flows.map((flow) => flow.id));
   const sourceIds = new Set(project.dataSources.map((source) => source.id));
+  const moduleIds = new Set(project.codeModules.map((module) => module.id));
   for (const page of project.pages) {
     const pageIds = new Set(page.components.map((component) => component.id));
     if (pageIds.size !== page.components.length)
@@ -612,6 +628,8 @@ export function validateReferences(project: Project) {
         !componentIds.has(node.config.componentId)
       )
         throw new Error(`Input mancante ${node.config.componentId}`);
+      else if (node.type === "module" && node.config.moduleId && !moduleIds.has(node.config.moduleId))
+        throw new Error(`Modulo mancante ${node.config.moduleId}`);
   }
 }
 

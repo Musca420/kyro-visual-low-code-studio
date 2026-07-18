@@ -49,6 +49,16 @@ describe("web generator", () => {
     );
   });
 
+  it("esporta i moduli protetti e li collega al percorso generato", () => {
+    const project = createProject("Advanced export");
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [makeComponent("input"), makeComponent("button"), makeComponent("list")] });
+    project.codeModules.push({ id: "clean", name: "Pulisci", description: "", inputType: "string", outputType: "string", operation: "trim", config: {}, tests: [] });
+    project.flows.push({ id: "flow", name: "Create", nodes: [{ id: "start", type: "event", label: "Start", position: { x: 0, y: 0 }, config: {} }, { id: "module", type: "module", label: "Pulisci", position: { x: 1, y: 0 }, config: { moduleId: "clean" } }], edges: [{ id: "edge", source: "start", target: "module", path: "success" }] });
+    const files = generateFiles(project);
+    expect(files["src/extensions/module-clean.ts"]).toContain("export function run");
+    expect(files["src/main.ts"]).toContain("runExtension0(input.value.trim() as never)");
+  });
+
   it("preserves nested containers in the exported markup", () => {
     const project = createProject("Nested Export");
     const stack = makeComponent("stack"),

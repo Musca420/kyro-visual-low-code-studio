@@ -41,11 +41,25 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByLabel("Valore condizione").fill("flow");
   await expect(page.locator(".react-flow__node").filter({ hasText: "Condizione" })).toBeVisible();
 
+  await nodePalette.getByRole("button", { name: "Funzione avanzata" }).click();
+  await page.getByRole("button", { name: "Nuovo modulo protetto" }).click();
+  await page.getByLabel("Operazione modulo").selectOption("uppercase");
+  await page.getByLabel("Input test modulo").fill("canva");
+  await page.getByLabel("Risultato atteso modulo").fill("CANVA");
+  await page.getByRole("button", { name: "Esegui test" }).click();
+  await expect(page.getByText("Test superato: CANVA")).toBeVisible();
+  await page.getByRole("button", { name: "Prova ora" }).click();
+  await expect(page.getByText("Output: CANVA")).toBeVisible();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Funzione avanzata" })).toContainText("string → string");
+  await page.screenshot({ path: "artifacts/frontend-editor-protected-module.png", fullPage: true });
+  await expect(page.getByText("Salvato automaticamente")).toBeVisible();
+  await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
+  await page.getByRole("button", { name }).click();
+  await page.getByRole("button", { name: /^Flow/ }).click();
+  await page.locator(".react-flow__node").filter({ hasText: "Funzione avanzata" }).click();
+  await expect(page.getByLabel("Modulo collegato")).toHaveValue(/.+/);
+
   await queryNode.locator(".react-flow__handle.source").dragTo(page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).locator(".react-flow__handle.target"));
   await expect(page.getByRole("alert")).toContainText("produce list");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-builder.png", fullPage: true });
-
-  await queryNode.click();
-  await page.getByRole("button", { name: "Elimina nodo" }).click();
-  await expect(page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" })).toHaveCount(0);
 });

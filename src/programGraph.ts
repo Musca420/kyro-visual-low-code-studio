@@ -193,6 +193,8 @@ export function inspectFlowNodeProgram(
     errors.push("Scegli la sorgente dati usata da questo nodo.");
   if (node.type === "validate" && !node.config.message)
     errors.push("Scrivi il messaggio mostrato quando la validazione fallisce.");
+  if (node.type === "module" && !node.config.moduleId)
+    errors.push("Scegli o crea il modulo protetto eseguito da questo nodo.");
   const nodeById = (id: string) => flow.nodes.find((item) => item.id === id);
   return {
     nodeId,
@@ -258,5 +260,7 @@ function generatedFiles(project: Project, origin: "component" | "flow" | "data")
   if (origin === "component") files.push("src/style.css");
   if (origin !== "component" && project.dataSources.some((source) => source.provider === "generated"))
     files.push("server/index.mjs");
+  if (origin === "flow")
+    files.push(...project.codeModules.map((module) => `src/extensions/module-${module.id.replace(/[^a-z0-9-]/gi, "").slice(0, 36)}.ts`));
   return files;
 }
