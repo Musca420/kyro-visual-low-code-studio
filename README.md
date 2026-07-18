@@ -76,7 +76,9 @@ Il formato include metadati, pagine, componenti tipizzati, stili desktop/tablet/
 
 Segreti, token e password non appartengono al modello. Il provider MVP non richiede segreti. Import e manifest sono validati; la preview non usa `eval`, non inserisce HTML dinamico non fidato e ha `sandbox="allow-scripts"`. L'eliminazione progetto richiede conferma. I plugin dichiarano permessi ma, nell'MVP, non eseguono codice.
 
-La scheda Dati propone in termini pratici tre destinazioni: IndexedDB sul dispositivo, una API REST esistente o un backend Node generato. Per le API, l'export legge il token da `VITE_API_TOKEN`; non viene serializzato nel progetto. Il backend generato espone CRUD su `/records` e persiste in `server/data.json`; `tests/generatedBackend.test.ts` lo avvia e verifica l'intero ciclo HTTP.
+La scheda Dati propone in termini pratici tre destinazioni: IndexedDB sul dispositivo, una API REST esistente o un backend Node generato. Per le API, l'export legge il token da `VITE_API_TOKEN`; non viene serializzato nel progetto. Il backend generato espone CRUD su `/records`, persiste in `server/data.json` e può aggiungere autenticazione email/password con sessioni firmate, ruoli e aggiornamenti SSE. La prima registrazione crea l'amministratore; le password sono derivate con `scrypt` e i segreti restano nelle variabili d'ambiente. `tests/generatedBackend.test.ts` compila l'app esportata, avvia il server e verifica registrazione, login, autorizzazione, CRUD, persistenza e SSE.
+
+La scheda Pubblica configura con controlli guidati accesso, ruoli, modalità offline, aggiornamenti automatici e nomi delle variabili d'ambiente. Se l'utente abilita l'accesso gestito senza un backend, l'editor segnala il requisito mancante e porta alla procedura per generarlo. Il valore dei segreti non viene mai salvato nel progetto; l'export crea soltanto un `.env.example` vuoto.
 
 Nella stessa scheda, Asset consente di caricare immagini, audio e video fino a 2 MB. I file vengono salvati nel progetto e possono essere assegnati ai relativi componenti dal campo **File del progetto** nell'ispettore; `e2e/assets.spec.ts` verifica upload, preview, salvataggio e riapertura.
 
@@ -98,7 +100,7 @@ In questo ambiente il rilevamento automatico trova Android SDK e il JBR di Andro
 
 - Il vertical slice, il provider IndexedDB, l'export web e il plugin di esempio sono completi e reali.
 - Il catalogo espone tutti i componenti MVP con modello/stili/eventi/accessibilità; i componenti fuori dal vertical slice hanno rendering semantico di base, non widget avanzati completi.
-- Il runtime MVP esegue i nodi del vertical slice; HTTP, autenticazione, database remoti e marketplace remoto sono contributi futuri, non simulati.
+- Il runtime MVP esegue i nodi del vertical slice. L'autenticazione generata, i ruoli, REST e SSE sono reali nell'export con backend Node; OIDC resta una configurazione per un provider esterno e richiede credenziali. Database remoti gestiti e marketplace remoto non sono simulati né dichiarati pronti.
 - Snap/guide, componenti riutilizzabili avanzati, animazioni visuali e isolamento di codice plugin non attendibile sono fuori dal vertical slice e non vengono dichiarati pronti.
 - L'export usa la prima sorgente/flow dati per il comportamento CRUD MVP e routing hash per le pagine.
 - La v2 Codex live ha stato, contesto, screenshot canvas/preview, revision lock, operazioni strutturate, undo, gerarchie annidate con `wrap_component`, job progressivi, cronologia locale e ripristino protetto dell’intera operazione file. Resta da completare il terminale PTY interattivo; non è simulato.

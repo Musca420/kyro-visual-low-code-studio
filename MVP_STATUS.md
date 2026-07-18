@@ -15,6 +15,7 @@
 - preparazione Android interamente dalla UI, rilevamento Java/SDK, sync nativo e build APK reale;
 - catalogo ricercabile con nove template completi, ricerca componenti con sinonimi e command palette `Ctrl+K`;
 - procedura dati guidata per IndexedDB, API REST o backend Node generato; CRUD del backend verificato in esecuzione;
+- configurazione visuale di autenticazione, ruoli, offline, SSE e variabili d'ambiente; export autenticato compilato e verificato end-to-end;
 - asset manager visuale con upload immagini/audio/video, assegnazione dall'ispettore e persistenza alla riapertura;
 - skill `frontend-editor-live` validata con script reali.
 
@@ -35,6 +36,7 @@ Prove: `e2e/guided-ux.spec.ts`, `e2e/codex-context.spec.ts`, `tests/editorOperat
 | Runtime success/error | esecuzione deterministica, log, timeout/cancel/loop guard | `tests/flow.test.ts` + E2E errore input vuoto |
 | Provider locale | IndexedDB per progetto, record e plugin | E2E editor ed export indipendente |
 | API e backend | REST esistente con token da ambiente oppure server Node persistente generato | `e2e/data-guidance.spec.ts`, `tests/generatedBackend.test.ts` |
+| Accesso e capacità app | Registrazione/login, sessioni HMAC, ruoli, SSE, offline e requisiti mancanti guidati | `e2e/application-config.spec.ts`, `tests/generatedBackend.test.ts`, `tests/generator.test.ts` |
 | Preview/diagnostica | iframe sandbox, loading/empty/error, console nodi | E2E vertical slice |
 | Import/export progetto | JSON validato e deterministico | unit test modello + controlli dashboard |
 | App indipendente | ZIP Vite/TS, install/build/start e CRUD | `npm run export:sample`, build e `npm run test:generated` |

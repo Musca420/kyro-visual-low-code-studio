@@ -36,7 +36,9 @@ describe("web generator", () => {
       ]),
     );
     expect(files["src/main.ts"]).toContain("indexedDB.open");
-    expect(files["src/main.ts"]).not.toMatch(/password|apiKey|token/i);
+    expect(files["src/main.ts"]).not.toMatch(
+      /(?:password|apiKey|token)\s*[:=]\s*["'][^"']+/i,
+    );
     expect(JSON.parse(files["package.json"]).scripts.build).toBe(
       "tsc && vite build",
     );
@@ -182,13 +184,30 @@ describe("web generator", () => {
       secretStrategy: "none",
       endpoint: "http://127.0.0.1:8787/records",
     });
+    project.appConfig = {
+      authentication: {
+        mode: "generated",
+        roles: ["admin", "editor", "viewer"],
+      },
+      realtime: { mode: "sse", url: "http://127.0.0.1:8787/events" },
+      offline: true,
+      environmentVariables: [
+        { name: "AUTH_SECRET", description: "Firma sessioni", required: true },
+      ],
+    };
     const files = generateFiles(project),
       pkg = JSON.parse(files["package.json"]);
     expect(pkg.scripts.server).toBe("node server/index.mjs");
     expect(files["server/index.mjs"]).toContain("writeFile(file");
     expect(files["server/index.mjs"]).toContain("request.method === 'DELETE'");
     expect(files["src/main.ts"]).toContain("fetch(endpoint");
-    expect(files["src/main.ts"]).toContain("import.meta.env.VITE_API_TOKEN");
+    expect(files["src/main.ts"]).toContain("let authToken");
+    expect(files["index.html"]).toContain('id="auth-gate"');
+    expect(files["server/index.mjs"]).toContain("scryptSync");
+    expect(files["src/main.ts"]).toContain("new EventSource");
+    expect(files["server/index.mjs"]).toContain("text/event-stream");
+    expect(files[".env.example"]).toContain("AUTH_SECRET=");
+    expect(files["index.html"]).toContain('rel="manifest"');
     expect(files["project.frontend-editor.json"]).not.toContain("API_TOKEN=");
   });
 });

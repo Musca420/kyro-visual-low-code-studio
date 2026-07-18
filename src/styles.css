@@ -1809,3 +1809,35 @@ label {
   background: #fff;
   color: var(--danger);
 }
+.application-capabilities {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 0 0 22px;
+}
+.requirement-warning {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid #f1c75b;
+  border-radius: 10px;
+  background: #fff7dd;
+  color: #795400;
+  font-size: 12px;
+}
+.environment-help {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f2f3f7;
+  font-size: 11px;
+}
+.environment-help code {
+  color: #5547d9;
+}
+@media (max-width: 760px) {
+  .application-capabilities {
+    grid-template-columns: 1fr;
+  }
+}

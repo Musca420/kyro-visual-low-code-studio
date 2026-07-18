@@ -125,7 +125,7 @@ function commonExportFiles(project: Project) {
       {
         compilerOptions: {
           target: "ES2022",
-          lib: ["ES2022", "DOM"],
+          lib: ["ES2022", "DOM", "DOM.Iterable"],
           module: "ESNext",
           moduleResolution: "Bundler",
           strict: true,
@@ -140,6 +140,14 @@ function commonExportFiles(project: Project) {
     ),
     "capacitor.config.ts": `export default { appId: 'com.frontendeditor.${project.id.replace(/-/g, "").slice(0, 12)}', appName: ${JSON.stringify(project.name)}, webDir: 'dist' }`,
     "project.frontend-editor.json": serializeProject(project),
+    "app.frontend-editor.json": JSON.stringify(project.appConfig, null, 2),
+    ...(project.appConfig.environmentVariables.length
+      ? {
+          ".env.example": project.appConfig.environmentVariables
+            .map((item) => `# ${item.description}\n${item.name}=`)
+            .join("\n\n"),
+        }
+      : {}),
     "README.md": `# ${project.name}\n\n\`npm install\`, poi \`npm run dev\`. Build: \`npm run build\`. Per Android installare @capacitor/cli e @capacitor/android, quindi \`npx cap add android\` e \`npx cap sync\`. Nessun segreto è incluso.`,
   };
 }
@@ -148,12 +156,16 @@ function platformFiles(
   project: Project,
   files: Record<string, string>,
 ): Record<string, string> {
-  if (project.exportConfig.target === "web") return files;
+  if (project.exportConfig.target === "web" && !project.appConfig.offline)
+    return files;
   const themeColor =
     project.exportConfig.android?.themeColor ??
     project.theme.tokens.primary ??
     "#6d5dfc";
-  if (project.exportConfig.target === "pwa") {
+  if (
+    project.exportConfig.target === "pwa" ||
+    (project.exportConfig.target === "web" && project.appConfig.offline)
+  ) {
     files["index.html"] = files["index.html"].replace(
       "</head>",
       `<meta name="theme-color" content="${htmlEscape(themeColor)}"><link rel="manifest" href="/app.webmanifest"></head>`,
@@ -226,11 +238,40 @@ function platformFiles(
   return files;
 }
 
+const authenticationCss = `#auth-gate{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f2f0ff}#auth-gate form{width:min(420px,100%);display:grid;gap:14px;padding:30px;border:1px solid #dedbe9;border-radius:18px;background:#fff;box-shadow:0 24px 70px #20264b24}#auth-gate form>p{margin:0;color:#6d5dfc;font-size:11px;font-weight:800;letter-spacing:.12em}#auth-gate form>h1{margin:0}#auth-gate [role=alert]{min-height:20px;color:#b42318;font-size:12px}#create-account{background:#fff;color:#4b3fd0;border:1px solid #c9c3ff}`;
+
+function authenticationAssets(project: Project) {
+  if (project.appConfig.authentication.mode !== "generated")
+    return {
+      markup: "",
+      open: "",
+      close: "",
+      runtime: "let authToken = import.meta.env.VITE_API_TOKEN || ''",
+    };
+  const endpoint =
+    project.dataSources.find((source) => source.provider === "generated")
+      ?.endpoint ?? "http://127.0.0.1:8787/records";
+  const base = endpoint.replace(/\/records\/?$/, "");
+  return {
+    markup: `<section id="auth-gate"><form><p>AREA RISERVATA</p><h1>Accedi</h1><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required></label><div role="alert"></div><button type="submit">Accedi</button><button id="create-account" type="button">Crea il primo account</button></form></section>`,
+    open: `<div id="protected-app" hidden>`,
+    close: `</div>`,
+    runtime: `let authToken = sessionStorage.getItem('frontend-editor-session') || ''
+const authGate = document.getElementById('auth-gate')!, protectedApp = document.getElementById('protected-app')!, authForm = authGate.querySelector('form') as HTMLFormElement, authError = authGate.querySelector('[role="alert"]') as HTMLElement
+const showApp = () => { authGate.hidden = true; protectedApp.hidden = false }
+if (authToken) showApp()
+const authenticate = async (path: string): Promise<void> => { if (!authForm.reportValidity()) return; const input = Object.fromEntries(new FormData(authForm)), response = await fetch(${JSON.stringify(base)} + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) }); const value = await response.json(); if (!response.ok) throw new Error(value.error || 'Accesso non riuscito'); if (path === '/auth/register') return authenticate('/auth/login'); authToken = value.token; sessionStorage.setItem('frontend-editor-session', authToken); showApp(); location.reload() }
+authForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('/auth/login').catch((error) => authError.textContent = error.message) })
+document.getElementById('create-account')!.addEventListener('click', () => void authenticate('/auth/register').catch((error) => authError.textContent = error.message))`,
+  };
+}
+
 function generateExperienceFiles(
   project: Project,
   experience: "landing" | "dashboard",
 ): Record<string, string> {
   const page = project.pages[0];
+  const auth = authenticationAssets(project);
   const assets = buildExperienceAssets(experience, page.components);
   const desktop = page.components
     .map((component) => componentCss(component, "desktop"))
@@ -241,14 +282,14 @@ function generateExperienceFiles(
   const mobile = page.components
     .map((component) => componentCss(component, "mobile"))
     .join("\n");
-  const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`;
-  const landingMain = `import './style.css'\nawait import('./ui.js')\n`;
+  const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}${authenticationCss}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`;
+  const landingMain = `import './style.css'\n${auth.runtime}\nawait import('./ui.js')\n`;
   const dashboardSource = project.dataSources[0];
   const dashboardDataRuntime =
     dashboardSource?.provider === "rest" ||
     dashboardSource?.provider === "generated"
       ? `const endpoint = ${JSON.stringify(dashboardSource.endpoint)}
-const request = async (path = '', init?: RequestInit) => { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(import.meta.env.VITE_API_TOKEN ? { authorization: 'Bearer ' + import.meta.env.VITE_API_TOKEN } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
+const request = async (path = '', init?: RequestInit) => { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
 async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value }
 async function save(input: ProjectInput): Promise<void> { if (input.name.trim().length < 2 || input.description.trim().length < 4 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.dueDate)) throw new Error('Complete all required fields with valid values.'); await request(input.id ? '/' + encodeURIComponent(input.id) : '', { method: input.id ? 'PUT' : 'POST', body: JSON.stringify({ ...input, text: input.name }) }) }
 async function remove(id: string): Promise<void> { await request('/' + encodeURIComponent(id), { method: 'DELETE' }) }`
@@ -263,6 +304,8 @@ async function save(input: ProjectInput): Promise<void> {
 async function remove(id: string): Promise<void> { const db = await openDb(); await new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }`;
   const dashboardMain = `import './style.css'
 
+${auth.runtime}
+
 type Status = 'Planned' | 'In progress' | 'Completed' | 'On hold'
 type Priority = 'Low' | 'Medium' | 'High'
 type ProjectInput = { id?: string; name: string; description: string; status: Status; priority: Priority; dueDate: string }
@@ -273,6 +316,7 @@ ${dashboardDataRuntime}
 declare global { interface Window { dashboardData: { query: () => Promise<Item[]>; action: (action: string, payload: ProjectInput) => Promise<Item[]> } } }
 window.dashboardData = { query, action: async (action, payload) => { if (action === 'delete') await remove(String(payload.id)); else await save(payload); return query() } }
 await import('./ui.js')
+${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource(${JSON.stringify(project.appConfig.realtime.url)}); updates.addEventListener('records', () => void window.dashboardData.query().then((records) => dispatchEvent(new MessageEvent('message', { data: { channel: 'frontend-editor-host', records } }))))` : ""}
 `;
   const ui =
     experience === "landing"
@@ -280,7 +324,7 @@ await import('./ui.js')
       : `export {};const deliver=(detail)=>dispatchEvent(new MessageEvent('message',{data:{channel:'frontend-editor-host',...detail}}));const send=async(type,payload={})=>{try{if(type==='READY')deliver({records:await window.dashboardData.query()});if(type==='DASHBOARD_ACTION')deliver({records:await window.dashboardData.action(payload.action,payload.payload),action:payload.action})}catch(error){deliver({records:await window.dashboardData.query(),error:error instanceof Error?error.message:String(error)})}};${assets.script}`;
   return {
     ...commonExportFiles(project),
-    "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${assets.markup}<script type="module" src="/src/main.ts"></script></body></html>`,
+    "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}${assets.markup}${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": experience === "landing" ? landingMain : dashboardMain,
     "src/ui.js": ui,
     "src/style.css": baseCss,
@@ -296,16 +340,51 @@ function withGeneratedBackend(project: Project, files: Record<string, string>) {
   pkg.scripts.server = "node server/index.mjs";
   files["package.json"] = JSON.stringify(pkg, null, 2);
   files["server/data.json"] = "[]";
+  files["server/users.json"] = "[]";
   files["server/index.mjs"] = `import { createServer } from 'node:http'
 import { readFile, writeFile } from 'node:fs/promises'
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 const file = new URL('./data.json', import.meta.url)
+const usersFile = new URL('./users.json', import.meta.url)
 const read = async () => JSON.parse(await readFile(file, 'utf8'))
 const save = async (records) => writeFile(file, JSON.stringify(records, null, 2))
+const readUsers = async () => JSON.parse(await readFile(usersFile, 'utf8'))
+const saveUsers = async (users) => writeFile(usersFile, JSON.stringify(users, null, 2))
 const body = async (request) => { let value = ''; for await (const chunk of request) value += chunk; return value ? JSON.parse(value) : {} }
-createServer(async (request, response) => { try { response.setHeader('content-type', 'application/json'); response.setHeader('access-control-allow-origin', 'http://127.0.0.1:5173'); response.setHeader('access-control-allow-headers', 'content-type,authorization'); response.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS'); if (request.method === 'OPTIONS') { response.writeHead(204); return response.end() } const url = new URL(request.url, 'http://127.0.0.1:8787'), records = await read(), id = url.pathname.split('/')[2]; if (url.pathname === '/records' && request.method === 'GET') return response.end(JSON.stringify(records)); if (url.pathname === '/records' && request.method === 'POST') { const input = await body(request), record = { ...input, id: crypto.randomUUID(), date: new Date().toISOString() }; records.push(record); await save(records); response.writeHead(201); return response.end(JSON.stringify(record)) } const index = records.findIndex((record) => record.id === id); if (index < 0) { response.writeHead(404); return response.end(JSON.stringify({ error: 'Record non trovato' })) } if (request.method === 'PUT') { records[index] = { ...records[index], ...(await body(request)), id }; await save(records); return response.end(JSON.stringify(records[index])) } if (request.method === 'DELETE') { records.splice(index, 1); await save(records); response.writeHead(204); return response.end() } response.writeHead(404); response.end(JSON.stringify({ error: 'Percorso non trovato' })) } catch (error) { response.writeHead(500); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })) } }).listen(8787, '127.0.0.1', () => console.log('Backend pronto su http://127.0.0.1:8787'))
+const authEnabled = ${JSON.stringify(project.appConfig.authentication.mode === "generated")}
+const allowedRoles = ${JSON.stringify(project.appConfig.authentication.roles)}
+const authSecret = process.env.AUTH_SECRET || ''
+if (authEnabled && !authSecret) throw new Error('AUTH_SECRET è obbligatoria: copia .env.example e configura un valore sicuro')
+const sign = (user) => { const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, exp: Date.now() + 8 * 60 * 60 * 1000 })).toString('base64url'); return payload + '.' + createHmac('sha256', authSecret).update(payload).digest('base64url') }
+const session = (request) => { if (!authEnabled) return { role: 'admin' }; const token = String(request.headers.authorization || '').replace(/^Bearer /, ''), [payload, signature] = token.split('.'); if (!payload || !signature) return; const expected = Buffer.from(createHmac('sha256', authSecret).update(payload).digest('base64url')), actual = Buffer.from(signature); if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return; const value = JSON.parse(Buffer.from(payload, 'base64url')); return value.exp > Date.now() ? value : undefined }
+const clients = new Set()
+const broadcast = () => clients.forEach((client) => client.write('event: records\\ndata: changed\\n\\n'))
+createServer(async (request, response) => {
+  try {
+    response.setHeader('content-type', 'application/json')
+    response.setHeader('access-control-allow-origin', 'http://127.0.0.1:5173')
+    response.setHeader('access-control-allow-headers', 'content-type,authorization')
+    response.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    if (request.method === 'OPTIONS') { response.writeHead(204); return response.end() }
+    const url = new URL(request.url, 'http://127.0.0.1:8787')
+    if (url.pathname === '/events' && request.method === 'GET') { response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' }); response.write('event: ready\\ndata: connected\\n\\n'); clients.add(response); request.on('close', () => clients.delete(response)); return }
+    if (url.pathname === '/auth/register' && request.method === 'POST') { const users = await readUsers(); if (users.length) { response.writeHead(409); return response.end(JSON.stringify({ error: 'Il primo account esiste già' })) } const input = await body(request); if (!/^\\S+@\\S+\\.\\S+$/.test(input.email) || String(input.password || '').length < 8) { response.writeHead(400); return response.end(JSON.stringify({ error: 'Email valida e password di almeno 8 caratteri richieste' })) } const salt = randomBytes(16).toString('hex'), hash = scryptSync(input.password, salt, 64).toString('hex'), user = { id: crypto.randomUUID(), email: input.email.toLowerCase(), salt, hash, role: allowedRoles.includes('admin') ? 'admin' : allowedRoles[0] || 'viewer' }; users.push(user); await saveUsers(users); response.writeHead(201); return response.end(JSON.stringify({ id: user.id, email: user.email, role: user.role })) }
+    if (url.pathname === '/auth/login' && request.method === 'POST') { const input = await body(request), user = (await readUsers()).find((item) => item.email === String(input.email || '').toLowerCase()); if (!user) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Credenziali non valide' })) } const actual = scryptSync(String(input.password || ''), user.salt, 64), expected = Buffer.from(user.hash, 'hex'); if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Credenziali non valide' })) } return response.end(JSON.stringify({ token: sign(user), role: user.role })) }
+    const current = session(request)
+    if (authEnabled && !current) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Accedi per continuare' })) }
+    const records = await read(), id = url.pathname.split('/')[2]
+    if (url.pathname === '/records' && request.method === 'GET') return response.end(JSON.stringify(records))
+    if (url.pathname === '/records' && request.method === 'POST') { if (!['admin', 'editor'].includes(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'Ruolo senza permesso di creazione' })) } const input = await body(request), record = { ...input, id: crypto.randomUUID(), date: new Date().toISOString() }; records.push(record); await save(records); broadcast(); response.writeHead(201); return response.end(JSON.stringify(record)) }
+    const index = records.findIndex((record) => record.id === id)
+    if (index < 0) { response.writeHead(404); return response.end(JSON.stringify({ error: 'Record non trovato' })) }
+    if (request.method === 'PUT') { if (!['admin', 'editor'].includes(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'Ruolo senza permesso di modifica' })) } records[index] = { ...records[index], ...(await body(request)), id }; await save(records); broadcast(); return response.end(JSON.stringify(records[index])) }
+    if (request.method === 'DELETE') { if (current.role !== 'admin') { response.writeHead(403); return response.end(JSON.stringify({ error: 'Solo un amministratore può eliminare' })) } records.splice(index, 1); await save(records); broadcast(); response.writeHead(204); return response.end() }
+    response.writeHead(404); response.end(JSON.stringify({ error: 'Percorso non trovato' }))
+  } catch (error) { response.writeHead(500); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })) }
+}).listen(8787, '127.0.0.1', () => console.log('Backend pronto su http://127.0.0.1:8787'))
 `;
   files["README-BACKEND.md"] =
-    `# Backend generato\n\nAvviare con \`npm run server\`, poi in un secondo processo \`npm run dev\`. I record sono salvati in \`server/data.json\`. L'API ascolta solo su 127.0.0.1:8787 e accetta GET/POST/PUT/DELETE su /records. Per pubblicazione pubblica aggiungere autenticazione e configurare l'origine consentita.`;
+    `# Backend generato\n\nAvviare con \`npm run server\`, poi in un secondo processo \`npm run dev\`. I record sono salvati in \`server/data.json\`. L'API ascolta solo su 127.0.0.1:8787 e accetta GET/POST/PUT/DELETE su /records.${project.appConfig.authentication.mode === "generated" ? " L’accesso è protetto: configura AUTH_SECRET prima dell’avvio; la prima registrazione crea l’amministratore." : " Prima di una pubblicazione pubblica configura autenticazione e origine consentita."}`;
   return files;
 }
 
@@ -313,6 +392,13 @@ export function generateFiles(input: Project): Record<string, string> {
   const project = parseProject(input);
   const page = project.pages[0];
   if (!page) throw new Error("Aggiungi almeno una pagina prima dell’export");
+  if (
+    project.appConfig.authentication.mode === "generated" &&
+    !project.dataSources.some((source) => source.provider === "generated")
+  )
+    throw new Error(
+      "Il login richiede il backend: apri Dati e scegli Genera anche il backend",
+    );
   if (
     project.state.experience === "landing" ||
     project.state.experience === "dashboard"
@@ -337,6 +423,7 @@ export function generateFiles(input: Project): Record<string, string> {
   );
   const list = page.components.find((component) => component.type === "list");
   const source = project.dataSources[0];
+  const auth = authenticationAssets(project);
   const body = `<nav aria-label="Pagine">${project.pages.map((item) => `<a href="#${htmlEscape(item.path)}">${htmlEscape(item.name)}</a>`).join("")}</nav>${project.pages.map((item) => `<section data-route="${htmlEscape(item.path)}">${componentTree(item.components).map(branchHtml).join("\n")}</section>`).join("")}`;
   const allComponents = project.pages.flatMap((item) => item.components);
   const desktop = allComponents
@@ -351,7 +438,7 @@ export function generateFiles(input: Project): Record<string, string> {
   const dataRuntime =
     source?.provider === "rest" || source?.provider === "generated"
       ? `const endpoint = ${JSON.stringify(source.endpoint)}
-async function request(path = '', init?: RequestInit) { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(import.meta.env.VITE_API_TOKEN ? { authorization: 'Bearer ' + import.meta.env.VITE_API_TOKEN } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
+async function request(path = '', init?: RequestInit) { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
 async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ id: String(item.id ?? index), sourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
 async function insert(text: string) { await request('', { method: 'POST', body: JSON.stringify({ text }) }) }`
       : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -369,6 +456,8 @@ async function insert(text: string) {
   return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add({ id: crypto.randomUUID(), sourceId, text, date: new Date().toISOString() }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }`;
   const main = `import './style.css'
+
+${auth.runtime}
 
 type Item = { id: string; sourceId: string; text: string; date: string }
 const sourceId = ${JSON.stringify(source?.id ?? "local-items")}
@@ -388,6 +477,7 @@ document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async 
   if (!input?.value.trim()) { input?.setAttribute('aria-invalid', 'true'); status!.textContent = 'Il valore è obbligatorio'; return }
   await insert(input.value.trim()); input.value = ''; input.removeAttribute('aria-invalid'); await refresh()
 })
+${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource(${JSON.stringify(project.appConfig.realtime.url)}); updates.addEventListener('records', () => void refresh())` : ""}
 void refresh()
 `;
   const files = platformFiles(project, {
@@ -409,14 +499,14 @@ void refresh()
       null,
       2,
     ),
-    "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body><main>${body}</main><script type="module" src="/src/main.ts"></script></body></html>`,
+    "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}<main>${body}</main>${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": main,
-    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
+    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}${authenticationCss}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
     "tsconfig.json": JSON.stringify(
       {
         compilerOptions: {
           target: "ES2022",
-          lib: ["ES2022", "DOM"],
+          lib: ["ES2022", "DOM", "DOM.Iterable"],
           module: "ESNext",
           moduleResolution: "Bundler",
           strict: true,
@@ -431,6 +521,15 @@ void refresh()
     "project.frontend-editor.json": serializeProject(project),
     "README.md": `# ${project.name}\n\n\`npm install\`, poi \`npm run dev\`. Build: \`npm run build\`. Per Android installare @capacitor/cli e @capacitor/android, quindi \`npx cap add android\` e \`npx cap sync\`. Nessun segreto è incluso.`,
   });
+  files["app.frontend-editor.json"] = JSON.stringify(
+    project.appConfig,
+    null,
+    2,
+  );
+  if (project.appConfig.environmentVariables.length)
+    files[".env.example"] = project.appConfig.environmentVariables
+      .map((item) => `# ${item.description}\n${item.name}=`)
+      .join("\n\n");
   return withGeneratedBackend(project, files);
 }
 

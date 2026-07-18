@@ -20,6 +20,7 @@ export function ProjectSettings({
   const [preparing, setPreparing] = useState(false);
   const [result, setResult] = useState("");
   const target = project.exportConfig.target;
+  const app = project.appConfig;
   const android = project.exportConfig.android ?? {
     packageId: `com.frontendeditor.${project.id.replace(/-/g, "").slice(0, 12)}`,
     appName: project.name,
@@ -52,6 +53,42 @@ export function ProjectSettings({
         android: { ...android, [key]: value },
       },
     });
+  const setAuthentication = (mode: typeof app.authentication.mode) => {
+    const required =
+      mode === "generated"
+        ? [
+            {
+              name: "AUTH_SECRET",
+              description:
+                "Firma sicura delle sessioni. Inserisci il valore solo nell’ambiente di esecuzione.",
+              required: true,
+            },
+          ]
+        : mode === "oidc"
+          ? [
+              {
+                name: "OIDC_CLIENT_SECRET",
+                description:
+                  "Segreto del provider, usato soltanto dal backend.",
+                required: true,
+              },
+            ]
+          : [];
+    onChange({
+      ...project,
+      appConfig: {
+        ...app,
+        authentication: { ...app.authentication, mode },
+        environmentVariables: [
+          ...app.environmentVariables.filter(
+            (item) =>
+              !["AUTH_SECRET", "OIDC_CLIENT_SECRET"].includes(item.name),
+          ),
+          ...required,
+        ],
+      },
+    });
+  };
   const check = async () => {
     const response = await fetch("/api/android/status");
     setEnvironment(await response.json());
@@ -128,6 +165,188 @@ export function ProjectSettings({
             <span>{help}</span>
           </button>
         ))}
+      </section>
+      <section className="application-capabilities">
+        <div className="settings-card">
+          <h2>Accesso e ruoli</h2>
+          <label>
+            Chi può entrare?
+            <select
+              value={app.authentication.mode}
+              onChange={(event) =>
+                setAuthentication(
+                  event.target.value as typeof app.authentication.mode,
+                )
+              }
+            >
+              <option value="none">Accesso libero</option>
+              <option value="generated">
+                Login email nel backend generato
+              </option>
+              <option value="oidc">Provider aziendale OpenID Connect</option>
+            </select>
+          </label>
+          {app.authentication.mode === "generated" &&
+            !project.dataSources.some(
+              (source) => source.provider === "generated",
+            ) && (
+              <div className="requirement-warning" role="alert">
+                <strong>Manca il backend</strong>
+                <span>
+                  Il login sicuro non può vivere soltanto nel browser. Apri Dati
+                  e scegli “Genera anche il backend”.
+                </span>
+              </div>
+            )}
+          {app.authentication.mode === "oidc" && (
+            <>
+              <label>
+                Indirizzo del provider
+                <input
+                  type="url"
+                  value={app.authentication.issuer ?? ""}
+                  placeholder="https://account.azienda.it"
+                  onChange={(event) =>
+                    onChange({
+                      ...project,
+                      appConfig: {
+                        ...app,
+                        authentication: {
+                          ...app.authentication,
+                          issuer: event.target.value,
+                        },
+                      },
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Identificativo applicazione
+                <input
+                  value={app.authentication.clientId ?? ""}
+                  onChange={(event) =>
+                    onChange({
+                      ...project,
+                      appConfig: {
+                        ...app,
+                        authentication: {
+                          ...app.authentication,
+                          clientId: event.target.value,
+                        },
+                      },
+                    })
+                  }
+                />
+              </label>
+            </>
+          )}
+          {app.authentication.mode !== "none" && (
+            <fieldset>
+              <legend>Ruoli disponibili</legend>
+              {(
+                [
+                  ["admin", "Amministratore"],
+                  ["editor", "Può modificare"],
+                  ["viewer", "Può solo vedere"],
+                ] as const
+              ).map(([role, label]) => (
+                <label className="check-row" key={role}>
+                  <input
+                    type="checkbox"
+                    checked={app.authentication.roles.includes(role)}
+                    onChange={(event) =>
+                      onChange({
+                        ...project,
+                        appConfig: {
+                          ...app,
+                          authentication: {
+                            ...app.authentication,
+                            roles: event.target.checked
+                              ? [...app.authentication.roles, role]
+                              : app.authentication.roles.filter(
+                                  (item) => item !== role,
+                                ),
+                          },
+                        },
+                      })
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          )}
+        </div>
+        <div className="settings-card">
+          <h2>Offline e aggiornamenti</h2>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={app.offline}
+              onChange={(event) =>
+                onChange({
+                  ...project,
+                  appConfig: { ...app, offline: event.target.checked },
+                })
+              }
+            />
+            Conserva una base offline quando possibile
+          </label>
+          <label>
+            Aggiornamento automatico
+            <select
+              value={app.realtime.mode}
+              onChange={(event) => {
+                const mode = event.target.value as typeof app.realtime.mode;
+                onChange({
+                  ...project,
+                  appConfig: {
+                    ...app,
+                    realtime:
+                      mode === "sse"
+                        ? { mode, url: "http://127.0.0.1:8787/events" }
+                        : { mode },
+                  },
+                });
+              }}
+            >
+              <option value="none">Aggiorna quando serve</option>
+              <option value="sse">Aggiorna appena cambiano i dati</option>
+            </select>
+          </label>
+          {app.realtime.mode === "sse" && (
+            <label>
+              Canale aggiornamenti
+              <input
+                type="url"
+                value={app.realtime.url ?? ""}
+                onChange={(event) =>
+                  onChange({
+                    ...project,
+                    appConfig: {
+                      ...app,
+                      realtime: { mode: "sse", url: event.target.value },
+                    },
+                  })
+                }
+              />
+            </label>
+          )}
+          {app.environmentVariables.length > 0 && (
+            <div className="environment-help">
+              <strong>Valori richiesti all’avvio</strong>
+              {app.environmentVariables.map((item) => (
+                <span key={item.name}>
+                  <code>{item.name}</code> · {item.description}
+                </span>
+              ))}
+              <small>
+                Frontend Editor esporta soltanto i nomi: i valori segreti non
+                vengono mai salvati.
+              </small>
+            </div>
+          )}
+        </div>
       </section>
       {target === "pwa" && (
         <section className="settings-card">

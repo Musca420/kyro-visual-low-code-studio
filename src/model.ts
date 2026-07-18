@@ -285,6 +285,36 @@ export const projectSchema = z.object({
   assets: z.array(
     z.object({ id: z.string(), name: z.string(), url: z.string() }),
   ),
+  appConfig: z
+    .object({
+      authentication: z.object({
+        mode: z.enum(["none", "generated", "oidc"]),
+        roles: z.array(z.enum(["admin", "editor", "viewer"])),
+        issuer: z.string().url().optional(),
+        clientId: z.string().optional(),
+      }),
+      realtime: z.object({
+        mode: z.enum(["none", "sse"]),
+        url: z.string().url().optional(),
+      }),
+      offline: z.boolean(),
+      environmentVariables: z.array(
+        z.object({
+          name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+          description: z.string(),
+          required: z.boolean(),
+        }),
+      ),
+    })
+    .default({
+      authentication: {
+        mode: "none",
+        roles: ["admin", "editor", "viewer"],
+      },
+      realtime: { mode: "none" },
+      offline: false,
+      environmentVariables: [],
+    }),
   plugins: z.array(
     z.object({ id: z.string(), version: z.string(), enabled: z.boolean() }),
   ),
@@ -364,6 +394,15 @@ export function createProject(name: string): Project {
     theme: { tokens: { primary: "#6d5dfc", surface: "#ffffff" } },
     animations: [],
     assets: [],
+    appConfig: {
+      authentication: {
+        mode: "none",
+        roles: ["admin", "editor", "viewer"],
+      },
+      realtime: { mode: "none" },
+      offline: false,
+      environmentVariables: [],
+    },
     plugins: [],
     dependencies: {},
     exportConfig: { target: "web", capacitor: false },
@@ -409,6 +448,15 @@ function migrateProject(input: unknown): unknown {
     theme: legacy.theme ?? { tokens: {} },
     animations: legacy.animations ?? [],
     assets: legacy.assets ?? [],
+    appConfig: legacy.appConfig ?? {
+      authentication: {
+        mode: "none",
+        roles: ["admin", "editor", "viewer"],
+      },
+      realtime: { mode: "none" },
+      offline: false,
+      environmentVariables: [],
+    },
     plugins: legacy.plugins ?? [],
     dependencies: legacy.dependencies ?? {},
     exportConfig: legacy.exportConfig ?? { target: "web", capacitor: false },
