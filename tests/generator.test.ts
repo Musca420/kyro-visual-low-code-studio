@@ -25,6 +25,9 @@ describe("web generator", () => {
       capabilities: ["get", "query", "insert", "update", "delete", "subscribe"],
       secretStrategy: "none",
     });
+    project.theme.tokens.pageBackground = "#dff9ee";
+    project.theme.tokens.pageBackgroundImage =
+      "linear-gradient(135deg, #6d5dfc, #21c8a4)";
     const files = generateFiles(project);
     expect(Object.keys(files)).toEqual(
       expect.arrayContaining([
@@ -36,6 +39,8 @@ describe("web generator", () => {
       ]),
     );
     expect(files["src/main.ts"]).toContain("indexedDB.open");
+    expect(files["src/style.css"]).toContain("background:#dff9ee");
+    expect(files["src/style.css"]).toContain("linear-gradient(135deg, #6d5dfc, #21c8a4)");
     expect(files["src/main.ts"]).not.toMatch(
       /(?:password|apiKey|token)\s*[:=]\s*["'][^"']+/i,
     );

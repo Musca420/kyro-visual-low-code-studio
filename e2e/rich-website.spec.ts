@@ -16,12 +16,8 @@ test("Test A: sito professionale multipagina con dati e flow creati dalla UI", a
   await expect(page.getByRole("button", { name: /Contatti/ })).toBeVisible();
   await page.getByRole("button", { name: /Hero title/ }).click();
   const inspector = page.locator(".right-panel");
-  await inspector.getByText("Sfondo, bordi e angoli").click();
-  await inspector.getByLabel("Sfondo", { exact: true }).fill("#fff3c4");
-  await inspector.getByText("Effetti e animazioni").click();
-  await inspector
-    .getByLabel("Animazione pronta")
-    .selectOption({ label: "Salita" });
+  await inspector.getByLabel("Colore sfondo valore").fill("#fff3c4");
+  await inspector.getByLabel("Animazione rapida").selectOption({ label: "Salita" });
 
   await page.getByRole("button", { name: "Dati" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Contact requests");

@@ -8,6 +8,7 @@ test('un utente configura layout responsive e hover senza CSS', async ({ page })
   await page.locator('.palette button').filter({ hasText: 'button' }).click()
 
   const inspector = page.locator('.right-panel')
+  await inspector.getByRole('button', { name: 'Avanzata' }).click()
   await expect(inspector.getByText('Dimensioni e responsive')).toBeVisible()
   await inspector.getByLabel('Larghezza', { exact: true }).fill('240px')
   await inspector.getByLabel('Aspetto da modificare').selectOption('hover')

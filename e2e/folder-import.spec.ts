@@ -38,12 +38,13 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
 
   await page.getByTestId("component-title").click();
   const inspector = page.locator(".right-panel");
+  await inspector.getByRole("button", { name: "Avanzata" }).click();
   await inspector.getByText("Effetti e animazioni").click();
   await inspector
     .getByLabel("Animazione pronta")
     .selectOption({ label: "Salita" });
   await inspector.getByText("Sfondo, bordi e angoli").click();
-  await inspector.getByLabel("Sfondo valore").fill("#fff1cc");
+  await inspector.getByLabel("Sfondo valore", { exact: true }).fill("#fff1cc");
   await page.getByRole("button", { name: "Preview" }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
   await expect(preview.getByRole("heading", { name: "Titolo" })).toBeVisible();

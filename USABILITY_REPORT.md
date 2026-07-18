@@ -49,6 +49,14 @@ La cartella dell’ultima applicazione Android generata è stata selezionata dal
 
 Gli ZIP Simple Landing Page, Project Management Dashboard e Professional Website Test A sono stati estratti in directory distinte, installati con `npm install`, compilati con `npm run build` e avviati sulle porte 4181, 4182 e 4183. `e2e/exported-scenarios.spec.ts`, eseguito con `SCENARIO_EXPORTS=1`, verifica interazioni landing, CRUD/KPI/ricerca dashboard, stile visuale, filtro e persistenza del sito professionale.
 
+## Test D — persona “Canva, zero coding”
+
+- Obiettivo: personalizzare una landing professionale senza conoscere CSS, unità di misura o nomi tecnici.
+- Percorso: template Landing, selezione del titolo, palette Corallo, gradiente Tramonto, font Editoriale, peso Forte, allineamento centrale, slider angoli e spazio, ombra e animazione; quindi sfondo globale Menta/Aurora, preview desktop/mobile, autosave e riapertura.
+- Risultato: completato interamente in modalità **Essenziale**; le sezioni tecniche restano nascoste ma lavorano sullo stesso modello dell’opzione Avanzata. Canvas, preview, progetto riaperto ed export usano gli stessi token di sfondo.
+- Difetti trovati e corretti: nomi accessibili instabili per font/animazione/slider; sfondo pagina sovrascritto dal CSS del template in preview; warning hot reload causato dai preset condivisi.
+- Prove: `e2e/canva-user.spec.ts`, `artifacts/canva-user-quick-style.png`, `artifacts/canva-user-mobile-preview.png` e test generatore.
+
 ## Limiti realmente osservati
 
 - L’importazione generica converte semanticamente HTML statico; applicazioni React/Vue/Svelte/Angular arbitrarie vengono preservate integralmente ma richiedono una conversione progressiva per rendere ogni costrutto proprietario modificabile nel canvas. Il codice importato non viene eseguito durante l’analisi.

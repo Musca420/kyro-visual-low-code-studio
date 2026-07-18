@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { canContain, componentPath, descendantIds } from "./hierarchy";
 import type { Breakpoint, EditorComponent } from "./model";
+import { visualGradients, visualPalettes } from "./visualPresets";
 
 type Props = {
   component: EditorComponent;
@@ -29,7 +30,6 @@ const animations = {
   Pulsazione: "fe-pulse 1.4s ease-in-out infinite",
   Galleggia: "fe-float 2.4s ease-in-out infinite",
 };
-
 export function VisualProperties({
   component,
   components,
@@ -42,6 +42,7 @@ export function VisualProperties({
   onDelete,
 }: Props) {
   const [state, setState] = useState<State>("base");
+  const [advanced, setAdvanced] = useState(false);
   const base = {
     ...component.styles.desktop,
     ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
@@ -63,6 +64,24 @@ export function VisualProperties({
             states: {
               ...item.states,
               [state]: { ...item.states[state], [key]: value },
+            },
+          },
+    );
+  const setStyles = (values: Partial<Style>) =>
+    onUpdate((item) =>
+      state === "base"
+        ? {
+            ...item,
+            styles: {
+              ...item.styles,
+              [breakpoint]: { ...item.styles[breakpoint], ...values },
+            },
+          }
+        : {
+            ...item,
+            states: {
+              ...item.states,
+              [state]: { ...item.states[state], ...values },
             },
           },
     );
@@ -118,7 +137,15 @@ export function VisualProperties({
     </label>
   );
   return (
-    <div className="properties visual-properties">
+    <div className={`properties visual-properties ${advanced ? "advanced" : "simple"}`}>
+      <div className="property-mode" aria-label="Livello proprietà">
+        <button className={!advanced ? "active" : ""} onClick={() => setAdvanced(false)}>
+          Essenziale
+        </button>
+        <button className={advanced ? "active" : ""} onClick={() => setAdvanced(true)}>
+          Avanzata
+        </button>
+      </div>
       <label>
         Nome elemento
         <input
@@ -251,6 +278,130 @@ export function VisualProperties({
           <option value="disabled">Disabilitato</option>
         </select>
       </label>
+      <section className="quick-style" aria-label="Aspetto rapido">
+        <div>
+          <strong>Aspetto rapido</strong>
+          <small>Fai clic: il risultato appare subito sul canvas.</small>
+        </div>
+        <div className="palette-swatches" aria-label="Palette pronte">
+          {visualPalettes.map((palette) => (
+            <button
+              key={palette.name}
+              aria-label={`Palette ${palette.name}`}
+              title={palette.name}
+              style={{ background: palette.background, color: palette.color }}
+              onClick={() =>
+                setStyles({
+                  background: palette.background,
+                  color: palette.color,
+                  borderColor: palette.background,
+                })
+              }
+            >
+              Aa
+            </button>
+          ))}
+        </div>
+        <div className="field-pair">
+          {color("Colore sfondo", "background")}
+          {color("Colore testo", "color")}
+        </div>
+        <label>
+          Gradiente pronto
+          <select
+            value={visualGradients.some(([, value]) => value === style.backgroundImage) ? style.backgroundImage : "none"}
+            onChange={(event) => setStyle("backgroundImage", event.target.value)}
+          >
+            <option value="none">Nessuno</option>
+            {visualGradients.map(([name, value]) => <option key={name} value={value}>{name}</option>)}
+          </select>
+        </label>
+        {assets.length > 0 && (
+          <label>
+            Immagine di sfondo
+            <select
+              value={style.backgroundImage.startsWith("url(") ? style.backgroundImage : ""}
+              onChange={(event) => setStyle("backgroundImage", event.target.value)}
+            >
+              <option value="none">Nessuna</option>
+              {assets.map((asset) => <option key={asset.id} value={`url(${JSON.stringify(asset.url)})`}>{asset.name}</option>)}
+            </select>
+          </label>
+        )}
+        <div className="field-pair">
+          <label>
+            Font
+            <select aria-label="Font rapido" value={style.fontFamily} onChange={(event) => setStyle("fontFamily", event.target.value)}>
+              <option value="Inter, system-ui, sans-serif">Moderno</option>
+              <option value="Arial, sans-serif">Essenziale</option>
+              <option value="Georgia, serif">Editoriale</option>
+              <option value="ui-monospace, monospace">Tecnico</option>
+            </select>
+          </label>
+          <label>
+            Peso
+            <select aria-label="Peso rapido" value={style.fontWeight} onChange={(event) => setStyle("fontWeight", event.target.value)}>
+              <option value="400">Normale</option>
+              <option value="600">Deciso</option>
+              <option value="800">Forte</option>
+            </select>
+          </label>
+        </div>
+        <div className="quick-align" aria-label="Allineamento testo">
+          {(["left", "center", "right"] as const).map((value) => (
+            <button
+              aria-label={`Allinea ${value === "left" ? "a sinistra" : value === "center" ? "al centro" : "a destra"}`}
+              className={style.textAlign === value ? "active" : ""}
+              key={value}
+              onClick={() => setStyle("textAlign", value)}
+            >
+              {value === "left" ? "≡" : value === "center" ? "≣" : "☰"}
+            </button>
+          ))}
+        </div>
+        <label>
+          Angoli <output>{Number.parseInt(style.borderRadius) || 0}px</output>
+          <input
+            type="range"
+            aria-label="Angoli rapido"
+            min="0"
+            max="48"
+            value={Number.parseInt(style.borderRadius) || 0}
+            onChange={(event) => {
+              const value = `${event.target.value}px`;
+              setStyles({ borderRadius: value, borderTopLeftRadius: value, borderTopRightRadius: value, borderBottomRightRadius: value, borderBottomLeftRadius: value });
+            }}
+          />
+        </label>
+        <label>
+          Spazio interno <output>{Number.parseInt(style.padding) || 0}px</output>
+          <input
+            type="range"
+            aria-label="Spazio interno rapido"
+            min="0"
+            max="80"
+            value={Number.parseInt(style.padding) || 0}
+            onChange={(event) => {
+              const value = `${event.target.value}px`;
+              setStyles({ padding: value, paddingTop: value, paddingRight: value, paddingBottom: value, paddingLeft: value });
+            }}
+          />
+        </label>
+        <div className="field-pair">
+          <label>
+            Ombra
+            <select aria-label="Ombra rapida" value={Object.values(shadows).includes(style.boxShadow) ? style.boxShadow : ""} onChange={(event) => setStyle("boxShadow", event.target.value)}>
+              {Object.entries(shadows).map(([name, value]) => <option key={name} value={value}>{name}</option>)}
+            </select>
+          </label>
+          <label>
+            Animazione
+            <select aria-label="Animazione rapida" value={Object.values(animations).includes(style.animation) ? style.animation : ""} onChange={(event) => setStyle("animation", event.target.value)}>
+              {Object.entries(animations).map(([name, value]) => <option key={name} value={value}>{name}</option>)}
+            </select>
+          </label>
+        </div>
+      </section>
       <label data-help="Scegli il contenitore visuale. Pagina riporta l'elemento al livello principale.">
         Dentro
         <select

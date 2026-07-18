@@ -105,6 +105,10 @@ function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
   );
 }
 
+function pageBackgroundCss(project: Project) {
+  return `body{background:${project.theme.tokens.pageBackground ?? "#ffffff"};background-image:${project.theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}`;
+}
+
 function preservedSourceFiles(project: Project) {
   return Object.fromEntries(
     (project.importedSource?.files ?? []).map((file) => [
@@ -352,7 +356,7 @@ function generateExperienceFiles(
   const mobile = components
     .map((component) => componentCss(component, "mobile"))
     .join("\n");
-  const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}${authenticationCss}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}`;
+  const baseCss = `:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}${authenticationCss}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${assets.css}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){${mobile}}${pageBackgroundCss(project)}`;
   const landingSource = project.dataSources[0];
   const landingDataRuntime =
     landingSource?.provider === "rest" ||
@@ -592,7 +596,7 @@ void refresh()
     ),
     "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}<main>${body}</main>${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": main,
-    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}${authenticationCss}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}`,
+    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}${authenticationCss}main{width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}${pageBackgroundCss(project)}`,
     "tsconfig.json": JSON.stringify(
       {
         compilerOptions: {

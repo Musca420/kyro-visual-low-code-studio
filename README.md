@@ -4,6 +4,8 @@ Editor visuale low-code locale per creare UI responsive, collegare flow determin
 
 Il confronto funzionale aggiornato con i visual builder e la roadmap verificabile sono in [BENCHMARK_ROADMAP.md](./BENCHMARK_ROADMAP.md). Il modello include anche l'intento semantico degli elementi; il pannello **Programma collegato** attraversa eventi, flow, dati e file generati e segnala le capability mancanti allo stesso Live Bridge usato da Codex.
 
+Per chi arriva da Canva, il pannello proprietà parte in modalità **Essenziale**: palette, colori, gradienti, immagini di sfondo, font, allineamento, angoli, spaziatura, ombre e animazioni aggiornano subito canvas e preview. Senza selezione, lo stesso pannello modifica lo sfondo globale di pagina. **Avanzata** espone tutti i valori precisi senza cambiare modello.
+
 I requisiti di prodotto e la Definition of Done complessiva sono definiti da `PROJECT_SPEC.md`, `versione 2.md` e `aggiunta.md`. In particolare, i flussi principali devono restare completabili da utenti non tecnici senza codice o terminale.
 
 La dashboard può anche importare una cartella Web, PWA o Capacitor esistente. Se trova `project.frontend-editor.json` ripristina integralmente canvas, flow, dati e configurazione; altrimenti converte l'HTML semantico in componenti visuali e conserva CSS/JavaScript non ancora convertiti. Dipendenze e cartelle di build vengono ignorate, il codice importato non viene eseguito durante l'analisi e l'export mantiene i file originali sotto `original-project/`.

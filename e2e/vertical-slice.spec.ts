@@ -25,6 +25,7 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   await expect(page.getByTestId("component-list")).toBeVisible();
 
   await page.getByTestId("component-input").click();
+  await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
   await page.getByLabel("Larghezza").fill("82%");
   await page.getByRole("button", { name: "mobile" }).click();
   await page.getByLabel("Larghezza").fill("100%");

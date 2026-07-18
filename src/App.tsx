@@ -49,6 +49,7 @@ import {
   type ComponentBranch,
 } from "./hierarchy";
 import { VisualProperties } from "./VisualProperties";
+import { visualGradients, visualPalettes } from "./visualPresets";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
 import {
@@ -1536,7 +1537,13 @@ function Editor({
             <div className="canvas-scroll">
               <div
                 className={`design-canvas canvas-${breakpoint}`}
-                style={{ transform: `scale(${zoom})` }}
+                style={{
+                  transform: `scale(${zoom})`,
+                  background: project.theme.tokens.pageBackground ?? "#ffffff",
+                  backgroundImage: project.theme.tokens.pageBackgroundImage ?? "none",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   const type = event.dataTransfer.getData(
@@ -1652,11 +1659,19 @@ function Editor({
                   onDelete={removeSelected}
                 />
               </>
+            ) : currentPage ? (
+              <PageAppearance
+                tokens={project.theme.tokens}
+                assets={project.assets}
+                onChange={(values) =>
+                  change({
+                    ...project,
+                    theme: { tokens: { ...project.theme.tokens, ...values } },
+                  })
+                }
+              />
             ) : (
-              <div className="empty-panel compact">
-                <strong>Nessuna selezione</strong>
-                <span>Seleziona un elemento sul canvas per modificarlo.</span>
-              </div>
+              <div className="empty-panel compact"><strong>Nessuna pagina</strong></div>
             )}
             <PanelTitle eyebrow="Gerarchia" title="Livelli" />
             <ol className="layers" role="tree">
@@ -2081,6 +2096,53 @@ function PanelTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
       <p className="eyebrow">{eyebrow}</p>
       <h2>{title}</h2>
     </div>
+  );
+}
+
+function PageAppearance({
+  tokens,
+  assets,
+  onChange,
+}: {
+  tokens: Project["theme"]["tokens"];
+  assets: Project["assets"];
+  onChange: (values: Record<string, string>) => void;
+}) {
+  const background = tokens.pageBackground ?? "#ffffff";
+  const image = tokens.pageBackgroundImage ?? "none";
+  return (
+    <section className="page-appearance" aria-label="Aspetto pagina">
+      <div><strong>Sfondo della pagina</strong><small>Vale per canvas, preview ed export.</small></div>
+      <div className="palette-swatches" aria-label="Palette pagina">
+        {visualPalettes.map((palette) => (
+          <button aria-label={`Sfondo pagina ${palette.name}`} key={palette.name} style={{ background: palette.background, color: palette.color }} onClick={() => onChange({ pageBackground: palette.background })}>Aa</button>
+        ))}
+      </div>
+      <label>
+        Colore pagina
+        <span className="color-field">
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(background) ? background : "#ffffff"} onChange={(event) => onChange({ pageBackground: event.target.value })} />
+          <input aria-label="Colore pagina valore" value={background} onChange={(event) => onChange({ pageBackground: event.target.value })} />
+        </span>
+      </label>
+      <label>
+        Gradiente pagina
+        <select value={visualGradients.some(([, value]) => value === image) ? image : "none"} onChange={(event) => onChange({ pageBackgroundImage: event.target.value })}>
+          <option value="none">Nessuno</option>
+          {visualGradients.map(([name, value]) => <option key={name} value={value}>{name}</option>)}
+        </select>
+      </label>
+      {assets.length > 0 && (
+        <label>
+          Immagine pagina
+          <select value={image.startsWith("url(") ? image : "none"} onChange={(event) => onChange({ pageBackgroundImage: event.target.value })}>
+            <option value="none">Nessuna</option>
+            {assets.map((asset) => <option key={asset.id} value={`url(${JSON.stringify(asset.url)})`}>{asset.name}</option>)}
+          </select>
+        </label>
+      )}
+      <p className="property-help">Seleziona un elemento sul canvas per modificarne colori, testo ed effetti.</p>
+    </section>
   );
 }
 
