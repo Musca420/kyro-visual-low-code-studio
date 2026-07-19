@@ -47,7 +47,7 @@ Prove del layout Essenziale: `artifacts/frontend-editor-canva-essential-layout-d
 - `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
 - `npx playwright test`: 47 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
 - `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 54 secondi il 19 luglio 2026; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
-- `RUN_PACKAGED_DESKTOP=1`: 1 smoke test dedicato superato; eseguibile Windows avviato indipendentemente e cartella progetto aperta.
+- `npm run desktop:package` e `RUN_PACKAGED_DESKTOP=1`: pacchetto Windows rigenerato con il renderer corrente; 1 smoke test dedicato superato, eseguibile avviato indipendentemente e cartella progetto aperta.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
 - `npm run desktop:test`: 2/2, renderer di produzione e apertura cartella nella shell Electron.
 - `npm --prefix generated-app run build`: build autonoma riuscita.
@@ -91,6 +91,6 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - Le cinque persona sono simulazioni browser ripetibili, non sessioni con persone reali. Reclutamento, consenso e osservazione umana richiedono coordinamento esterno.
 - Windows è stato impacchettato, installato e avviato. La CI prepara artefatti Windows/macOS/Linux, ma smoke test e firma nativi macOS/Linux richiedono runner e identità di firma esterni.
 - Device Guard rifiuta nuovi hash Windows non firmati; una release pubblica e un aggiornamento installato end-to-end richiedono certificato e hosting HTTPS. La policy rifiuta manifest, canale, downgrade o artefatti non validi, ma non viene dichiarata pubblicazione completata.
-- Il telefono Android collegato è visibile ad ADB, ma l'installazione della build corrente richiede confermare sul dispositivo “Consenti installazione via USB”; due tentativi sono stati annullati dal sistema. Non viene dichiarata installata questa nuova build, mentre generazione e compilazione APK sono verificate.
+- Il telefono Android collegato è visibile ad ADB, ma l'installazione della build corrente richiede confermare sul dispositivo “Consenti installazione via USB”; tre tentativi, incluso quello del 19 luglio 2026 sull'APK più recente, sono stati annullati dal sistema. Non viene dichiarata installata questa nuova build, mentre generazione e compilazione APK sono verificate.
 - L'import generico preserva codice non convertito; la modifica bidirezionale profonda di ogni framework resta un'evoluzione parser-specifica.
 - Plugin di codice arbitrario non vengono eseguiti: l'SDK attuale è dichiarativo per mantenere isolamento. Una futura API di codice richiederà sandbox e firma.
