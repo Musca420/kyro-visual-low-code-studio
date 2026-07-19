@@ -373,8 +373,8 @@ describe("web generator", () => {
     );
     expect(files["index.html"]).toContain("<header");
     expect(files["index.html"]).toContain("<footer");
-    expect(files["index.html"]).toContain('href="#/progetti"');
-    expect(files["index.html"]).toContain("Un punto di partenza completo");
+    expect(files["index.html"]).toContain('href="#/projects"');
+    expect(files["index.html"]).toContain("A complete, responsive, and fully editable starting point.");
   });
 
   it("mantiene il grafo unificato negli export landing e dashboard rifiniti", () => {

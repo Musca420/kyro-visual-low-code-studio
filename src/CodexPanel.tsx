@@ -348,7 +348,7 @@ export function CodexPanel({
   };
   if (!open) return null;
   return (
-    <section className="codex-panel" aria-label="Assistente Codex">
+    <section className="codex-panel" aria-label="Codex assistant">
       <header>
         <div>
           <span className="codex-mark">⌘</span>
@@ -360,13 +360,13 @@ export function CodexPanel({
                 : ""
             }
           >
-            {busy ? "Operazione in corso…" : status}
+            {busy ? "Working…" : status}
           </small>
         </div>
         <div>
           {job?.status === "completed" && job.changedFiles.length > 0 && (
             <button className="secondary" data-help="Ripristina tutti e soli i file modificati da questa operazione. Si ferma se rileva modifiche successive." onClick={() => void restore()}>
-              Ripristina
+              Restore
             </button>
           )}
           <button
@@ -377,45 +377,45 @@ export function CodexPanel({
               job && void fetch(`/api/codex/jobs/${job.id}/cancel`, { method: "POST" })
             }
           >
-            Annulla
+            Cancel
           </button>
           <button
             data-help="Chiude il pannello. La cronologia resta disponibile finché il progetto è aperto."
             className="icon-button"
-            aria-label="Chiudi pannello Codex"
+            aria-label="Close Codex panel"
             onClick={onClose}
           >
             ×
           </button>
         </div>
       </header>
-      <nav className="codex-tabs" aria-label="Dettagli operazione Codex">
+      <nav className="codex-tabs" aria-label="Codex operation details">
         {(
           [
             [
               "chat",
-              "Conversazione",
-              "Leggi richiesta, risposta e piano in parole semplici.",
+              "Conversation",
+              "Read the request, response, and plan in plain language.",
             ],
             [
               "timeline",
-              "Cronologia",
-              "Rivedi richieste, revisioni, screenshot, file e test anche dopo il riavvio.",
+              "Timeline",
+              "Review requests, revisions, screenshots, files, and tests after restarting.",
             ],
             [
               "operations",
-              "Operazioni",
-              "Mostra i comandi eseguiti nel processo locale controllato.",
+              "Operations",
+              "Show commands run by the controlled local process.",
             ],
             [
               "files",
-              "File e diff",
-              "Mostra file modificati e differenze rispetto a Git.",
+              "Files and diff",
+              "Show changed files and differences from Git.",
             ],
             [
               "tests",
-              "Test",
-              "Mostra i controlli automatici eseguiti e il loro risultato.",
+              "Tests",
+              "Show automatic checks and their results.",
             ],
           ] as const
         ).map(([id, label, help]) => (
@@ -441,7 +441,7 @@ export function CodexPanel({
       </nav>
       <div className="codex-body">
         <aside>
-          <p className="eyebrow">Contesto certo</p>
+          <p className="eyebrow">Stable context</p>
           {context ? (
             <>
               <strong>{context.componentName}</strong>
@@ -451,7 +451,7 @@ export function CodexPanel({
               <code>{context.componentId}</code>
               <dl>
                 <div>
-                  <dt>Pagina</dt>
+                  <dt>Page</dt>
                   <dd>{context.treePath[0]}</dd>
                 </div>
                 <div>
@@ -459,21 +459,21 @@ export function CodexPanel({
                   <dd>{context.flows.length}</dd>
                 </div>
                 <div>
-                  <dt>Dati</dt>
+                  <dt>Data</dt>
                   <dd>{context.dataSources.length}</dd>
                 </div>
               </dl>
             </>
           ) : (
-            <p>Seleziona un elemento e usa il clic destro.</p>
+            <p>Select an element and right-click it.</p>
           )}
-          <small>Workspace locale</small>
-          <code>{workspace || "non disponibile"}</code>
-          <div className="codex-auth" aria-label="Accesso Codex">
+          <small>Local workspace</small>
+          <code>{workspace || "unavailable"}</code>
+          <div className="codex-auth" aria-label="Codex access">
             <small>
               {authenticated
-                ? "Account collegato e riutilizzato ai prossimi avvii tramite l’accesso ufficiale Codex."
-                : "Le azioni locali restano disponibili. Collega ChatGPT qui per richieste nuove e complesse; non serve il terminale."}
+                ? "Your account is connected and reused on future launches through the official Codex sign-in."
+                : "Local actions remain available. Connect ChatGPT here for new and complex requests; no terminal is needed."}
             </small>
             {authenticated ? (
               <button className="secondary" data-help="Signs out through the official codex logout command. Kyro never reads your credentials." onClick={() => void logout()}>Sign out of Codex</button>
@@ -491,10 +491,10 @@ export function CodexPanel({
             {view === "chat" &&
               (history.length === 0 ? (
                 <div className="codex-welcome">
-                  <strong>Dimmi cosa deve fare questo elemento.</strong>
+                  <strong>Tell me what this element should do.</strong>
                   <p>
-                    Prima analizzerò il progetto in sola lettura. Potrai
-                    approvare o rifiutare il piano prima di qualsiasi modifica.
+                    I will first analyze the project in read-only mode. You can
+                    approve or reject the plan before anything changes.
                   </p>
                 </div>
               ) : (
@@ -502,10 +502,10 @@ export function CodexPanel({
                   <article className={message.role} key={index}>
                     <strong>
                       {message.role === "user"
-                        ? "Tu"
+                        ? "You"
                         : message.role === "codex"
                           ? "Codex"
-                          : "Stato"}
+                          : "Status"}
                     </strong>
                     <pre>{message.text}</pre>
                   </article>
@@ -513,7 +513,7 @@ export function CodexPanel({
               ))}
             {view === "chat" && busy && (
               <article className="system">
-                <strong>In tempo reale</strong>
+                <strong>Live</strong>
                 <pre>{liveText}</pre>
               </article>
             )}
@@ -579,30 +579,30 @@ export function CodexPanel({
             }}
           >
             <label htmlFor="codex-request">
-              Richiesta in linguaggio naturale
+              Request in plain language
             </label>
             <textarea
               autoFocus
               id="codex-request"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Esempio: quando clicco, salva il valore dell’input e aggiorna la lista."
+              placeholder="Example: when I click, save the input value and refresh the list."
               rows={3}
               maxLength={8000}
             />
             <div>
               <span>{prompt.length}/8000</span>
               <button disabled={busy || !context || !prompt.trim()}>
-                {busy ? "Codex sta analizzando…" : "Analizza richiesta"}
+                {busy ? "Codex is analyzing…" : "Analyze request"}
               </button>
             </div>
           </form>
           {plan && (
             <section className="approval-card">
-              <p className="eyebrow">Piano da approvare</p>
+              <p className="eyebrow">Plan to approve</p>
               <p>
-                Codex ha lavorato in sola lettura. Approva solo se il piano
-                corrisponde a ciò che vuoi.
+                Codex worked in read-only mode. Approve only when the plan
+                matches what you want.
               </p>
               <div>
                 <button
@@ -618,10 +618,10 @@ export function CodexPanel({
                     ]);
                   }}
                 >
-                  Rifiuta
+                  Reject
                 </button>
                 <button disabled={busy} onClick={() => void execute("apply")}>
-                  Approva e applica
+                  Approve and apply
                 </button>
               </div>
             </section>

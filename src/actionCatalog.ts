@@ -26,6 +26,8 @@ export const actionEventCatalog: ActionEventDefinition[] = [
   { id: "pointerEnter", label: "Pointer enters", description: "Run when a mouse or pen enters the element.", category: "Pointer", payload: "pointer event", componentTypes: pointerTypes },
   { id: "pointerLeave", label: "Pointer leaves", description: "Run when a mouse or pen leaves the element.", category: "Pointer", payload: "pointer event", componentTypes: pointerTypes },
   { id: "submit", label: "Form submitted", description: "Run after form validation succeeds.", category: "Form & input", payload: "form record", componentTypes: formTypes },
+  { id: "recordUpdate", label: "Record updated", description: "Run when a person completes or edits an item in this data view.", category: "Form & input", payload: "updated record", componentTypes: ["list", "table"] },
+  { id: "recordDelete", label: "Record deleted", description: "Run after a person confirms deletion from this data view.", category: "Form & input", payload: "record to delete", componentTypes: ["list", "table"] },
   { id: "input", label: "Value typed", description: "Run while the value changes.", category: "Form & input", payload: "current value", componentTypes: inputTypes },
   { id: "change", label: "Value committed", description: "Run after a value or selection is committed.", category: "Form & input", payload: "current value", componentTypes: inputTypes },
   { id: "focus", label: "Focus received", description: "Run when keyboard or pointer focus enters.", category: "Focus & keyboard", payload: "focus event", componentTypes: [...inputTypes, ...pointerTypes] },
@@ -57,4 +59,3 @@ export function isComponentEvent(value = "") {
 export function actionEvent(value = "") {
   return actionEventCatalog.find((event) => event.id === value);
 }
-

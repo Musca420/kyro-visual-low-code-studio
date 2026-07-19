@@ -117,16 +117,16 @@ export function quickNavigationFlowPlan(prompt: string, context: Record<string, 
 }
 
 export function quickLocalNotificationPlan(prompt: string, context: Record<string, unknown>) {
-  if (!/(?:notifica locale|promemoria)/i.test(prompt)) return undefined;
+  if (!/(?:local notification|reminder|notifica locale|promemoria)/i.test(prompt)) return undefined;
   const componentId = String(context.componentId ?? ""), pageId = String(context.pageId ?? "");
   if (!componentId || !pageId) return undefined;
   const componentType = String(context.componentType ?? "button");
   const trigger = ["input", "select", "checkbox", "switch"].includes(componentType) ? "change" : "click";
-  const title = prompt.match(/titolo\s+[“"']?(.+?)[”"']?(?:\s+e\s+(?:testo|messaggio)|[.;]|$)/i)?.[1]?.trim() || "Promemoria";
-  const body = prompt.match(/(?:testo|messaggio)\s+[“"']?(.+?)[”"']?(?:\s+(?:tra|dopo)\s+\d+|[.;]|$)/i)?.[1]?.trim() || "Hai qualcosa da completare";
-  const amount = Number(prompt.match(/(?:tra|dopo)\s+(\d+(?:[.,]\d+)?)/i)?.[1]?.replace(",", ".") || 0);
-  const unit = prompt.match(/(?:tra|dopo)\s+\d+(?:[.,]\d+)?\s*(millisecondi|secondi|minuti|ore|giorni)/i)?.[1]?.toLowerCase();
-  const multiplier = unit?.startsWith("millisecond") ? 1 : unit?.startsWith("minut") ? 60000 : unit?.startsWith("or") ? 3600000 : unit?.startsWith("giorn") ? 86400000 : 1000;
+  const title = prompt.match(/(?:title|titolo)\s+[“"']?(.+?)[”"']?(?:\s+(?:and|e)\s+(?:body|text|message|testo|messaggio)|[.;]|$)/i)?.[1]?.trim() || "Reminder";
+  const body = prompt.match(/(?:body|text|message|testo|messaggio)\s+[“"']?(.+?)[”"']?(?:\s+(?:in|after|tra|dopo)\s+\d+|[.;]|$)/i)?.[1]?.trim() || "You have something to complete";
+  const amount = Number(prompt.match(/(?:in|after|tra|dopo)\s+(\d+(?:[.,]\d+)?)/i)?.[1]?.replace(",", ".") || 0);
+  const unit = prompt.match(/(?:in|after|tra|dopo)\s+\d+(?:[.,]\d+)?\s*(milliseconds?|seconds?|minutes?|hours?|days?|millisecondi|secondi|minuti|ore|giorni)/i)?.[1]?.toLowerCase();
+  const multiplier = unit?.startsWith("millisecond") ? 1 : unit?.startsWith("minut") ? 60000 : unit?.startsWith("hour") || unit?.startsWith("or") ? 3600000 : unit?.startsWith("day") || unit?.startsWith("giorn") ? 86400000 : 1000;
   const delayMs = String(Math.min(604800000, Math.max(0, Math.round((amount || 2) * multiplier))));
   const flowId = `notify-${slug(componentId)}`.slice(0, 80);
   const flowExists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
@@ -145,7 +145,7 @@ export function quickLocalNotificationPlan(prompt: string, context: Record<strin
 type IndexedSource = { id: string; name?: string; schema?: Record<string, unknown> };
 
 export function quickDataViewsPlan(prompt: string, context: Record<string, unknown>) {
-  if (!/(?:calendario|statistic|grafici?|kpi).{0,60}(?:dati|dinamic|reali|collega)|(?:collega|rendi).{0,60}(?:calendario|statistic|grafici?|kpi)/i.test(prompt)) return undefined;
+  if (!/(?:calendar|statistics?|charts?|calendario|statistic|grafici?|kpi).{0,60}(?:data|dynamic|real|connect|dati|dinamic|reali|collega)|(?:connect|make|collega|rendi).{0,60}(?:calendar|statistics?|charts?|calendario|statistic|grafici?|kpi)/i.test(prompt)) return undefined;
   const pageId = String(context.pageId ?? "");
   const components = Array.isArray(context.pageComponents)
     ? context.pageComponents.filter((item): item is IndexedComponent => Boolean(item && typeof item.id === "string" && typeof item.type === "string"))
@@ -191,7 +191,10 @@ export function quickDataViewsPlan(prompt: string, context: Record<string, unkno
 type IndexedComponent = { id: string; name: string; type: string; parentId?: string };
 
 export function quickDashboardPlan(prompt: string, context: Record<string, unknown>) {
-  if (!/(?:trasforma|crea|componi).{0,40}(?:dashboard|riepilogo).{0,40}mobile/is.test(prompt)) return undefined;
+  const asksToBuild = /(?:transform|create|build|compose|trasforma|crea|componi)/i.test(prompt);
+  const asksForDashboard = /(?:dashboard|summary|riepilogo)/i.test(prompt);
+  const asksForMobile = /(?:mobile|phone|telefono)/i.test(prompt);
+  if (!asksToBuild || !asksForDashboard || !asksForMobile) return undefined;
   const items = Array.isArray(context.pageComponents)
     ? context.pageComponents.filter((item): item is IndexedComponent => Boolean(item && typeof item.id === "string" && typeof item.type === "string"))
     : [];
@@ -206,31 +209,39 @@ export function quickDashboardPlan(prompt: string, context: Record<string, unkno
   [["primary", primary], ["accent", accent], ["surface", "#171A1F"], ["pageBackground", "#0F1115"]]
     .forEach(([token, value]) => op("set_theme_token", { token, value }));
   const labels: [IndexedComponent, string, string][] = [
-    [header, "Intestazione giornaliera", "Buongiorno, Giulia · Domenica 19 luglio"],
-    [hero, "Progresso di oggi", "4 di 7 completate"],
-    [grid, "Riepilogo Oggi", "Oggi"],
-    [cards[0], "Prossima attività", "Prossima attività · 09:30"],
-    [cards[1], "Appuntamenti", "Appuntamenti · 2 oggi"],
-    [cards[2], "Abitudini", "Abitudini · 3 da completare"],
-    [footer, "Navigazione inferiore", "Oggi · Attività · Calendario · Abitudini · Statistiche"],
+    [header, "Daily header", "Good morning, Giulia · Sunday, July 19"],
+    [hero, "Today's progress", "4 of 7 completed"],
+    [grid, "Today summary", "Today"],
+    [cards[0], "Next task", "Next task · 09:30"],
+    [cards[1], "Appointments", "Appointments · 2 today"],
+    [cards[2], "Habits", "Habits · 3 left"],
+    [footer, "Bottom navigation", "Today · Tasks · Calendar · Habits · Statistics"],
   ];
   labels.forEach(([component, name, label]) => {
     if (component !== grid && component !== footer) op("set_component_property", { componentId: component.id, property: "name", value: name });
     op("set_component_property", { componentId: component.id, property: "label", value: label });
   });
-  [[hero, "Una vista chiara del ritmo della tua giornata."], [cards[0], "Preparare la presentazione · Lavoro"], [cards[1], "Riunione team alle 11:00 · Dentista alle 17:30"], [cards[2], "Acqua, lettura e movimento quotidiano"]]
+  [[hero, "A clear view of your daily rhythm."], [cards[0], "Prepare the presentation · Work"], [cards[1], "Team meeting at 11:00 · Dentist at 17:30"], [cards[2], "Water, reading, and daily movement"]]
     .forEach(([component, description]) => op("set_component_property", { componentId: (component as IndexedComponent).id, property: "description", value: description }));
-  const progressId = items.find((item) => item.name === "Progresso giornaliero")?.id ?? `daily-progress-${hero.id.slice(0, 8)}`;
-  const addId = items.find((item) => item.name === "Aggiungi rapido")?.id ?? `quick-add-${header.id.slice(0, 8)}`;
-  if (!items.some((item) => item.id === progressId)) op("add_component", { componentId: progressId, componentType: "progress", name: "Progresso giornaliero", parentId: hero.id, props: { label: "Progresso giornaliero", value: 4, max: 7 }, styles: { mobile: { width: "100%", minHeight: "12px", color: primary, background: "#2A3038", borderRadius: "999px" } }, accessibility: { label: "Progresso giornaliero, 4 attività completate su 7", role: "progressbar" } });
-  if (!items.some((item) => item.id === addId)) op("add_component", { componentId: addId, componentType: "button", name: "Aggiungi rapido", parentId: header.id, props: { label: "+ Aggiungi" }, styles: { mobile: { minHeight: "48px", color: "#111318", background: accent, borderRadius: "14px", padding: "12px 18px", fontWeight: "700" } }, accessibility: { label: "Aggiungi rapidamente un elemento", role: "button" }, intent: { role: "action", action: "create", entity: "elemento", expectedResult: "Avvia aggiunta rapida", requiredStates: [], permissions: [] } });
+  const existingProgress = items.find((item) => /daily-progress/.test(item.id) || /(?:daily progress|progresso giornaliero)/i.test(item.name));
+  const existingAdd = items.find((item) => /quick-add/.test(item.id) || /(?:quick add|aggiungi rapido)/i.test(item.name));
+  const progressId = existingProgress?.id ?? `daily-progress-${hero.id.slice(0, 8)}`;
+  const addId = existingAdd?.id ?? `quick-add-${header.id.slice(0, 8)}`;
+  if (!existingProgress) op("add_component", { componentId: progressId, componentType: "progress", name: "Daily progress", parentId: hero.id, props: { label: "Daily progress", value: 4, max: 7 }, styles: { mobile: { width: "100%", minHeight: "12px", color: primary, background: "#2A3038", borderRadius: "999px" } }, accessibility: { label: "Daily progress, 4 of 7 tasks completed", role: "progressbar" } });
+  else {
+    op("set_component_property", { componentId: progressId, property: "name", value: "Daily progress" });
+    op("set_component_property", { componentId: progressId, property: "label", value: "Daily progress" });
+  }
+  if (!existingAdd) op("add_component", { componentId: addId, componentType: "button", name: "Quick add", parentId: header.id, props: { label: "+ Add" }, styles: { mobile: { minHeight: "48px", color: "#111318", background: accent, borderRadius: "14px", padding: "12px 18px", fontWeight: "700" } }, accessibility: { label: "Quickly add an item", role: "button" }, intent: { role: "action", action: "create", entity: "item", expectedResult: "Start quick add", requiredStates: [], permissions: [] } });
+  else {
+    op("set_component_property", { componentId: addId, property: "name", value: "Quick add" });
+    op("set_component_property", { componentId: addId, property: "label", value: "+ Add" });
+  }
   const style = (componentId: string, property: string, value: string) => op("set_responsive_style", { componentId, breakpoint: "mobile", property, value });
   [[header.id, "background", "#0F1115"], [header.id, "color", "#F3F4F6"], [header.id, "padding", "20px 16px"], [hero.id, "background", "#171A1F"], [hero.id, "color", "#F3F4F6"], [hero.id, "borderRadius", "20px"], [hero.id, "padding", "20px"], [grid.id, "background", "#0F1115"], [grid.id, "color", "#F3F4F6"], [grid.id, "gridTemplateColumns", "1fr"], [grid.id, "gap", "12px"]]
     .forEach(([id, property, value]) => style(id, property, value));
   cards.forEach((card) => [["background", "#1D2229"], ["color", "#F3F4F6"], ["borderRadius", "16px"]].forEach(([property, value]) => style(card.id, property, value)));
   [["background", "#171A1F"], ["color", "#F3F4F6"], ["minHeight", "64px"]].forEach(([property, value]) => style(footer.id, property, value));
-  op("set_component_accessibility", { componentId: header.id, label: "Intestazione di oggi", role: "banner" });
-  op("set_component_accessibility", { componentId: footer.id, label: "Navigazione principale", role: "navigation" });
   op("set_component_state_style", { componentId: addId, state: "focus", property: "outline", value: `3px solid ${primary}` });
   op("set_component_state_style", { componentId: addId, state: "focus", property: "outlineOffset", value: "3px" });
   if (!operations.length || operations.length > 50) return undefined;
@@ -248,92 +259,93 @@ type ScreenItem = {
 
 const dailyFlowScreens: Record<string, { title: string; description: string; items: ScreenItem[] }> = {
   onboarding: {
-    title: "La tua giornata, finalmente in equilibrio",
-    description: "Attività, appuntamenti e abitudini in un solo spazio, disponibile anche offline.",
+    title: "Your day, finally in balance",
+    description: "Tasks, appointments, and habits in one calm space that works offline.",
     items: [
-      { id: "onboarding-title", type: "title", name: "Titolo onboarding", label: "Organizza oggi. Respira domani." },
-      { id: "onboarding-copy", type: "text", name: "Introduzione", label: "DailyFlow trasforma i tuoi impegni in un ritmo semplice da seguire." },
-      { id: "onboarding-plan", type: "card", name: "Pianifica", label: "Pianifica con chiarezza", description: "Riunisci attività e appuntamenti senza perdere il filo." },
-      { id: "onboarding-habits", type: "card", name: "Crea abitudini", label: "Costruisci continuità", description: "Piccoli passi quotidiani, serie visibili e incoraggianti." },
-      { id: "onboarding-offline", type: "card", name: "Sempre disponibile", label: "Funziona anche offline", description: "I dati restano sul dispositivo e tornano con te al riavvio." },
-      { id: "onboarding-start", type: "button", name: "Inizia", label: "Inizia con DailyFlow", props: { role: "primary" } },
+      { id: "onboarding-title", type: "title", name: "Onboarding title", label: "Plan today. Breathe tomorrow." },
+      { id: "onboarding-copy", type: "text", name: "Introduction", label: "DailyFlow turns a busy schedule into a simple rhythm you can follow." },
+      { id: "onboarding-plan", type: "card", name: "Plan", label: "Plan with clarity", description: "Keep tasks and appointments together without losing the thread." },
+      { id: "onboarding-habits", type: "card", name: "Build habits", label: "Build consistency", description: "Small daily steps with visible, encouraging streaks." },
+      { id: "onboarding-offline", type: "card", name: "Always available", label: "Works offline", description: "Your data stays on your device and returns after every restart." },
+      { id: "onboarding-start", type: "button", name: "Get started", label: "Start with DailyFlow", props: { role: "primary" } },
     ],
   },
-  calendario: {
-    title: "Calendario",
-    description: "Guarda impegni e attività per giorno o per settimana.",
+  calendar: {
+    title: "Calendar",
+    description: "See appointments and tasks by day or week.",
     items: [
-      { id: "calendar-title", type: "title", name: "Titolo calendario", label: "La tua settimana" },
-      { id: "calendar-view", type: "tabs", name: "Vista calendario", label: "Giorno · Settimana", props: { tabs: "Giorno|Settimana" } },
-      { id: "calendar-main", type: "calendar", name: "Calendario settimanale", label: "19–25 luglio 2026" },
-      { id: "calendar-next", type: "card", name: "Prossimo appuntamento", label: "Oggi · 11:00", description: "Riunione del team · 45 minuti" },
-      { id: "calendar-day", type: "list", name: "Agenda del giorno", label: "Agenda di oggi" },
-      { id: "calendar-add", type: "button", name: "Aggiungi dal calendario", label: "+ Nuova attività" },
+      { id: "calendar-title", type: "title", name: "Calendar title", label: "Your week" },
+      { id: "calendar-view", type: "tabs", name: "Calendar view", label: "Day · Week", props: { tabs: "Day|Week" } },
+      { id: "calendar-main", type: "calendar", name: "Weekly calendar", label: "July 19–25, 2026" },
+      { id: "calendar-next", type: "card", name: "Next appointment", label: "Today · 11:00", description: "Team meeting · 45 minutes" },
+      { id: "calendar-day", type: "list", name: "Daily agenda", label: "Today's agenda" },
+      { id: "calendar-add", type: "button", name: "Add from calendar", label: "+ New task" },
     ],
   },
-  "dettaglio-attivita": {
-    title: "Dettaglio attività",
-    description: "Consulta e modifica ogni informazione dell’attività selezionata.",
+  "task-details": {
+    title: "Task details",
+    description: "Review and edit every detail of the selected task.",
     items: [
-      { id: "detail-title", type: "title", name: "Titolo dettaglio", label: "Modifica attività" },
-      { id: "detail-name", type: "input", name: "Nome attività", label: "Nome attività", props: { fieldName: "title", required: true, placeholder: "Cosa devi fare?" } },
-      { id: "detail-description", type: "textarea", name: "Descrizione attività", label: "Descrizione", props: { fieldName: "description", required: true } },
-      { id: "detail-status", type: "select", name: "Stato attività", label: "Stato", props: { fieldName: "status", options: "Da fare|In corso|Completata" } },
-      { id: "detail-priority", type: "select", name: "Priorità attività", label: "Priorità", props: { fieldName: "priority", options: "Bassa|Media|Alta" } },
-      { id: "detail-date", type: "input", name: "Data attività", label: "Data", props: { fieldName: "dueDate", inputType: "date", required: true } },
-      { id: "detail-notes", type: "textarea", name: "Note attività", label: "Note", props: { fieldName: "notes" } },
-      { id: "detail-save", type: "button", name: "Salva modifiche", label: "Salva modifiche", props: { buttonType: "submit" } },
-      { id: "detail-delete", type: "button", name: "Elimina attività", label: "Elimina attività" },
+      { id: "detail-title", type: "title", name: "Details title", label: "Edit task" },
+      { id: "detail-name", type: "input", name: "Task name", label: "Task name", props: { fieldName: "title", required: true, placeholder: "What needs to be done?" } },
+      { id: "detail-description", type: "textarea", name: "Task description", label: "Description", props: { fieldName: "description", required: true } },
+      { id: "detail-status", type: "select", name: "Task status", label: "Status", props: { fieldName: "status", options: "To do|In progress|Completed" } },
+      { id: "detail-priority", type: "select", name: "Task priority", label: "Priority", props: { fieldName: "priority", options: "Low|Medium|High" } },
+      { id: "detail-date", type: "input", name: "Task date", label: "Date", props: { fieldName: "dueDate", inputType: "date", required: true } },
+      { id: "detail-notes", type: "textarea", name: "Task notes", label: "Notes", props: { fieldName: "notes" } },
+      { id: "detail-save", type: "button", name: "Save changes", label: "Save changes", props: { buttonType: "submit" } },
+      { id: "detail-delete", type: "button", name: "Delete task", label: "Delete task" },
     ],
   },
-  abitudini: {
-    title: "Abitudini quotidiane",
-    description: "Crea routine sostenibili e proteggi la tua serie giorno dopo giorno.",
+  habits: {
+    title: "Daily habits",
+    description: "Create sustainable routines and protect your streak day by day.",
     items: [
-      { id: "habits-title", type: "title", name: "Titolo abitudini", label: "Le tue abitudini" },
-      { id: "habits-progress", type: "progress", name: "Progresso abitudini", label: "2 di 3 completate", props: { value: 2, max: 3 } },
-      { id: "habit-water", type: "card", name: "Bere acqua", label: "Bere 8 bicchieri", description: "12 giorni consecutivi · quasi fatto" },
-      { id: "habit-read", type: "card", name: "Leggere", label: "Leggere 20 minuti", description: "7 giorni consecutivi · completata" },
-      { id: "habit-move", type: "card", name: "Movimento", label: "Camminare 30 minuti", description: "4 giorni consecutivi · da completare" },
-      { id: "habit-name", type: "input", name: "Nome nuova abitudine", label: "Nuova abitudine", props: { fieldName: "name", required: true, placeholder: "Es. Meditare 10 minuti" } },
-      { id: "habit-add", type: "button", name: "Aggiungi abitudine", label: "+ Aggiungi abitudine" },
-      { id: "habits-toast", type: "toast", name: "Conferma abitudine", label: "Abitudine aggiornata" },
+      { id: "habits-title", type: "title", name: "Habits title", label: "Your habits" },
+      { id: "habits-progress", type: "progress", name: "Habits progress", label: "2 of 3 completed", props: { value: 2, max: 3 } },
+      { id: "habit-water", type: "card", name: "Drink water", label: "Drink 8 glasses", description: "12-day streak · almost done" },
+      { id: "habit-read", type: "card", name: "Read", label: "Read for 20 minutes", description: "7-day streak · completed" },
+      { id: "habit-move", type: "card", name: "Move", label: "Walk for 30 minutes", description: "4-day streak · still to do" },
+      { id: "habit-name", type: "input", name: "New habit name", label: "New habit", props: { fieldName: "name", required: true, placeholder: "Example: meditate for 10 minutes" } },
+      { id: "habit-add", type: "button", name: "Add habit", label: "+ Add habit" },
+      { id: "habits-toast", type: "toast", name: "Habit confirmation", label: "Habit updated" },
     ],
   },
-  statistiche: {
-    title: "Statistiche settimanali",
-    description: "Riconosci i progressi, non soltanto le cose ancora da fare.",
+  statistics: {
+    title: "Weekly statistics",
+    description: "Notice your progress, not only what remains to be done.",
     items: [
-      { id: "stats-title", type: "title", name: "Titolo statistiche", label: "La tua settimana" },
-      { id: "stats-completed", type: "card", name: "Attività completate", label: "18 attività", description: "+20% rispetto alla settimana scorsa" },
-      { id: "stats-focus", type: "card", name: "Tempo focalizzato", label: "9 h 40 min", description: "Martedì è stato il giorno più produttivo" },
-      { id: "stats-streak", type: "card", name: "Serie migliore", label: "12 giorni", description: "Bere 8 bicchieri" },
-      { id: "stats-week-chart", type: "chart", name: "Grafico attività", label: "Attività completate per giorno" },
-      { id: "stats-habits-chart", type: "chart", name: "Grafico abitudini", label: "Costanza delle abitudini" },
-      { id: "stats-insight", type: "alert", name: "Suggerimento", label: "Ottimo ritmo: lascia libero mercoledì sera per proteggere il recupero." },
+      { id: "stats-title", type: "title", name: "Statistics title", label: "Your week" },
+      { id: "stats-completed", type: "card", name: "Completed tasks", label: "18 tasks", description: "+20% from last week" },
+      { id: "stats-focus", type: "card", name: "Focus time", label: "9 h 40 min", description: "Tuesday was your most productive day" },
+      { id: "stats-streak", type: "card", name: "Best streak", label: "12 days", description: "Drink 8 glasses" },
+      { id: "stats-week-chart", type: "chart", name: "Tasks chart", label: "Tasks completed by day" },
+      { id: "stats-habits-chart", type: "chart", name: "Habits chart", label: "Habit consistency" },
+      { id: "stats-insight", type: "alert", name: "Insight", label: "Great rhythm: keep Wednesday evening free to protect your recovery." },
     ],
   },
-  impostazioni: {
-    title: "Impostazioni",
-    description: "Personalizza DailyFlow e mantieni il controllo dei tuoi dati.",
+  settings: {
+    title: "Settings",
+    description: "Personalize DailyFlow and stay in control of your data.",
     items: [
-      { id: "settings-title", type: "title", name: "Titolo impostazioni", label: "Il tuo DailyFlow" },
-      { id: "settings-theme", type: "select", name: "Tema", label: "Tema dell’app", props: { fieldName: "theme", options: "Sistema|Chiaro|Scuro" } },
-      { id: "settings-notifications", type: "checkbox", name: "Notifiche locali", label: "Promemoria e notifiche locali", props: { fieldName: "notifications" } },
-      { id: "settings-offline", type: "checkbox", name: "Modalità offline", label: "Mantieni i dati disponibili offline", props: { fieldName: "offline" } },
-      { id: "settings-backup", type: "button", name: "Crea backup", label: "Crea backup dei dati" },
-      { id: "settings-privacy", type: "card", name: "Privacy", label: "I tuoi dati restano tuoi", description: "Archiviazione locale, export aperto e nessun vincolo alla piattaforma." },
-      { id: "settings-save", type: "button", name: "Salva impostazioni", label: "Salva impostazioni" },
+      { id: "settings-title", type: "title", name: "Settings title", label: "Your DailyFlow" },
+      { id: "settings-theme", type: "select", name: "Theme", label: "App theme", props: { fieldName: "theme", options: "System|Light|Dark" } },
+      { id: "settings-notifications", type: "checkbox", name: "Local notifications", label: "Reminders and local notifications", props: { fieldName: "notifications" } },
+      { id: "settings-offline", type: "checkbox", name: "Offline mode", label: "Keep data available offline", props: { fieldName: "offline" } },
+      { id: "settings-backup", type: "button", name: "Create backup", label: "Create a data backup" },
+      { id: "settings-privacy", type: "card", name: "Privacy", label: "Your data stays yours", description: "Local storage, open export, and no platform lock-in." },
+      { id: "settings-save", type: "button", name: "Save settings", label: "Save settings" },
     ],
   },
 };
 
 export function quickDailyFlowScreenPlan(prompt: string, context: Record<string, unknown>) {
-  if (!/(?:crea|progetta|componi|completa).{0,30}(?:schermata|pagina)/i.test(prompt)) return undefined;
+  if (!/(?:create|design|compose|complete|build|crea|progetta|componi|completa).{0,30}(?:screen|page|schermata|pagina)/i.test(prompt)) return undefined;
   const pages = Array.isArray(context.pages) ? context.pages as IndexedPage[] : [];
   const page = pages.find((item) => item.id === context.pageId);
   const key = slug(page?.name ?? "");
-  const spec = dailyFlowScreens[key];
+  const aliases: Record<string, string> = { calendario: "calendar", "dettaglio-attivita": "task-details", abitudini: "habits", statistiche: "statistics", impostazioni: "settings" };
+  const spec = dailyFlowScreens[aliases[key] ?? key];
   const indexed = (Array.isArray(context.pageComponents) ? context.pageComponents : []) as IndexedComponent[];
   let rootId = String(context.componentId ?? "");
   let root = indexed.find((item) => item.id === rootId);
@@ -345,7 +357,7 @@ export function quickDailyFlowScreenPlan(prompt: string, context: Record<string,
   const existing = new Set(indexed.map((item) => String(item.id ?? "")));
   const operations: { type: string; args: Record<string, unknown> }[] = [];
   const op = (type: string, args: Record<string, unknown>) => operations.push({ type, args });
-  const starterNames = /^(?:Header|Nuovo progetto|Grid|Contenuti|Footer|.+ grid|.+ card \d+)$/i;
+  const starterNames = /^(?:Header|New project|Nuovo progetto|Grid|Content|Contenuti|Footer|.+ grid|.+ card \d+)$/i;
   indexed
     .filter((item) => item.id !== rootId && !item.parentId && starterNames.test(item.name))
     .forEach((item) => op("remove_component", { componentId: item.id, confirmed: true }));
@@ -355,8 +367,14 @@ export function quickDailyFlowScreenPlan(prompt: string, context: Record<string,
   const style = (breakpoint: string, property: string, value: string) => op("set_responsive_style", { componentId: rootId, breakpoint, property, value });
   [["mobile", "padding", "20px 16px"], ["mobile", "gap", "14px"], ["mobile", "background", "#0F1115"], ["mobile", "color", "#F3F4F6"], ["tablet", "padding", "28px"], ["desktop", "padding", "40px"]]
     .forEach(([breakpoint, property, value]) => style(breakpoint, property, value));
-  spec.items.filter((item) => !existing.has(item.id)).forEach((item, index) => {
+  spec.items.forEach((item, index) => {
     const danger = item.id.includes("delete");
+    if (existing.has(item.id)) {
+      op("set_component_property", { componentId: item.id, property: "name", value: item.name });
+      op("set_component_property", { componentId: item.id, property: "label", value: item.label });
+      if (item.description) op("set_component_property", { componentId: item.id, property: "description", value: item.description });
+      return;
+    }
     op("add_component", {
       componentId: item.id,
       componentType: item.type,
@@ -381,7 +399,7 @@ export function quickDailyFlowScreenPlan(prompt: string, context: Record<string,
 }
 
 export function quickCrudSurfacePlan(prompt: string, context: Record<string, unknown>) {
-  if (!/(?:attivit|task)/i.test(prompt) || !/(?:sorgente|database).{0,20}(?:locale|indexeddb)/i.test(prompt) || !/form.{0,30}lista/is.test(prompt)) return undefined;
+  if (!/(?:attivit|task)/i.test(prompt) || !/(?:source|database|sorgente).{0,20}(?:local|locale|indexeddb)/i.test(prompt) || !/form.{0,30}(?:list|lista)/is.test(prompt)) return undefined;
   const items = Array.isArray(context.pageComponents)
     ? context.pageComponents.filter((item): item is IndexedComponent => Boolean(item && typeof item.id === "string" && typeof item.type === "string"))
     : [];
@@ -393,33 +411,33 @@ export function quickCrudSurfacePlan(prompt: string, context: Record<string, unk
   const sources = Array.isArray(context.dataSources) ? context.dataSources as { id?: string; name?: string }[] : [];
   const sourceId = String(sources.find((source) => /attivit|task/i.test(String(source.name)))?.id ?? `${slug(String(context.projectName ?? "project")) || "project"}-tasks`);
   if (!sources.some((source) => source.id === sourceId))
-    op("create_data_source", { sourceId, name: "Attività", provider: "indexeddb", collection: "tasks", schema: { id: "string", title: "string", description: "string", status: "string", priority: "string", category: "string", dueDate: "datetime", time: "string", notes: "string", recurring: "boolean", completed: "boolean" } });
+    op("create_data_source", { sourceId, name: "Tasks", provider: "indexeddb", collection: "tasks", schema: { id: "string", title: "string", description: "string", status: "string", priority: "string", category: "string", dueDate: "datetime", time: "string", notes: "string", recurring: "boolean", completed: "boolean" } });
   items.filter((item) => item.type === "card").slice(0, 3).forEach((item) => op("remove_component", { componentId: item.id, confirmed: true }));
-  [[header, "name", "Intestazione attività"], [header, "label", "Le mie attività"], [section, "name", "Gestione attività"], [section, "label", "Organizza la giornata"], [section, "description", "Crea, cerca e completa le attività anche offline."], [grid, "name", "Elenco attività"], [grid, "label", "Attività"]]
+  [[header, "name", "Tasks header"], [header, "label", "My tasks"], [section, "name", "Task management"], [section, "label", "Organize your day"], [section, "description", "Create, find, and complete tasks even when offline."], [grid, "name", "Task list area"], [grid, "label", "Tasks"]]
     .forEach(([component, property, value]) => op("set_component_property", { componentId: (component as IndexedComponent).id, property, value }));
   const add = (componentId: string, componentType: string, name: string, parentId: string | undefined, props: Record<string, unknown>, accessibility: Record<string, unknown>) => op("add_component", { componentId, componentType, name, ...(parentId ? { parentId } : {}), props, accessibility, styles: { mobile: { width: "100%", minHeight: "48px", borderRadius: "14px", padding: "12px", background: "#1D2229", color: "#F3F4F6" } } });
-  add("tasks-form", "form", "Nuova attività", section.id, { label: "Nuova attività" }, { label: "Modulo nuova attività", role: "form" });
-  add("task-title", "input", "Nome attività", "tasks-form", { fieldName: "title", placeholder: "Cosa devi fare?", required: true }, { label: "Nome attività" });
-  add("task-description", "textarea", "Descrizione", "tasks-form", { fieldName: "description", placeholder: "Aggiungi una descrizione", required: true }, { label: "Descrizione attività" });
-  add("task-status", "select", "Stato", "tasks-form", { fieldName: "status", label: "Da fare", options: "Da fare|In corso|Completata" }, { label: "Stato attività" });
-  add("task-priority", "select", "Priorità", "tasks-form", { fieldName: "priority", label: "Media", options: "Bassa|Media|Alta" }, { label: "Priorità attività" });
-  add("task-category", "input", "Categoria", "tasks-form", { fieldName: "category", placeholder: "Lavoro, personale…" }, { label: "Categoria attività" });
-  add("task-date", "input", "Data", "tasks-form", { fieldName: "dueDate", inputType: "date", required: true }, { label: "Data attività" });
-  add("task-time", "input", "Ora", "tasks-form", { fieldName: "time", inputType: "time" }, { label: "Ora attività" });
-  add("task-notes", "textarea", "Note", "tasks-form", { fieldName: "notes", placeholder: "Note facoltative" }, { label: "Note attività" });
-  add("task-recurring", "checkbox", "Ricorrente", "tasks-form", { fieldName: "recurring", label: "Ripeti questa attività" }, { label: "Attività ricorrente" });
-  add("task-submit", "button", "Salva attività", "tasks-form", { label: "Salva attività", buttonType: "submit" }, { label: "Salva attività", role: "button" });
-  add("task-search", "input", "Cerca attività", grid.id, { fieldName: "search", inputType: "search", placeholder: "Cerca per testo" }, { label: "Cerca attività" });
-  add("task-filter", "select", "Filtra attività", grid.id, { fieldName: "filter", label: "Tutti gli stati", options: "Tutti gli stati|Da fare|In corso|Completata" }, { label: "Filtra per stato" });
-  add("tasks-list", "list", "Lista attività", grid.id, { label: "Attività salvate" }, { label: "Elenco attività" });
-  add("tasks-toast", "toast", "Conferma attività", undefined, { label: "Attività salvata" }, { label: "Conferma operazione", role: "status" });
+  add("tasks-form", "form", "New task", section.id, { label: "New task" }, { label: "New task form", role: "form" });
+  add("task-title", "input", "Task name", "tasks-form", { fieldName: "title", placeholder: "What needs to be done?", required: true }, { label: "Task name" });
+  add("task-description", "textarea", "Description", "tasks-form", { fieldName: "description", placeholder: "Add a description", required: true }, { label: "Task description" });
+  add("task-status", "select", "Status", "tasks-form", { fieldName: "status", label: "To do", options: "To do|In progress|Completed" }, { label: "Task status" });
+  add("task-priority", "select", "Priority", "tasks-form", { fieldName: "priority", label: "Medium", options: "Low|Medium|High" }, { label: "Task priority" });
+  add("task-category", "input", "Category", "tasks-form", { fieldName: "category", placeholder: "Work, personal…" }, { label: "Task category" });
+  add("task-date", "input", "Date", "tasks-form", { fieldName: "dueDate", inputType: "date", required: true }, { label: "Task date" });
+  add("task-time", "input", "Time", "tasks-form", { fieldName: "time", inputType: "time" }, { label: "Task time" });
+  add("task-notes", "textarea", "Notes", "tasks-form", { fieldName: "notes", placeholder: "Optional notes" }, { label: "Task notes" });
+  add("task-recurring", "checkbox", "Recurring", "tasks-form", { fieldName: "recurring", label: "Repeat this task" }, { label: "Recurring task" });
+  add("task-submit", "button", "Save task", "tasks-form", { label: "Save task", buttonType: "submit" }, { label: "Save task", role: "button" });
+  add("task-search", "input", "Search tasks", grid.id, { fieldName: "search", inputType: "search", placeholder: "Search by text" }, { label: "Search tasks" });
+  add("task-filter", "select", "Filter tasks", grid.id, { fieldName: "filter", label: "All statuses", options: "All statuses|To do|In progress|Completed" }, { label: "Filter by status" });
+  add("tasks-list", "list", "Task list", grid.id, { label: "Saved tasks" }, { label: "Task list" });
+  add("tasks-toast", "toast", "Task confirmation", undefined, { label: "Task saved" }, { label: "Operation confirmation", role: "status" });
   op("bind_component_data", { componentId: "tasks-list", sourceId, state: "data" });
   if (!operations.length || operations.length > 50) return undefined;
   return `Piano immediato: prepara la superficie CRUD locale della pagina attività con form accessibile, ricerca, filtro e stati; i flow verranno collegati nel passo successivo.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 export function quickCrudFlowsPlan(prompt: string, context: Record<string, unknown>) {
-  if (!/(?:collega|crea).{0,30}flow/i.test(prompt) || !/(?:carica|page.?load)/i.test(prompt) || !/(?:crea|salva).{0,20}attivit/i.test(prompt)) return undefined;
+  if (!/(?:connect|create|collega|crea).{0,30}flow/i.test(prompt) || !/(?:load|carica|page.?load)/i.test(prompt) || !/(?:create|save|crea|salva).{0,20}(?:task|attivit)/i.test(prompt)) return undefined;
   const components = Array.isArray(context.pageComponents) ? context.pageComponents as IndexedComponent[] : [];
   const form = components.find((item) => item.id === "tasks-form" || item.type === "form");
   const list = components.find((item) => item.id === "tasks-list" || item.type === "list");
@@ -461,7 +479,27 @@ export function quickCrudFlowsPlan(prompt: string, context: Record<string, unkno
     edge("tasks-create", "create-insert", "create-error", "error");
     edge("tasks-create", "create-refresh", "create-success");
   }
+  if (!existingFlows.some((flow) => flow.id === "tasks-update")) {
+    op("add_flow", { flowId: "tasks-update", name: "Update task" });
+    node("tasks-update", "update-event", "event", "Record update requested", 0, 0, { trigger: "recordUpdate", componentId: list.id });
+    node("tasks-update", "update-record", "update", "Update local task", 240, 0, { sourceId });
+    node("tasks-update", "update-refresh", "refresh", "Refresh task list", 480, 0, { componentId: list.id });
+    node("tasks-update", "update-success", "notify", "Update confirmed", 720, 0, { message: "Task updated", level: "success" });
+    node("tasks-update", "update-error", "notify", "Update failed", 480, 150, { message: "Could not update the task", level: "error" });
+    edge("tasks-update", "update-event", "update-record"); edge("tasks-update", "update-record", "update-refresh"); edge("tasks-update", "update-record", "update-error", "error"); edge("tasks-update", "update-refresh", "update-success");
+  }
+  if (!existingFlows.some((flow) => flow.id === "tasks-delete")) {
+    op("add_flow", { flowId: "tasks-delete", name: "Delete task" });
+    node("tasks-delete", "delete-event", "event", "Delete confirmed", 0, 0, { trigger: "recordDelete", componentId: list.id });
+    node("tasks-delete", "delete-record", "delete", "Delete local task", 240, 0, { sourceId });
+    node("tasks-delete", "delete-refresh", "refresh", "Refresh task list", 480, 0, { componentId: list.id });
+    node("tasks-delete", "delete-success", "notify", "Deletion confirmed", 720, 0, { message: "Task deleted", level: "success" });
+    node("tasks-delete", "delete-error", "notify", "Deletion failed", 480, 150, { message: "Could not delete the task", level: "error" });
+    edge("tasks-delete", "delete-event", "delete-record"); edge("tasks-delete", "delete-record", "delete-refresh"); edge("tasks-delete", "delete-record", "delete-error", "error"); edge("tasks-delete", "delete-refresh", "delete-success");
+  }
   op("set_component_event", { componentId: form.id, event: "submit", flowId: "tasks-create" });
+  op("set_component_event", { componentId: list.id, event: "recordUpdate", flowId: "tasks-update" });
+  op("set_component_event", { componentId: list.id, event: "recordDelete", flowId: "tasks-delete" });
   if (!operations.length || operations.length > 50) return undefined;
   return `Piano immediato: collega caricamento e creazione delle attività con nodi success/error e un evento submit stabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
@@ -483,19 +521,19 @@ export function quickHabitsPlan(prompt: string, context: Record<string, unknown>
   const edge = (flowId: string, source: string, target: string, path = "success") => op("connect_nodes", { flowId, source, target, path });
   const sourceId = String(sources.find((source) => /abitudin|habit/i.test(String(source.name)))?.id ?? `${slug(String(context.projectName ?? "project")) || "project"}-habits`);
   if (!sources.some((source) => source.id === sourceId))
-    op("create_data_source", { sourceId, name: "Abitudini", provider: "indexeddb", collection: "habits", schema: { id: "string", name: "string", frequency: "string", currentStreak: "number", bestStreak: "number", completedToday: "boolean", lastCompletedAt: "datetime" } });
+    op("create_data_source", { sourceId, name: "Habits", provider: "indexeddb", collection: "habits", schema: { id: "string", name: "string", frequency: "string", currentStreak: "number", bestStreak: "number", completedToday: "boolean", lastCompletedAt: "datetime" } });
   components.filter((item) => /^habit-(?:water|read|move)$/.test(item.id)).forEach((item) => op("remove_component", { componentId: item.id, confirmed: true }));
   if (!components.some((item) => item.id === "habits-form")) {
-    op("add_component", { componentId: "habits-form", componentType: "form", name: "Nuova abitudine", parentId: root.id, props: { label: "Nuova abitudine" }, accessibility: { label: "Modulo nuova abitudine", role: "form" } });
+    op("add_component", { componentId: "habits-form", componentType: "form", name: "New habit", parentId: root.id, props: { label: "New habit" }, accessibility: { label: "New habit form", role: "form" } });
     op("move_component", { componentId: nameInput.id, parentId: "habits-form" });
     op("set_component_property", { componentId: nameInput.id, property: "fieldName", value: "name" });
     op("set_component_property", { componentId: nameInput.id, property: "required", value: true });
-    op("add_component", { componentId: "habit-frequency", componentType: "select", name: "Frequenza", parentId: "habits-form", props: { label: "Frequenza", fieldName: "frequency", options: "Ogni giorno|Giorni feriali|Ogni settimana" }, accessibility: { label: "Frequenza abitudine" } });
+    op("add_component", { componentId: "habit-frequency", componentType: "select", name: "Frequency", parentId: "habits-form", props: { label: "Frequency", fieldName: "frequency", options: "Every day|Weekdays|Every week" }, accessibility: { label: "Habit frequency" } });
     op("move_component", { componentId: addButton.id, parentId: "habits-form" });
     op("set_component_property", { componentId: addButton.id, property: "buttonType", value: "submit" });
   }
   if (!components.some((item) => item.id === "habits-list")) {
-    op("add_component", { componentId: "habits-list", componentType: "list", name: "Lista abitudini", parentId: root.id, props: { label: "Abitudini salvate" }, accessibility: { label: "Elenco abitudini" } });
+    op("add_component", { componentId: "habits-list", componentType: "list", name: "Habit list", parentId: root.id, props: { label: "Saved habits" }, accessibility: { label: "Habit list" } });
     op("bind_component_data", { componentId: "habits-list", sourceId, state: "data" });
   }
   if (!flows.some((flow) => flow.id === "habits-load")) {
@@ -527,6 +565,20 @@ export function quickHabitsPlan(prompt: string, context: Record<string, unknown>
     node("habits-complete", "habits-complete-error", "notify", "Errore completamento", 480, 150, { message: "Non riesco ad aggiornare l'abitudine", level: "error" });
     edge("habits-complete", "habits-complete-event", "habits-complete-update"); edge("habits-complete", "habits-complete-update", "habits-complete-refresh"); edge("habits-complete", "habits-complete-update", "habits-complete-error", "error"); edge("habits-complete", "habits-complete-refresh", "habits-complete-success");
   }
+  op("set_component_event", { componentId: "habits-list", event: "recordUpdate", flowId: "habits-complete" });
+  const englishLabels: Record<string, { name: string; label: string; options?: string }> = {
+    "habits-form": { name: "New habit", label: "New habit" },
+    "habit-name": { name: "New habit name", label: "New habit" },
+    "habit-frequency": { name: "Frequency", label: "Frequency", options: "Every day|Weekdays|Every week" },
+    "habit-add": { name: "Add habit", label: "+ Add habit" },
+    "habits-list": { name: "Habit list", label: "Saved habits" },
+  };
+  Object.entries(englishLabels).forEach(([componentId, values]) => {
+    if (!components.some((component) => component.id === componentId)) return;
+    op("set_component_property", { componentId, property: "name", value: values.name });
+    op("set_component_property", { componentId, property: "label", value: values.label });
+    if (values.options) op("set_component_property", { componentId, property: "options", value: values.options });
+  });
   if (!operations.length || operations.length > 50) return undefined;
   return `Piano immediato: collega Abitudini a IndexedDB con form validato, lista e flow visuali di caricamento, creazione e completamento.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }

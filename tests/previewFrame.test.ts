@@ -48,6 +48,14 @@ describe('preview component markup', () => {
     expect(renderComponent(calendar)).toContain('<ul aria-live="polite"></ul>')
   })
 
+  it('identifica la sorgente di una lista per aggiornare il binding corretto', () => {
+    const list = makeComponent('list')
+    list.binding = { sourceId: 'dailyflow-tasks', state: 'data' }
+    const html = renderComponent(list)
+    expect(html).toContain('data-source="dailyflow-tasks"')
+    expect(html).toContain('No items yet. Add your first one.')
+  })
+
   it('crea una navigazione mobile generica dalla configurazione del progetto', () => {
     const project = createProject('App mobile')
     project.pages.push({ id: 'settings', name: 'Impostazioni', path: '/settings', components: [] })

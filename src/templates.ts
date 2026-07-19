@@ -10,64 +10,64 @@ export const templateCatalog = [
     id: "landing",
     name: "Landing page",
     icon: "↗",
-    description: "Hero, feature, CTA e footer",
-    tags: "marketing sito web modal",
+    description: "Hero, features, CTA, and footer",
+    tags: "marketing website modal",
   },
   {
     id: "portfolio",
     name: "Portfolio",
     icon: "◇",
-    description: "Home, progetti, profilo e contatti",
-    tags: "creativo personale lavori",
+    description: "Home, projects, profile, and contact",
+    tags: "creative personal work",
   },
   {
     id: "company",
-    name: "Sito aziendale",
+    name: "Company website",
     icon: "▤",
-    description: "Servizi, azienda, casi studio e contatti",
-    tags: "business servizi corporate",
+    description: "Services, company, case studies, and contact",
+    tags: "business services corporate",
   },
   {
     id: "blog",
     name: "Blog",
     icon: "¶",
-    description: "Articoli, categorie, ricerca e newsletter",
-    tags: "contenuti articoli magazine",
+    description: "Articles, categories, search, and newsletter",
+    tags: "content articles magazine",
   },
   {
     id: "ecommerce",
     name: "E-commerce",
     icon: "◫",
-    description: "Catalogo, prodotto, carrello e checkout",
-    tags: "negozio prodotti vendita",
+    description: "Catalog, product, cart, and checkout",
+    tags: "store products sales",
   },
   {
     id: "dashboard",
     name: "Project dashboard",
     icon: "▦",
-    description: "KPI, ricerca, filtri e CRUD",
-    tags: "dashboard progetti dati crud",
+    description: "KPIs, search, filters, and CRUD",
+    tags: "dashboard projects data crud",
   },
   {
     id: "auth",
-    name: "Autenticazione",
+    name: "Authentication",
     icon: "◎",
-    description: "Accesso, registrazione e area riservata",
-    tags: "login account utenti",
+    description: "Sign in, registration, and private area",
+    tags: "login account users",
   },
   {
     id: "management",
-    name: "Gestionale",
+    name: "Management app",
     icon: "☷",
-    description: "Dashboard, record, report e impostazioni",
-    tags: "gestionale database crud report",
+    description: "Dashboard, records, reports, and settings",
+    tags: "management database crud report",
   },
   {
     id: "mobile",
-    name: "Applicazione mobile",
+    name: "Mobile application",
     icon: "▯",
-    description: "Home, attività e profilo mobile-first",
-    tags: "android app telefono",
+    description: "Home, tasks, and a mobile-first profile",
+    tags: "android app phone",
   },
 ] as const;
 
@@ -457,37 +457,37 @@ const presetPages: Record<
 > = {
   portfolio: [
     ["Home", "/"],
-    ["Progetti", "/progetti"],
-    ["Profilo", "/profilo"],
-    ["Contatti", "/contatti"],
+    ["Projects", "/projects"],
+    ["Profile", "/profile"],
+    ["Contact", "/contact"],
   ],
   company: [
     ["Home", "/"],
-    ["Servizi", "/servizi"],
-    ["Azienda", "/azienda"],
-    ["Contatti", "/contatti"],
+    ["Services", "/services"],
+    ["Company", "/company"],
+    ["Contact", "/contact"],
   ],
   blog: [
-    ["Articoli", "/"],
-    ["Categorie", "/categorie"],
-    ["Articolo", "/articolo"],
-    ["Chi siamo", "/chi-siamo"],
+    ["Articles", "/"],
+    ["Categories", "/categories"],
+    ["Article", "/article"],
+    ["About", "/about"],
   ],
   ecommerce: [
-    ["Catalogo", "/"],
-    ["Prodotto", "/prodotto"],
-    ["Carrello", "/carrello"],
+    ["Catalog", "/"],
+    ["Product", "/product"],
+    ["Cart", "/cart"],
     ["Checkout", "/checkout"],
   ],
   auth: [
-    ["Accedi", "/"],
-    ["Registrati", "/registrati"],
+    ["Sign in", "/"],
+    ["Register", "/register"],
     ["Dashboard", "/dashboard"],
   ],
   mobile: [
     ["Home", "/"],
-    ["Attività", "/attivita"],
-    ["Profilo", "/profilo"],
+    ["Tasks", "/tasks"],
+    ["Profile", "/profile"],
   ],
 };
 
@@ -509,7 +509,7 @@ function genericPage(
             ? "Aster Shop"
             : template === "blog"
               ? "Carta"
-              : "Nuovo progetto",
+              : "New project",
         "header",
       ),
       {
@@ -531,8 +531,8 @@ function genericPage(
         "intro",
         {
           description: lead
-            ? "Un punto di partenza completo, responsive e interamente modificabile."
-            : `Contenuti e azioni per ${pageName.toLowerCase()}.`,
+            ? "A complete, responsive, and fully editable starting point."
+            : `Content and actions for ${pageName.toLowerCase()}.`,
         },
       ),
       {
@@ -544,7 +544,7 @@ function genericPage(
       { padding: "24px" },
     ),
     style(
-      component("grid", `${pageName} grid`, "Contenuti", "content-grid"),
+      component("grid", `${pageName} grid`, "Content", "content-grid"),
       {
         display: "grid",
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -553,7 +553,7 @@ function genericPage(
       },
       { gridTemplateColumns: "1fr" },
     ),
-    ...["In evidenza", "Più richiesto", "Novità"].map((label, cardIndex) =>
+    ...["Featured", "Most popular", "New"].map((label, cardIndex) =>
       style(
         component(
           "card",
@@ -562,7 +562,7 @@ function genericPage(
           "content-card",
           {
             description:
-              "Titolo, descrizione e azione possono essere collegati a dati e flow.",
+              "Connect the title, description, and action to data and flows.",
           },
         ),
         {
@@ -612,7 +612,7 @@ function genericPage(
   }
   components.push(
     style(
-      component("footer", "Footer", "Privacy · Contatti · © 2026", "footer"),
+      component("footer", "Footer", "Privacy · Contact · © 2026", "footer"),
       {
         background: "#111827",
         color: "#d1d5db",

@@ -555,7 +555,7 @@ export function makeComponent(type: EditorComponent["type"]): EditorComponent {
     name: `${type[0].toUpperCase()}${type.slice(1)}`,
     props: {
       label: label[type] ?? type,
-      placeholder: type === "input" ? "Scrivi qualcosa…" : "",
+      placeholder: type === "input" ? "Type something…" : "",
     },
     styles: { desktop: { ...baseStyle, ...layout }, tablet: {}, mobile: { fontSize: "15px" } },
     events: {},

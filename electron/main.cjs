@@ -14,7 +14,7 @@ const allowedExtensions = new Set([
   ".svelte", ".ts", ".tsx", ".txt", ".vue", ".yaml", ".yml",
 ]);
 const ignoredDirectories = new Set([
-  ".git", ".next", ".output", ".turbo", "android", "build", "coverage",
+  ".agents", ".git", ".next", ".output", ".turbo", "android", "build", "coverage",
   "dist", "ios", "node_modules", "out", "target",
 ]);
 const maxFiles = 500;

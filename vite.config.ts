@@ -27,7 +27,7 @@ const skillsReady = bundledSkillsRoot === workspaceSkillsRoot
     );
 
 const sourceExtensions = new Set([".css", ".html", ".htm", ".js", ".json", ".jsx", ".md", ".mjs", ".svelte", ".ts", ".tsx", ".txt", ".vue", ".yaml", ".yml"]);
-const ignoredSourceDirectories = new Set([".git", ".next", ".output", ".turbo", "android", "build", "coverage", "dist", "ios", "node_modules", "out", "target"]);
+const ignoredSourceDirectories = new Set([".agents", ".git", ".next", ".output", ".turbo", "android", "build", "coverage", "dist", "ios", "node_modules", "out", "target"]);
 async function readWorkspace() {
   if (process.env.KYRO_PROJECT_MODE !== "project") return null;
   if (!(await stat(workspaceRoot).catch(() => undefined))?.isDirectory()) throw new Error("The project folder is not accessible.");
@@ -1007,7 +1007,7 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
               })();
               return reply(response, 202, { jobId: id, status: job.status });
             }
-            agent = spawn(
+            const spawnedAgent = spawn(
               codexCommand,
               [
                 ...codexPrefix,
@@ -1029,17 +1029,18 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
                 env: { ...process.env, FRONTEND_EDITOR_LIVE_URL: bridgeBase },
               },
             );
-            agent.stdout.on("data", (chunk) => {
+            agent = spawnedAgent;
+            spawnedAgent.stdout.on("data", (chunk) => {
               job.output += chunk;
-              if (job.output.length > 250_000) agent?.kill();
+              if (job.output.length > 250_000) spawnedAgent.kill();
             });
-            agent.stderr.on("data", (chunk) => {
+            spawnedAgent.stderr.on("data", (chunk) => {
               job.errors += chunk;
             });
-            agent.stdin.end(instruction);
-            agent.on("close", async (code) => {
-              agent = undefined;
-              agentJobId = undefined;
+            spawnedAgent.stdin.end(instruction);
+            spawnedAgent.on("close", async (code) => {
+              if (agent === spawnedAgent) agent = undefined;
+              if (agentJobId === id) agentJobId = undefined;
               job.code = code;
               job.finishedAt = new Date().toISOString();
               job.status =
@@ -1054,12 +1055,12 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
                 job.changedFiles = changedPaths(job.before, job.after);
               }
             });
-            agent.on("error", (error) => {
+            spawnedAgent.on("error", (error) => {
               job.errors += error.message;
               job.status = "error";
               job.finishedAt = new Date().toISOString();
-              agent = undefined;
-              agentJobId = undefined;
+              if (agent === spawnedAgent) agent = undefined;
+              if (agentJobId === id) agentJobId = undefined;
             });
             return reply(response, 202, { jobId: id, status: job.status });
           }
@@ -1090,7 +1091,10 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
                 error: "Operazione non annullabile",
               });
             job.status = "cancelled";
-            agent?.kill();
+            const cancelledAgent = agent;
+            agent = undefined;
+            agentJobId = undefined;
+            cancelledAgent?.kill();
             return reply(response, 200, { cancelled: true });
           }
           if (

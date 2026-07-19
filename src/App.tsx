@@ -222,6 +222,7 @@ function Dashboard({
         },
       },
       theme: { tokens: { ...project.theme.tokens, primary: themeColor } },
+      appConfig: { ...project.appConfig, offline: target !== "web" },
       exportConfig:
         target === "android"
           ? {
@@ -622,7 +623,9 @@ function Editor({
   }>();
   const [tab, setTab] = useState<WorkspaceTab>("design");
   const [inspectorMode, setInspectorMode] = useState<"design" | "actions">("design");
-  const [breakpoint, setBreakpoint] = useState<Breakpoint>("desktop");
+  const [breakpoint, setBreakpoint] = useState<Breakpoint>(
+    initial.exportConfig.target === "android" ? "mobile" : "desktop",
+  );
   const [interactive, setInteractive] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => Math.min(420, Math.max(190, Number(localStorage.getItem("frontend-editor-left-panel")) || 240)));
@@ -654,6 +657,7 @@ function Editor({
     "http://127.0.0.1:8787/records",
   );
   const [feedback, setFeedback] = useState("");
+  const [pageDraft, setPageDraft] = useState<{ name: string; path: string }>();
   useEffect(() => {
     if (!feedback) return;
     const timer = window.setTimeout(() => setFeedback(""), 4_000);
@@ -790,6 +794,32 @@ function Editor({
     ? inspectDataSourceProgram(project, selectedSourceId)
     : undefined;
   const selectedSourceDefinition = project.dataSources.find((source) => source.id === selectedSourceId);
+  const focusedFlowId = useRef("");
+
+  useEffect(() => {
+    if (tab !== "flow" || !flow) {
+      focusedFlowId.current = "";
+      return;
+    }
+    if (focusedFlowId.current === flow.id) return;
+    focusedFlowId.current = flow.id;
+    const configuredIds = new Set(
+      flow.nodes.map((node) => node.config.componentId).filter(Boolean),
+    );
+    const owner = project.pages
+      .map((page) => ({
+        page,
+        component: page.components.find(
+          (component) =>
+            Object.values(component.events).includes(flow.id) ||
+            configuredIds.has(component.id),
+        ),
+      }))
+      .find((entry) => entry.component);
+    if (!owner) return;
+    if (owner.page.id !== pageId) setPageId(owner.page.id);
+    setSelected([owner.component!.id]);
+  }, [flow, pageId, project.pages, selected, tab]);
 
   useEffect(() => {
     const components = currentPage?.components ?? [];
@@ -916,13 +946,13 @@ function Editor({
       ],
     };
     const prompts: Record<string, string> = {
-      "Chiedi a Codex": "",
-      "Crea comportamento": `Crea un nuovo comportamento per “${component.name}”.`,
-      "Modifica comportamento": `Modifica il comportamento esistente di “${component.name}”.`,
-      "Collega dati": `Collega “${component.name}” ai dati necessari. Se manca una sorgente, proponi opzioni semplici prima di crearla.`,
-      "Correggi problema": `Individua e correggi il problema di “${component.name}”.`,
-      "Migliora componente": `Migliora usabilità, responsive design e accessibilità di “${component.name}”.`,
-      "Spiega elemento": `Spiega in parole semplici cos’è “${component.name}”, cosa fa e come posso modificarlo.`,
+      "Ask Codex": "",
+      "Create behavior": `Create a new behavior for “${component.name}”.`,
+      "Edit behavior": `Edit the existing behavior for “${component.name}”.`,
+      "Connect data": `Connect “${component.name}” to the data it needs. If a source is missing, offer simple choices before creating it.`,
+      "Fix a problem": `Find and fix the problem affecting “${component.name}”.`,
+      "Improve component": `Improve the usability, responsive design, and accessibility of “${component.name}”.`,
+      "Explain element": `Explain in plain language what “${component.name}” is, what it does, and how I can change it.`,
     };
     setCodexRequest({ context, prompt: direct?.prompt ?? prompts[action] });
     setContextMenu(undefined);
@@ -952,7 +982,7 @@ function Editor({
     const timer = setTimeout(() => {
       void saveProject(project)
         .then(async () => {
-          setSaveState("Salvato automaticamente");
+          setSaveState("Saved automatically");
           setVersions(await listProjectVersions(project.id));
         })
         .catch((error) =>
@@ -1088,7 +1118,7 @@ function Editor({
             });
             processingCommands.current.delete(command.id);
             setFeedback(
-              `Modifica Codex applicata · transazione ${command.id.slice(0, 8)}`,
+              `Codex change applied · transaction ${command.id.slice(0, 8)}`,
             );
           } catch (error) {
             await finishBridgeCommand(command.id, undefined, error);
@@ -1435,15 +1465,30 @@ function Editor({
     setSelected([]);
   };
   const addPage = () => {
+    const number = project.pages.length + 1;
+    setPageDraft({ name: `Screen ${number}`, path: `/screen-${number}` });
+  };
+  const createPage = () => {
+    if (!pageDraft) return;
+    const name = pageDraft.name.trim();
+    const path = `/${pageDraft.path.trim().replace(/^\/+|\/+$/g, "")}`;
+    if (!name) return setFeedback("Enter a screen name");
+    if (project.pages.some((page) => page.path === path)) return setFeedback("Choose a unique route");
+    const root = makeComponent("section");
+    root.name = `${name} content`;
+    root.props = { ...root.props, label: name, description: "Design this screen visually or ask Codex to build it." };
+    root.accessibility = { ...root.accessibility, label: `${name} content` };
+    root.styles.mobile = { ...root.styles.mobile, width: "100%", minHeight: "640px", padding: "20px 16px", gap: "16px" };
     const page = {
       id: crypto.randomUUID(),
-      name: `Pagina ${project.pages.length + 1}`,
-      path: project.pages.length ? `/pagina-${project.pages.length + 1}` : "/",
-      components: [],
+      name,
+      path,
+      components: [root],
     };
     change({ ...project, pages: [...project.pages, page] });
     setPageId(page.id);
-    setSelected([]);
+    setSelected([root.id]);
+    setPageDraft(undefined);
   };
   const addAssets = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -1620,7 +1665,7 @@ function Editor({
   const askCodexForAction = (component: EditorComponent, event?: ActionEventDefinition) => {
     const element = document.querySelector<HTMLElement>(`[data-component-id="${component.id}"]`);
     const rect = element?.getBoundingClientRect();
-    askCodex("Chiedi a Codex", {
+    askCodex("Ask Codex", {
       component,
       bounds: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : { x: 0, y: 0, width: 0, height: 0 },
       prompt: event ? `When “${event.label}” happens on “${component.name}”, ` : `Create or improve an action for “${component.name}”: `,
@@ -1866,7 +1911,7 @@ function Editor({
     projectRef.current = candidate;
     change({ ...base, flowRuns: candidate.flowRuns }, false);
     await saveProject(candidate);
-    setSaveState("Salvato automaticamente");
+    setSaveState("Saved automatically");
   }, [change]);
   const addRecord = useCallback(
     async (input: string) => {
@@ -1938,11 +1983,11 @@ function Editor({
       update: async (value, sourceId) => {
         if (!value || typeof value !== "object") throw new Error("Il record da modificare non è valido");
         const record = value as Record<string, unknown>;
-        return updateProjectRecord(sourceId || source?.id || "", String(record.id || ""), record);
+        return updateGenericRecord(sourceId || source?.id || "", String(record.id || ""), record);
       },
       delete: async (value, sourceId) => {
         const id = typeof value === "object" && value ? String((value as Record<string, unknown>).id || "") : String(value || "");
-        await deleteProjectRecord(sourceId || source?.id || "", id);
+        await deleteGenericRecord(sourceId || source?.id || "", id);
       },
       refresh: async () => { if (source) await refreshRecords(); },
       navigate: (path, mode) => { navigate = { path, mode }; },
@@ -3324,28 +3369,48 @@ function Editor({
         </main>
       )}
       {tab === "terminal" && <TerminalPanel projectId={project.id} />}
+      {pageDraft && (
+        <div className="tutorial-backdrop" role="presentation" onMouseDown={() => setPageDraft(undefined)}>
+          <form
+            className="tutorial-dialog page-wizard"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="page-wizard-title"
+            onMouseDown={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); createPage(); }}
+          >
+            <button type="button" className="tutorial-close" aria-label="Close page wizard" onClick={() => setPageDraft(undefined)}>×</button>
+            <span className="guide-kicker">New screen</span>
+            <h2 id="page-wizard-title">What is this screen for?</h2>
+            <label>Screen name<input autoFocus aria-label="Screen name" value={pageDraft.name} onChange={(event) => setPageDraft({ ...pageDraft, name: event.target.value })} /></label>
+            <label>Route<input aria-label="Screen route" value={pageDraft.path} onChange={(event) => setPageDraft({ ...pageDraft, path: event.target.value })} /></label>
+            <small>Kyro adds an editable screen container so you can start dragging elements or ask Codex immediately.</small>
+            <div className="inline-actions"><button type="button" className="secondary" onClick={() => setPageDraft(undefined)}>Cancel</button><button type="submit">Create screen</button></div>
+          </form>
+        </div>
+      )}
       {contextMenu && (
         <div
           className="component-menu"
           role="menu"
-          aria-label={`Azioni per ${contextMenu.component.name}`}
+          aria-label={`Actions for ${contextMenu.component.name}`}
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           {[
-            "Chiedi a Codex",
-            "Crea comportamento",
-            "Modifica comportamento",
-            "Collega dati",
-            "Correggi problema",
-            "Migliora componente",
-            "Spiega elemento",
+            "Ask Codex",
+            "Create behavior",
+            "Edit behavior",
+            "Connect data",
+            "Fix a problem",
+            "Improve component",
+            "Explain element",
           ].map((action) => (
             <button
               role="menuitem"
               key={action}
               onClick={() => askCodex(action)}
             >
-              {action === "Chiedi a Codex" ? "⌘" : "›"}
+              {action === "Ask Codex" ? "⌘" : "›"}
               <span>{action}</span>
             </button>
           ))}
@@ -3354,7 +3419,7 @@ function Editor({
             className="menu-cancel"
             onClick={() => setContextMenu(undefined)}
           >
-            Chiudi menu
+            Close menu
           </button>
         </div>
       )}
@@ -3399,12 +3464,12 @@ function ThemeToggle({ theme, onToggle }: { theme: "light" | "dark"; onToggle: (
   return (
     <button
       className="theme-toggle secondary"
-      aria-label={theme === "dark" ? "Usa tema chiaro" : "Usa tema scuro"}
+      aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
       aria-pressed={theme === "dark"}
       onClick={onToggle}
     >
       <span aria-hidden="true">{theme === "dark" ? "☀" : "◐"}</span>
-      <span>{theme === "dark" ? "Chiaro" : "Scuro"}</span>
+      <span>{theme === "dark" ? "Light" : "Dark"}</span>
     </button>
   );
 }
@@ -3421,24 +3486,24 @@ function PageAppearance({
   const background = tokens.pageBackground ?? "#ffffff";
   const image = tokens.pageBackgroundImage ?? "none";
   return (
-    <section className="page-appearance" aria-label="Aspetto pagina">
-      <div><strong>Sfondo della pagina</strong><small>Vale per canvas, preview ed export.</small></div>
-      <div className="palette-swatches" aria-label="Palette pagina">
+    <section className="page-appearance" aria-label="Page appearance">
+      <div><strong>Page background</strong><small>Shared by canvas, preview and export.</small></div>
+      <div className="palette-swatches" aria-label="Page palette">
         {visualPalettes.map((palette) => (
-          <button aria-label={`Sfondo pagina ${palette.name}`} key={palette.name} style={{ background: palette.background, color: palette.color }} onClick={() => onChange({ pageBackground: palette.background })}>Aa</button>
+          <button aria-label={`${palette.name} page background`} key={palette.name} style={{ background: palette.background, color: palette.color }} onClick={() => onChange({ pageBackground: palette.background })}>Aa</button>
         ))}
       </div>
       <label>
-        Colore pagina
+        Page color
         <span className="color-field">
           <input type="color" value={/^#[0-9a-f]{6}$/i.test(background) ? background : "#ffffff"} onChange={(event) => onChange({ pageBackground: event.target.value })} />
-          <input aria-label="Colore pagina valore" value={background} onChange={(event) => onChange({ pageBackground: event.target.value })} />
+          <input aria-label="Page color value" value={background} onChange={(event) => onChange({ pageBackground: event.target.value })} />
         </span>
       </label>
       <label>
-        Gradiente pagina
+        Page gradient
         <select value={visualGradients.some(([, value]) => value === image) ? image : "none"} onChange={(event) => onChange({ pageBackgroundImage: event.target.value })}>
-          <option value="none">Nessuno</option>
+          <option value="none">None</option>
           {visualGradients.map(([name, value]) => <option key={name} value={value}>{name}</option>)}
         </select>
       </label>
@@ -3451,7 +3516,7 @@ function PageAppearance({
           </select>
         </label>
       )}
-      <p className="property-help">Seleziona un elemento sul canvas per modificarne colori, testo ed effetti.</p>
+      <p className="property-help">Select an element on the canvas to edit its colors, text, and effects.</p>
     </section>
   );
 }
@@ -3509,7 +3574,7 @@ function ProgramConnections({
                     ? "Configura interazione"
                     : issue.target === "settings"
                       ? "Configura pubblicazione"
-                      : "Chiedi a Codex"}
+                      : "Ask Codex"}
               </button>
             </article>
           ))}
@@ -3678,55 +3743,55 @@ function GuideBar({
     {
       done: project.pages.length > 0,
       tab: "design",
-      label: "Crea una pagina",
-      help: "Una pagina è una schermata della tua applicazione.",
+      label: "Create a page",
+      help: "A page is one screen of your application.",
     },
     {
       done: components > 0,
       tab: "design",
-      label: "Aggiungi elementi",
-      help: "Usa la palette per costruire visivamente la schermata.",
+      label: "Add elements",
+      help: "Use the palette to build the screen visually.",
     },
     {
       done:
         project.dataSources.length > 0 ||
         project.state.experience === "landing",
       tab: "data",
-      label: "Collega i dati",
-      help: "Serve solo se la pagina deve salvare o mostrare contenuti dinamici.",
+      label: "Connect data",
+      help: "Only needed when the page saves or shows dynamic content.",
     },
     {
       done: project.flows.length > 0,
       tab: "flow",
-      label: "Crea comportamenti",
-      help: "Un flow collega un gesto, come un clic, al risultato desiderato.",
+      label: "Create behavior",
+      help: "A flow connects a gesture, such as a click, to its result.",
     },
     {
       done: false,
       tab: "preview",
-      label: "Prova il risultato",
-      help: "Apri la preview e usa la pagina come farebbe un visitatore.",
+      label: "Try the result",
+      help: "Open Preview and use the page like a real visitor.",
     },
   ];
   const next = steps.find((step) => !step.done) ?? steps.at(-1)!;
   return (
-    <aside className="guide-strip" aria-label="Percorso guidato">
-      <span className="guide-kicker">Prossimo passo</span>
+    <aside className="guide-strip" aria-label="Guided path">
+      <span className="guide-kicker">Next step</span>
       <strong>{next.label}</strong>
       <span>{next.help}</span>
       <button
-        data-help={`Vai in ${next.tab} per: ${next.label}.`}
+        data-help={`Open ${next.tab} to: ${next.label}.`}
         onClick={() => onOpen(next.tab)}
       >
-        {tab === next.tab ? "Sei qui" : "Portami lì"}{" "}
+        {tab === next.tab ? "You are here" : "Take me there"}{" "}
         <span aria-hidden="true">→</span>
       </button>
       <button className="secondary" onClick={() => setTutorialOpen(true)}>
-        Tutorial completo
+        Full tutorial
       </button>
       <details>
-        <summary data-help="Mostra tutti i passi e quelli già completati.">
-          Percorso
+        <summary data-help="Show every step and what is already complete.">
+          Path
         </summary>
         <ol>
           {steps.map((step) => (
@@ -3744,18 +3809,18 @@ function GuideBar({
       {tutorialOpen && (
         <div className="tutorial-backdrop" role="presentation" onMouseDown={() => setTutorialOpen(false)}>
           <section className="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="tutorial-close" aria-label="Chiudi tutorial" onClick={() => setTutorialOpen(false)}>×</button>
-            <span className="guide-kicker">Da zero al progetto finito</span>
-            <h2 id="tutorial-title">Costruisci come in Canva</h2>
+            <button className="tutorial-close" aria-label="Close tutorial" onClick={() => setTutorialOpen(false)}>×</button>
+            <span className="guide-kicker">From blank canvas to finished project</span>
+            <h2 id="tutorial-title">Build visually, like Canva</h2>
             <ol>
-              <li><strong>Aggiungi.</strong> Trascina un elemento dalla palette a sinistra dentro la pagina.</li>
-              <li><strong>Sposta.</strong> Selezionalo e trascinalo direttamente nel canvas. Le guide aiutano ad allinearlo.</li>
-              <li><strong>Ridimensiona.</strong> Usa le maniglie sul bordo destro, inferiore o sull’angolo.</li>
-              <li><strong>Personalizza.</strong> Nel pannello Design a destra scegli colori, testo, spaziatura e layout responsive.</li>
-              <li><strong>Dagli vita.</strong> Apri Flow per collegare clic, dati e azioni; oppure usa “Chiedi a Codex” dal clic destro.</li>
-              <li><strong>Concludi.</strong> Prova desktop e mobile in Preview, poi usa Esporta per ottenere il progetto autonomo.</li>
+              <li><strong>Add.</strong> Drag an element from the left palette onto the page.</li>
+              <li><strong>Move.</strong> Select it and drag it directly on the canvas. Guides help you align it.</li>
+              <li><strong>Resize.</strong> Use the handles on the right, bottom, or corner.</li>
+              <li><strong>Customize.</strong> Use the Design panel to choose colors, text, spacing, and responsive layout.</li>
+              <li><strong>Bring it to life.</strong> Open Flow to connect clicks, data, and actions, or right-click and choose “Ask Codex”.</li>
+              <li><strong>Finish.</strong> Try desktop and mobile in Preview, then export a standalone project.</li>
             </ol>
-            <button autoFocus onClick={() => setTutorialOpen(false)}>Inizia dal canvas</button>
+            <button autoFocus onClick={() => setTutorialOpen(false)}>Start on the canvas</button>
           </section>
         </div>
       )}
@@ -4369,7 +4434,7 @@ function DesignComponent({
           style={childrenLayoutStyle}
         >
           <span className="drop-hint">
-            {children ? component.name : "Trascina qui gli elementi"}
+            {children ? component.name : "Drop elements here"}
           </span>
           {children}
           {selected && fractions.slice(0, -1).map((_, index) => {

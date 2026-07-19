@@ -62,7 +62,7 @@ export function ProjectSettings({
             {
               name: "AUTH_SECRET",
               description:
-                "Firma sicura delle sessioni. Inserisci il valore solo nell’ambiente di esecuzione.",
+                "Secure session signing. Set the value only in the runtime environment.",
               required: true,
             },
           ]
@@ -71,7 +71,7 @@ export function ProjectSettings({
               {
                 name: "OIDC_CLIENT_SECRET",
                 description:
-                  "Segreto del provider, usato soltanto dal backend.",
+                  "Provider secret used only by the backend.",
                 required: true,
               },
             ]
@@ -97,7 +97,7 @@ export function ProjectSettings({
   };
   const prepare = async () => {
     setPreparing(true);
-    setResult("Creo i file e verifico gli strumenti…");
+    setResult("Creating files and checking tools…");
     try {
       const response = await fetch("/api/android/prepare", {
           method: "POST",
@@ -109,19 +109,19 @@ export function ProjectSettings({
         }),
         value = await response.json();
       if (!response.ok)
-        throw new Error(value.error || "Preparazione non avviata");
+        throw new Error(value.error || "Preparation did not start");
       let job;
       do {
         await new Promise((resolve) => setTimeout(resolve, 700));
         job = await fetch(`/api/android/jobs/${value.jobId}`).then((item) =>
           item.json(),
         );
-        setResult(job.message || job.output || "Preparazione in corso…");
+        setResult(job.message || job.output || "Preparation in progress…");
       } while (job.status === "running");
       if (job.status !== "completed")
-        throw new Error(job.error || "Preparazione non completata");
+        throw new Error(job.error || "Preparation did not complete");
       setResult(
-        `Progetto Android pronto in ${job.directory}${job.apk ? ` · APK: ${job.apk}` : ""}`,
+        `Android project ready in ${job.directory}${job.apk ? ` · APK: ${job.apk}` : ""}`,
       );
     } catch (error) {
       setResult(error instanceof Error ? error.message : String(error));
@@ -133,27 +133,27 @@ export function ProjectSettings({
     <main className="wide-workspace project-settings">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Pubblicazione guidata</p>
+          <p className="eyebrow">Guided publishing</p>
           <h1>Web, PWA e Android</h1>
           <p>
-            Choose the practical result. Kyro configures the files
-            necessari senza chiederti librerie o comandi.
+            Choose the result you need. Kyro configures the required files
+            without asking you for libraries or commands.
           </p>
         </div>
       </div>
-      <section className="target-settings" aria-label="Target progetto">
+      <section className="target-settings" aria-label="Project target">
         {(
           [
-            ["web", "Web", "Un sito o una web app da aprire nel browser."],
+            ["web", "Web", "A website or web app that runs in the browser."],
             [
               "pwa",
               "PWA",
-              "Installabile dal browser con manifest e base offline.",
+              "Installable from the browser with a manifest and offline support.",
             ],
             [
               "android",
               "Android",
-              "App nativa basata su Capacitor 8, API 24 o successiva.",
+              "Native app powered by Capacitor 8, API 24 or newer.",
             ],
           ] as const
         ).map(([value, label, help]) => (
@@ -170,9 +170,9 @@ export function ProjectSettings({
       </section>
       <section className="application-capabilities">
         <div className="settings-card">
-          <h2>Accesso e ruoli</h2>
+          <h2>Access and roles</h2>
           <label>
-            Chi può entrare?
+            Who can sign in?
             <select
               value={app.authentication.mode}
               onChange={(event) =>
@@ -181,11 +181,11 @@ export function ProjectSettings({
                 )
               }
             >
-              <option value="none">Accesso libero</option>
+              <option value="none">Open access</option>
               <option value="generated">
-                Login email nel backend generato
+                Email login with a generated backend
               </option>
-              <option value="oidc">Provider aziendale OpenID Connect</option>
+              <option value="oidc">Company OpenID Connect provider</option>
             </select>
           </label>
           {app.authentication.mode === "generated" &&
@@ -193,17 +193,17 @@ export function ProjectSettings({
               (source) => source.provider === "generated",
             ) && (
               <div className="requirement-warning" role="alert">
-                <strong>Manca il backend</strong>
+                <strong>Backend required</strong>
                 <span>
-                  Il login sicuro non può vivere soltanto nel browser. Apri Dati
-                  e scegli “Genera anche il backend”.
+                  Secure login cannot live in the browser alone. Open Data and
+                  choose “Generate the backend too”.
                 </span>
               </div>
             )}
           {app.authentication.mode === "oidc" && (
             <>
               <label>
-                Indirizzo del provider
+                Provider address
                 <input
                   type="url"
                   value={app.authentication.issuer ?? ""}
@@ -223,7 +223,7 @@ export function ProjectSettings({
                 />
               </label>
               <label>
-                Identificativo applicazione
+                Application ID
                 <input
                   value={app.authentication.clientId ?? ""}
                   onChange={(event) =>
@@ -244,12 +244,12 @@ export function ProjectSettings({
           )}
           {app.authentication.mode !== "none" && (
             <fieldset>
-              <legend>Ruoli disponibili</legend>
+              <legend>Available roles</legend>
               {(
                 [
-                  ["admin", "Amministratore"],
-                  ["editor", "Può modificare"],
-                  ["viewer", "Può solo vedere"],
+                  ["admin", "Administrator"],
+                  ["editor", "Can edit"],
+                  ["viewer", "View only"],
                 ] as const
               ).map(([role, label]) => (
                 <label className="check-row" key={role}>
@@ -280,7 +280,7 @@ export function ProjectSettings({
           )}
         </div>
         <div className="settings-card">
-          <h2>Offline e aggiornamenti</h2>
+          <h2>Offline and updates</h2>
           <label className="check-row">
             <input
               type="checkbox"
@@ -292,10 +292,10 @@ export function ProjectSettings({
                 })
               }
             />
-            Conserva una base offline quando possibile
+            Keep an offline copy whenever possible
           </label>
           <label>
-            Aggiornamento automatico
+            Automatic updates
             <select
               value={app.realtime.mode}
               onChange={(event) => {
@@ -312,13 +312,13 @@ export function ProjectSettings({
                 });
               }}
             >
-              <option value="none">Aggiorna quando serve</option>
-              <option value="sse">Aggiorna appena cambiano i dati</option>
+              <option value="none">Refresh when needed</option>
+              <option value="sse">Refresh as soon as data changes</option>
             </select>
           </label>
           {app.realtime.mode === "sse" && (
             <label>
-              Canale aggiornamenti
+              Update channel
               <input
                 type="url"
                 value={app.realtime.url ?? ""}
@@ -336,15 +336,14 @@ export function ProjectSettings({
           )}
           {app.environmentVariables.length > 0 && (
             <div className="environment-help">
-              <strong>Valori richiesti all’avvio</strong>
+              <strong>Values required at startup</strong>
               {app.environmentVariables.map((item) => (
                 <span key={item.name}>
                   <code>{item.name}</code> · {item.description}
                 </span>
               ))}
               <small>
-                Kyro exports names only: secret values are never
-                vengono mai salvati.
+                Kyro exports names only: secret values are never saved.
               </small>
             </div>
           )}
@@ -361,13 +360,12 @@ export function ProjectSettings({
       </section>}
       {target === "pwa" && (
         <section className="settings-card">
-          <h2>PWA pronta da installare</h2>
+          <h2>Installable PWA ready</h2>
           <p>
-            L'export includera manifest, icona, colore del tema e service
-            worker. Le funzioni principali restano disponibili anche senza
-            installazione.
+            The export includes a manifest, icon, theme color, and service
+            worker. Core features remain available without installation.
           </p>
-          <div className="valid-chip">Configurazione completa</div>
+          <div className="valid-chip">Configuration complete</div>
         </section>
       )}
       {target === "android" && (
@@ -376,9 +374,9 @@ export function ProjectSettings({
             className="settings-card"
             onSubmit={(event) => event.preventDefault()}
           >
-            <h2>Identita e comportamento</h2>
+            <h2>Identity and behavior</h2>
             <label>
-              Nome app
+              App name
               <input
                 value={android.appName}
                 onChange={(event) => setAndroid("appName", event.target.value)}
@@ -397,11 +395,11 @@ export function ProjectSettings({
                   setAndroid("packageId", event.target.value.toLowerCase())
                 }
               />
-              <small>Esempio: com.azienda.nomeapp</small>
+              <small>Example: com.company.appname</small>
             </label>
             <div className="field-pair">
               <label>
-                Versione
+                Version
                 <input
                   value={android.versionName}
                   onChange={(event) =>
@@ -410,7 +408,7 @@ export function ProjectSettings({
                 />
               </label>
               <label>
-                Numero build
+                Build number
                 <input
                   type="number"
                   min="1"
@@ -423,7 +421,7 @@ export function ProjectSettings({
             </div>
             <div className="field-pair">
               <label>
-                Orientamento
+                Orientation
                 <select
                   value={android.orientation}
                   onChange={(event) =>
@@ -433,13 +431,13 @@ export function ProjectSettings({
                     )
                   }
                 >
-                  <option value="any">Ruota con il dispositivo</option>
-                  <option value="portrait">Solo verticale</option>
-                  <option value="landscape">Solo orizzontale</option>
+                  <option value="any">Follow device rotation</option>
+                  <option value="portrait">Portrait only</option>
+                  <option value="landscape">Landscape only</option>
                 </select>
               </label>
               <label>
-                Barra di stato
+                Status bar
                 <select
                   value={android.statusBarStyle}
                   onChange={(event) =>
@@ -449,13 +447,13 @@ export function ProjectSettings({
                     )
                   }
                 >
-                  <option value="dark">Icone scure</option>
-                  <option value="light">Icone chiare</option>
+                  <option value="dark">Dark icons</option>
+                  <option value="light">Light icons</option>
                 </select>
               </label>
             </div>
             <label>
-              Colore tema
+              Theme color
               <input
                 type="color"
                 value={android.themeColor}
@@ -465,7 +463,7 @@ export function ProjectSettings({
               />
             </label>
             <label>
-              Permessi richiesti
+              Required permissions
               <select
                 multiple
                 value={android.permissions}
@@ -476,12 +474,12 @@ export function ProjectSettings({
                   )
                 }
               >
-                <option value="camera">Fotocamera</option>
-                <option value="geolocation">Posizione</option>
-                <option value="notifications">Notifiche</option>
-                <option value="microphone">Microfono</option>
+                <option value="camera">Camera</option>
+                <option value="geolocation">Location</option>
+                <option value="notifications">Notifications</option>
+                <option value="microphone">Microphone</option>
               </select>
-              <small>Se non servono, non selezionare nulla.</small>
+              <small>Select only the permissions your app needs.</small>
             </label>
             <label className="check-row">
               <input
@@ -491,7 +489,7 @@ export function ProjectSettings({
                   setAndroid("keyboardResize", event.target.checked)
                 }
               />
-              Adatta la pagina quando appare la tastiera
+              Resize the page when the keyboard appears
             </label>
             <label className="check-row">
               <input
@@ -501,18 +499,18 @@ export function ProjectSettings({
                   setAndroid("backButton", event.target.checked)
                 }
               />
-              Gestisci il pulsante Indietro
+              Handle the Back button
             </label>
           </form>
           <section className="settings-card">
-            <h2>Ambiente e build</h2>
+            <h2>Environment and build</h2>
             <p>
-              La verifica non installa nulla. “Prepara progetto” scarica le
-              dipendenze dichiarate, genera `android/`, sincronizza il web e
-              prova la build se SDK e Java sono disponibili.
+              The check installs nothing. “Prepare project” downloads declared
+              dependencies, generates `android/`, syncs the web app, and builds
+              a debug APK when the SDK and Java are available.
             </p>
             <button className="secondary" onClick={() => void check()}>
-              Verifica strumenti
+              Check tools
             </button>
             {environment && (
               <ul className="environment-list">
@@ -521,7 +519,7 @@ export function ProjectSettings({
                   <span>
                     {environment.java.available
                       ? environment.java.version
-                      : "da installare"}
+                      : "install required"}
                   </span>
                 </li>
                 <li className={environment.sdk.available ? "ok" : "missing"}>
@@ -529,7 +527,7 @@ export function ProjectSettings({
                   <span>
                     {environment.sdk.available
                       ? environment.sdk.path
-                      : "da configurare"}
+                      : "configuration required"}
                   </span>
                 </li>
                 <li className={environment.adb.available ? "ok" : "missing"}>
@@ -537,13 +535,13 @@ export function ProjectSettings({
                   <span>
                     {environment.adb.available
                       ? environment.adb.version
-                      : "facoltativo per generare"}
+                      : "optional for generation"}
                   </span>
                 </li>
                 <li className={environment.androidStudio ? "ok" : "missing"}>
                   Android Studio{" "}
                   <span>
-                    {environment.androidStudio ? "rilevato" : "non rilevato"}
+                    {environment.androidStudio ? "detected" : "not detected"}
                   </span>
                 </li>
               </ul>
@@ -553,12 +551,12 @@ export function ProjectSettings({
                 preparing ||
                 !/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(android.packageId)
               }
-              data-help="Crea una cartella separata, installa Capacitor 8, genera Android e tenta una build di debug. Puo richiedere rete e alcuni minuti."
+              data-help="Creates an isolated folder, installs Capacitor 8, generates Android, and attempts a debug build. This may use the network and take a few minutes."
               onClick={() => void prepare()}
             >
               {preparing
-                ? "Preparazione in corso…"
-                : "Prepara progetto Android"}
+                ? "Preparing…"
+                : "Prepare Android project"}
             </button>
             {result && (
               <p className="android-result" role="status">
@@ -566,12 +564,11 @@ export function ProjectSettings({
               </p>
             )}
             <details>
-              <summary>Firma e pubblicazione</summary>
+              <summary>Signing and publishing</summary>
               <p>
-                La build di sviluppo non richiede la tua chiave privata. Per
-                pubblicare, Android Studio guidera la creazione e custodia del
-                keystore: Kyro must not know or save the
-                password.
+                A development build does not need your private key. For store
+                publishing, Android Studio guides keystore creation and
+                safekeeping; Kyro never knows or stores its password.
               </p>
             </details>
           </section>

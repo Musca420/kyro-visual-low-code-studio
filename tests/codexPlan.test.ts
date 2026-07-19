@@ -107,9 +107,9 @@ describe("approved Codex plan", () => {
       ...[1, 2, 3].map((id) => ({ id: `card-${id}`, name: `Card ${id}`, type: "card", events: [], bound: false })),
       { id: "foot", name: "Footer", type: "footer", events: [], bound: false },
     ];
-    const plan = quickDashboardPlan("Trasforma la pagina in una dashboard mobile con #16A6A1 e #FF725E", { projectName: "DailyFlow", pageComponents });
+    const plan = quickDashboardPlan("Transform this page into a dashboard mobile with #16A6A1 and #FF725E", { projectName: "DailyFlow", pageComponents });
     const operations = approvedOperations(plan);
-    expect(operations).toHaveLength(49);
+    expect(operations).toHaveLength(47);
     expect(operations).toContainEqual(expect.objectContaining({ type: "add_component", args: expect.objectContaining({ componentType: "progress" }) }));
     expect(operations?.at(-1)).toMatchObject({ type: "set_component_state_style", args: { componentId: "quick-add-head", state: "focus" } });
   });
@@ -119,18 +119,18 @@ describe("approved Codex plan", () => {
       { id: "head", name: "Header", type: "header" }, { id: "section", name: "Section", type: "section" }, { id: "grid", name: "Grid", type: "grid" },
       ...[1, 2, 3].map((id) => ({ id: `card-${id}`, name: `Card ${id}`, type: "card" })),
     ];
-    const operations = approvedOperations(quickCrudSurfacePlan("Prepara attività con sorgente locale IndexedDB, form e lista senza flow", { projectName: "Workboard", pageComponents, dataSources: [] }));
+    const operations = approvedOperations(quickCrudSurfacePlan("Create a task form and list connected to a database with local IndexedDB", { projectName: "Workboard", pageComponents, dataSources: [] }));
     expect(operations).toHaveLength(27);
-    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "workboard-tasks", name: "Attività" }) }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "workboard-tasks", name: "Tasks" }) }));
     expect(operations?.at(-1)).toMatchObject({ type: "bind_component_data", args: { componentId: "tasks-list", sourceId: "workboard-tasks" } });
   });
 
   it("compone una schermata DailyFlow dal componente selezionato", () => {
-    const operations = approvedOperations(quickDailyFlowScreenPlan("Crea la schermata completa e mobile", {
+    const operations = approvedOperations(quickDailyFlowScreenPlan("Create the complete mobile screen", {
       pageId: "habits",
       componentId: "root",
       componentType: "section",
-      pages: [{ id: "habits", name: "Abitudini", path: "/abitudini" }],
+      pages: [{ id: "habits", name: "Habits", path: "/habits" }],
       pageComponents: [{ id: "root", name: "Sezione", type: "section" }],
     }));
     expect(operations?.length).toBeGreaterThan(10);
@@ -155,17 +155,19 @@ describe("approved Codex plan", () => {
     expect(operations).toContainEqual({ type: "remove_component", args: { componentId: "grid", confirmed: true } });
     expect(operations).not.toContainEqual({ type: "remove_component", args: { componentId: "card", confirmed: true } });
     expect(operations).toContainEqual({ type: "remove_component", args: { componentId: "orphan", confirmed: true } });
-    expect(operations).toContainEqual({ type: "set_component_property", args: { componentId: "profile", property: "name", value: "Impostazioni" } });
+    expect(operations).toContainEqual({ type: "set_component_property", args: { componentId: "profile", property: "name", value: "Settings" } });
   });
 
   it("collega i flow di caricamento e creazione delle attivita", () => {
-    const operations = approvedOperations(quickCrudFlowsPlan("Collega i flow: carica al pageLoad e crea o salva attività dal form", {
+    const operations = approvedOperations(quickCrudFlowsPlan("Create flows: load tasks on page load and create or save tasks from the form", {
       pageComponents: [{ id: "tasks-form", type: "form" }, { id: "tasks-list", type: "list" }],
       dataSources: [{ id: "dailyflow-tasks", name: "Attività DailyFlow" }],
       flowIndex: [],
     }));
-    expect(operations).toHaveLength(27);
+    expect(operations).toHaveLength(49);
     expect(operations).toContainEqual({ type: "set_component_event", args: { componentId: "tasks-form", event: "submit", flowId: "tasks-create" } });
+    expect(operations).toContainEqual({ type: "set_component_event", args: { componentId: "tasks-list", event: "recordUpdate", flowId: "tasks-update" } });
+    expect(operations).toContainEqual({ type: "set_component_event", args: { componentId: "tasks-list", event: "recordDelete", flowId: "tasks-delete" } });
     expect(operations?.filter((operation) => operation.type === "connect_nodes").some((operation) => operation.args?.path === "error")).toBe(true);
   });
 

@@ -1979,10 +1979,15 @@ label {
   border-radius: 10px;
   cursor: pointer;
 }
-.target-picker label.active {
-  border-color: #8175f1;
-  background: #f3f1ff;
-}
+  .target-picker label.active {
+    border-color: #8175f1;
+    background: #f3f1ff;
+    color: #27204f;
+  }
+  [data-theme="dark"] .target-picker label.active {
+    background: #242044;
+    color: #f2f0ff;
+  }
 .target-picker input {
   grid-row: 1/3;
   width: auto;
