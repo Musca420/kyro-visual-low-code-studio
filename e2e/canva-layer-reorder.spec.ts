@@ -17,7 +17,6 @@ test("utente Canva riordina i livelli prima e dopo con drag and drop", async ({ 
   const topLayers = page.locator(".layers > [role=treeitem] > button");
   await expect(topLayers).toHaveText([/Uno$/, /Due$/, /Tre$/]);
   const uno = topLayers.filter({ hasText: "Uno" });
-  const due = topLayers.filter({ hasText: "Due" });
   const tre = topLayers.filter({ hasText: "Tre" });
   const unoBox = (await uno.boundingBox())!;
   await tre.dragTo(uno, { targetPosition: { x: unoBox.width / 2, y: unoBox.height * 0.1 } });

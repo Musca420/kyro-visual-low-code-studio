@@ -2057,6 +2057,7 @@ label {
 [data-theme="dark"] .settings-card,
 [data-theme="dark"] .source-card,
 [data-theme="dark"] .quick-style,
+[data-theme="dark"] .quick-layout,
 [data-theme="dark"] .page-appearance,
 [data-theme="dark"] .program-connections,
 [data-theme="dark"] .flow-node-connections,
@@ -2247,6 +2248,43 @@ label {
 .page-appearance small { color: var(--muted); }
 .quick-style > div:first-child { display: grid; gap: 2px; }
 .quick-style small { color: var(--muted); }
+.quick-layout {
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+}
+.quick-layout > div:first-child { display: grid; gap: 2px; }
+.quick-layout small { color: var(--muted); }
+.layout-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.layout-presets button {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 6px 3px;
+  background: color-mix(in srgb, var(--surface-raised) 88%, var(--accent));
+  color: var(--ink);
+  font-size: 15px;
+}
+.layout-presets button > span:last-child { font-size: 9px; line-height: 1.1; }
+.layout-presets button.active,
+.layout-control-row button.active,
+.quick-wrap.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface)); color: var(--accent-strong); }
+.layout-columns { display: flex; gap: 2px; width: 25px; height: 17px; }
+.layout-columns i { flex: 1; border: 1px solid currentColor; border-radius: 2px; }
+.layout-direction { display: flex; justify-content: center; gap: 2px; width: 25px; height: 17px; }
+.layout-direction.vertical { flex-direction: column; }
+.layout-direction.horizontal { flex-direction: row; }
+.layout-direction i { flex: 1; min-width: 0; min-height: 0; border: 1px solid currentColor; border-radius: 2px; }
+.layout-control-row { display: grid; grid-template-columns: 66px 1fr; align-items: center; gap: 7px; }
+.layout-control-row > span { color: var(--muted); font-size: 10px; }
+.layout-control-row > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.layout-control-row button { min-width: 0; padding: 6px 2px; background: var(--surface-raised); color: var(--ink); }
+.quick-wrap { width: 100%; font-size: 10px; }
 .palette-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
 .palette-swatches button {
   min-width: 0;

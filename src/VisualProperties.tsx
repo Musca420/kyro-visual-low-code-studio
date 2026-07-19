@@ -85,6 +85,14 @@ export function VisualProperties({
             },
           },
     );
+  const setBaseStyles = (values: Partial<Style>) =>
+    onUpdate((item) => ({
+      ...item,
+      styles: {
+        ...item.styles,
+        [breakpoint]: { ...item.styles[breakpoint], ...values },
+      },
+    }));
   const excluded = descendantIds(components, component.id);
   excluded.add(component.id);
   const containers = components.filter(
@@ -416,6 +424,76 @@ export function VisualProperties({
           </label>
         </div>
       </section>
+      {canContain(component) && (
+        <section className="quick-layout" aria-label="Disposizione del contenuto">
+          <div>
+            <strong>Disponi il contenuto</strong>
+            <small>Scegli una struttura, poi regola spazio e allineamento.</small>
+          </div>
+          <div className="layout-presets" role="group" aria-label="Struttura del contenuto">
+            <button
+              className={style.display === "flex" && style.flexDirection === "column" ? "active" : ""}
+              aria-label="Contenuto in colonna"
+              onClick={() => setBaseStyles({ display: "flex", flexDirection: "column", flexWrap: "nowrap" })}
+            ><span className="layout-direction vertical" aria-hidden="true"><i /><i /><i /></span><span>Colonna</span></button>
+            <button
+              className={style.display === "flex" && style.flexDirection === "row" ? "active" : ""}
+              aria-label="Contenuto in riga"
+              onClick={() => setBaseStyles({ display: "flex", flexDirection: "row", flexWrap: "nowrap" })}
+            ><span className="layout-direction horizontal" aria-hidden="true"><i /><i /><i /></span><span>Riga</span></button>
+            {[2, 3].map((count) => {
+              const columns = `repeat(${count}, minmax(0, 1fr))`;
+              return <button
+                key={count}
+                className={style.display === "grid" && style.gridTemplateColumns === columns ? "active" : ""}
+                aria-label={`Griglia rapida ${count}`}
+                onClick={() => setBaseStyles({ display: "grid", gridTemplateColumns: columns })}
+              ><span className="layout-columns" aria-hidden="true">{Array.from({ length: count }, (_, index) => <i key={index} />)}</span><span>{count} colonne</span></button>;
+            })}
+          </div>
+          <label>
+            Spazio tra elementi <output>{Number.parseInt(style.gap) || 0}px</output>
+            <input
+              type="range"
+              aria-label="Spazio rapido tra elementi"
+              min="0"
+              max="64"
+              step="4"
+              value={Number.parseInt(style.gap) || 0}
+              onChange={(event) => setBaseStyles({ gap: `${event.target.value}px` })}
+            />
+          </label>
+          <div className="layout-control-row">
+            <span>Allinea</span>
+            <div role="group" aria-label="Allinea contenuto">
+              {([
+                ["flex-start", "Inizio", "I"],
+                ["center", "Centro", "C"],
+                ["flex-end", "Fine", "F"],
+                ["stretch", "Allarga", "A"],
+              ] as const).map(([value, label, symbol]) => <button key={value} className={style.alignItems === value ? "active" : ""} aria-label={`Allinea contenuto: ${label}`} onClick={() => setBaseStyles({ alignItems: value })}>{symbol}</button>)}
+            </div>
+          </div>
+          <div className="layout-control-row">
+            <span>Distribuisci</span>
+            <div role="group" aria-label="Distribuisci contenuto">
+              {([
+                ["flex-start", "Inizio", "I"],
+                ["center", "Centro", "C"],
+                ["space-between", "Spazio tra", "S"],
+                ["flex-end", "Fine", "F"],
+              ] as const).map(([value, label, symbol]) => <button key={value} className={style.justifyContent === value ? "active" : ""} aria-label={`Distribuisci contenuto: ${label}`} onClick={() => setBaseStyles({ justifyContent: value })}>{symbol}</button>)}
+            </div>
+          </div>
+          {style.display === "flex" && (
+            <button
+              className={`quick-wrap secondary ${style.flexWrap === "wrap" ? "active" : ""}`}
+              aria-pressed={style.flexWrap === "wrap"}
+              onClick={() => setBaseStyles({ flexWrap: style.flexWrap === "wrap" ? "nowrap" : "wrap" })}
+            >Vai a capo quando manca spazio</button>
+          )}
+        </section>
+      )}
       <label data-help="Scegli il contenitore visuale. Pagina riporta l'elemento al livello principale.">
         Dentro
         <select
