@@ -69,7 +69,7 @@ function detectStack(files: FolderTextFile[]) {
   try {
     packageValue = packageFile ? JSON.parse(packageFile.content) : {};
   } catch {
-    /* la diagnosi segnalerà package non leggibile tramite il fallback */
+    /* the fallback reports an unreadable package */
   }
   const dependencies = {
     ...((packageValue.dependencies as Record<string, string>) ?? {}),
@@ -204,7 +204,7 @@ function pageFromHtml(file: FolderTextFile, index: number) {
   );
   if (!components.length) {
     const placeholder = makeComponent("alert");
-    placeholder.name = "Sorgente preservata";
+    placeholder.name = "Preserved source";
     placeholder.props.label =
       "Il progetto usa rendering JavaScript. I file sono preservati; collega Codex per convertirne gradualmente i componenti visuali.";
     components.push(placeholder);
@@ -268,7 +268,7 @@ export function importExistingFolder(
   files: FolderTextFile[],
 ): Project {
   if (!files.length)
-    throw new Error("Nessun file sorgente supportato trovato nella cartella.");
+    throw new Error("No supported source file was found in the folder.");
   const stack = detectStack(files);
   const exact = files.find((file) =>
     file.path.endsWith("project.kyro.json") || file.path.endsWith("project.frontend-editor.json"),
@@ -336,7 +336,7 @@ export function importExistingFolder(
     };
   }
   const warnings = [
-    htmlFiles.length ? "HTML e stili inline sono stati convertiti in componenti visuali." : frameworkFiles.length ? `Il markup ${stack.detected} riconoscibile è stato convertito staticamente in componenti visuali senza eseguire il codice.` : "Non è stato trovato markup convertibile: la sorgente resta preservata per la conversione progressiva.",
+    htmlFiles.length ? "HTML and inline styles were converted into visual components." : frameworkFiles.length ? `Recognizable ${stack.detected} markup was converted statically into visual components without executing code.` : "No convertible markup was found; the source remains preserved for progressive conversion.",
     "CSS avanzato, componenti dinamici e codice JavaScript restano preservati nella sorgente originale e vanno convertiti progressivamente in flow.",
   ];
   project.importedSource = {

@@ -191,7 +191,7 @@ function Dashboard({
       await saveProject(project);
       localStorage.setItem(storageKey, project.id);
       await onRefresh();
-      setImportResult(`${workspace.name} è pronto sul canvas visuale.`);
+      setImportResult(`${workspace.name} is ready on the visual canvas.`);
       onOpen(project.id);
     }).catch((problem) => {
       setError(`Apertura desktop non riuscita: ${problem instanceof Error ? problem.message : String(problem)}`);
@@ -642,7 +642,7 @@ function Editor({
   const [saveState, setSaveState] = useState("Saved");
   const [logs, setLogs] = useState<FlowLog[]>([]);
   const [pausedFlow, setPausedFlow] = useState<{ nodeId: string; value: unknown }>();
-  const [sourceName, setSourceName] = useState("Attività locali");
+  const [sourceName, setSourceName] = useState("Local tasks");
   const [collection, setCollection] = useState("items");
   const [schemaFields, setSchemaFields] = useState<Array<{ id: string; name: string; type: "string" | "number" | "boolean" | "datetime" }>>(() =>
     (initial.state.experience === "dashboard"
@@ -1522,13 +1522,13 @@ function Editor({
   };
   const createSource = () => {
     if (!sourceName.trim() || !collection.trim())
-      return setFeedback("Nome e collezione sono obbligatori");
+      return setFeedback("Name and collection are required");
     if (
       project.dataSources.some(
         (source) => source.collection === collection.trim(),
       )
     )
-      return setFeedback("Esiste già una sorgente per questa collezione");
+      return setFeedback("A source already exists for this collection");
     if (sourceProvider !== "indexeddb") {
       try {
         new URL(sourceEndpoint);
@@ -1582,8 +1582,8 @@ function Editor({
       sourceProvider === "indexeddb"
         ? "IndexedDB source created and schema validated"
         : sourceProvider === "generated"
-          ? "Backend locale configurato: verrà incluso nell’export"
-          : "API REST collegata. Il token resta in una variabile d’ambiente, non nel progetto",
+          ? "Local backend configured: it will be included in the export"
+          : "REST API connected. The token stays in an environment variable, not in the project",
     );
   };
   const openSource = (id: string) => {
@@ -1598,12 +1598,12 @@ function Editor({
     if (!selectedSourceDefinition) return;
     const normalized = sourceDraftFields.map((field) => ({ ...field, name: field.name.trim() }));
     if (normalized.some((field) => !/^[A-Za-z][A-Za-z0-9_]*$/.test(field.name)))
-      return setFeedback("Ogni campo deve iniziare con una lettera e contenere solo lettere, numeri o underscore");
+      return setFeedback("Every field must start with a letter and contain only letters, numbers, or underscores");
     if (new Set(normalized.map((field) => field.name)).size !== normalized.length)
-      return setFeedback("I nomi dei campi devono essere unici");
-    if (!normalized.some((field) => field.name === "id")) return setFeedback("Lo schema deve contenere il campo id");
+      return setFeedback("Field names must be unique");
+    if (!normalized.some((field) => field.name === "id")) return setFeedback("The schema must contain an id field");
     const nextSchema = Object.fromEntries(normalized.map((field) => [field.name, field.type]));
-    if (JSON.stringify(nextSchema) === JSON.stringify(selectedSourceDefinition.schema)) return setFeedback("Lo schema è già aggiornato");
+    if (JSON.stringify(nextSchema) === JSON.stringify(selectedSourceDefinition.schema)) return setFeedback("The schema is already up to date");
     const version = (selectedSourceDefinition.schemaVersion ?? 1) + 1;
     change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? {
       ...source,
@@ -1612,15 +1612,15 @@ function Editor({
       migrations: [...(source.migrations ?? []), { version, createdAt: new Date().toISOString(), previousSchema: source.schema, nextSchema }],
     } : source) });
     setSourceDraftFields(normalized);
-    setFeedback(`Schema aggiornato alla versione ${version}. I record esistenti restano disponibili.`);
+    setFeedback(`Schema updated to version ${version}. Existing records remain available.`);
   };
   const addRelation = () => {
-    if (!selectedSourceDefinition || !relationField || !relationTarget) return setFeedback("Scegli il campo locale e la sorgente da collegare");
+    if (!selectedSourceDefinition || !relationField || !relationTarget) return setFeedback("Choose the local field and source to connect");
     const target = project.dataSources.find((source) => source.id === relationTarget);
-    if (!target || !relationTargetField || !(relationTargetField in target.schema)) return setFeedback("Scegli un campo valido nella sorgente collegata");
-    if ((selectedSourceDefinition.relations ?? []).some((relation) => relation.field === relationField)) return setFeedback("Questo campo è già collegato");
+    if (!target || !relationTargetField || !(relationTargetField in target.schema)) return setFeedback("Choose a valid field in the connected source");
+    if ((selectedSourceDefinition.relations ?? []).some((relation) => relation.field === relationField)) return setFeedback("This field is already connected");
     change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? { ...source, relations: [...(source.relations ?? []), { id: crypto.randomUUID(), field: relationField, targetSourceId: target.id, targetField: relationTargetField, kind: relationKind }] } : source) });
-    setFeedback(`Relazione creata: ${relationField} → ${target.name}.${relationTargetField}`);
+    setFeedback(`Relation created: ${relationField} → ${target.name}.${relationTargetField}`);
   };
   const removeRelation = (relationId: string) => {
     if (!selectedSourceDefinition) return;
@@ -1685,7 +1685,7 @@ function Editor({
     }
     if (project.state.experience === "dashboard") {
       if (!project.dataSources[0])
-        return setFeedback("Crea prima la sorgente locale dei progetti");
+        return setFeedback("Create the local projects source first");
       const flows = dashboardFlows(project);
       change({ ...project, flows: flows.flows, pages: flows.pages });
       setFlowId(flows.flows[0].id);
@@ -1709,7 +1709,7 @@ function Editor({
     const ids = Array.from({ length: 6 }, () => crypto.randomUUID());
     const newFlow: Flow = {
       id: crypto.randomUUID(),
-      name: "Aggiungi attività",
+      name: "Add task",
       nodes: [
         {
           id: ids[0],
@@ -1728,9 +1728,9 @@ function Editor({
         {
           id: ids[2],
           type: "validate",
-          label: "Non vuoto",
+          label: "Not empty",
           position: { x: 380, y: 80 },
-          config: { message: "Scrivi un’attività prima di aggiungerla" },
+          config: { message: "Enter a task before adding it" },
         },
         {
           id: ids[3],
@@ -1836,7 +1836,7 @@ function Editor({
   const addPluginNode = (
     contribution: Extract<PluginContribution, { kind: "node" }>,
   ) => {
-    if (!flow) return setFeedback("Crea prima un flow, poi aggiungi il nodo plugin");
+    if (!flow) return setFeedback("Create a flow before adding the plugin node");
     const id = crypto.randomUUID();
     change({
       ...project,
@@ -1944,7 +1944,7 @@ function Editor({
         },
         runModule: (moduleId, value) => {
           const module = project.codeModules.find((item) => item.id === moduleId);
-          if (!module) throw new Error("Modulo avanzato non trovato");
+          if (!module) throw new Error("Advanced module not found");
           return runCodeModule(module, value);
         },
         getState: (key) => runtimeState.current[key],
@@ -1981,7 +1981,7 @@ function Editor({
       insert: (value, sourceId) => insertGenericRecord(sourceId || source?.id || "", value),
       query: (sourceId) => queryRecords(sourceId || source?.id || ""),
       update: async (value, sourceId) => {
-        if (!value || typeof value !== "object") throw new Error("Il record da modificare non è valido");
+        if (!value || typeof value !== "object") throw new Error("The record to update is not valid");
         const record = value as Record<string, unknown>;
         return updateGenericRecord(sourceId || source?.id || "", String(record.id || ""), record);
       },
@@ -1995,7 +1995,7 @@ function Editor({
       updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
       notify: (message, kind) => { notification = message; level = kind; },
       localNotification: (title, body, delayMs) => {
-        notification = `Promemoria programmato: ${title}${body ? ` · ${body}` : ""} (${Math.round(delayMs / 1000)} s)`;
+        notification = `Reminder scheduled: ${title}${body ? ` · ${body}` : ""} (${Math.round(delayMs / 1000)} s)`;
         level = "success";
       },
       requestPermission: async (permission) => {
@@ -2008,7 +2008,7 @@ function Editor({
       signOut: () => { notification = "Sessione chiusa nella preview"; level = "success"; },
       runModule: (moduleId, value) => {
         const module = project.codeModules.find((item) => item.id === moduleId);
-        if (!module) throw new Error("Modulo avanzato non trovato");
+        if (!module) throw new Error("Advanced module not found");
         return runCodeModule(module, value);
       },
       getState: (key) => runtimeState.current[key],
@@ -2108,7 +2108,7 @@ function Editor({
         : path.endsWith("/")
           ? `Cartella generata durante la build: ${path}`
           : (await import("./generator")).generateFiles(project)[path];
-      if (!content) throw new Error(`Il file ${path} non è prodotto da questa configurazione`);
+      if (!content) throw new Error(`The file ${path} is not produced by this configuration`);
       setGeneratedFile({ path, content });
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : String(error));
@@ -2142,7 +2142,7 @@ function Editor({
     const component = currentPage.components.find((item) => item.id === componentId);
     if (!component) return;
     if (parentId && (parentId === componentId || descendantIds(currentPage.components, componentId).has(parentId))) {
-      setFeedback("Non puoi spostare un contenitore dentro se stesso");
+      setFeedback("A container cannot be moved inside itself");
       return;
     }
     change((value) =>
@@ -2188,15 +2188,15 @@ function Editor({
       ["Open Dati", "database sorgenti", () => setTab("data")],
       ["Open Preview", "prova anteprima", () => setTab("preview")],
       ["Open Pubblica", "export web pwa android", () => setTab("settings")],
-      ["Aggiungi pagina", "nuova schermata", addPage],
-      ["Annulla ultima modifica", "undo cronologia", undo],
+      ["Add page", "new screen", addPage],
+      ["Undo last change", "undo history", undo],
       ["Ripristina modifica", "redo cronologia", redo],
     ] as Array<[string, string, () => void]>),
     ...componentTypes.map(
       (type) =>
         [
-          `Aggiungi ${type}`,
-          `componente elemento ${type}`,
+          `Add ${type}`,
+          `component element ${type}`,
           () => addComponent(type),
         ] as [string, string, () => void],
     ),
@@ -2481,17 +2481,17 @@ function Editor({
               />
             </label>
             <section className="reusable-library" aria-label="Blocchi riutilizzabili">
-              <strong>I tuoi blocchi</strong>
-              <small>Salva una selezione e riusala come gruppo modificabile.</small>
+              <strong>Your blocks</strong>
+              <small>Save a selection and reuse it as an editable group.</small>
               {selected.length > 0 && (
                 <div className="reusable-save">
                   <input
-                    aria-label="Nome blocco riutilizzabile"
-                    placeholder={activeComponent?.name ?? "Nome blocco"}
+                    aria-label="Reusable block name"
+                    placeholder={activeComponent?.name ?? "Block name"}
                     value={reusableName}
                     onChange={(event) => setReusableName(event.target.value)}
                   />
-                  <button type="button" onClick={saveReusableComponent}>Salva selezione</button>
+                <button type="button" onClick={saveReusableComponent}>Save selection</button>
                 </div>
               )}
               {project.reusableComponents.map((definition) => (
@@ -2508,7 +2508,7 @@ function Editor({
                   <button
                     type="button"
                     className="reusable-remove"
-                    aria-label={`Rimuovi blocco ${definition.name}`}
+                    aria-label={`Remove block ${definition.name}`}
                     onClick={() => change({ ...project, reusableComponents: project.reusableComponents.filter((item) => item.id !== definition.id) })}
                   >×</button>
                 </div>
@@ -2554,7 +2554,7 @@ function Editor({
                   .includes(paletteQuery.toLowerCase()),
               ) && (
                 <p className="palette-empty">
-                  Nessun componente. Prova “form”, “card” o “grafico”.
+                  No components found. Try “form”, “card”, or “chart”.
                 </p>
               )}
             </div>
@@ -2616,11 +2616,11 @@ function Editor({
                       }));
                     }}
                   >−</button>
-                  <output aria-label="Numero colonne">
+                  <output aria-label="Column count">
                     {gridFractions(componentStyle(activeComponent).gridTemplateColumns).length}
                   </output>
                   <button
-                    aria-label="Più colonne"
+                    aria-label="More columns"
                     disabled={gridFractions(componentStyle(activeComponent).gridTemplateColumns).length >= 12}
                     onClick={() => {
                       const count = gridFractions(componentStyle(activeComponent).gridTemplateColumns).length;
@@ -3033,25 +3033,25 @@ function Editor({
                 createSource();
               }}
             >
-              <h2>Nuova sorgente</h2>
+              <h2>New source</h2>
               <fieldset className="provider-choice">
-                <legend>Dove vuoi salvare i data sources?</legend>
+                <legend>Where do you want to store the data?</legend>
                 {(
                   [
                     [
                       "indexeddb",
-                      "Su questo dispositivo",
-                      "Ideale per prototipi, uso personale e modalità offline. Non richiede account.",
+                      "On this device",
+                      "Ideal for prototypes, personal use, and offline mode. No account required.",
                     ],
                     [
                       "rest",
-                      "Servizio già esistente",
-                      "Collega un indirizzo API REST. Eventuali credenziali restano nelle variabili d’ambiente.",
+                      "Existing service",
+                      "Connect a REST API address. Credentials remain in environment variables.",
                     ],
                     [
                       "generated",
-                      "Genera anche il backend",
-                      "L’export includerà un piccolo server Node con archivio persistente e API CRUD.",
+                      "Generate the backend too",
+                      "The export will include a small Node server with persistent storage and a CRUD API.",
                     ],
                   ] as const
                 ).map(([value, label, help]) => (
@@ -3075,8 +3075,8 @@ function Editor({
                 ))}
               </fieldset>
               {pluginProviders.length > 0 && (
-                <div className="plugin-provider-presets" aria-label="Provider forniti dai plugin">
-                  <strong>Provider plugin isolati</strong>
+                <div className="plugin-provider-presets" aria-label="Providers supplied by plugins">
+                  <strong>Isolated plugin providers</strong>
                   {pluginProviders.map((contribution) => (
                     <button
                       type="button"
@@ -3086,23 +3086,23 @@ function Editor({
                         setSourceProvider("rest");
                         setSourceEndpoint(contribution.endpoint);
                         setSourceName(contribution.label);
-                        setFeedback(`Preset provider caricato: ${contribution.label}`);
+                        setFeedback(`Provider preset loaded: ${contribution.label}`);
                       }}
                     >
-                      Usa {contribution.label}
+                      Use {contribution.label}
                     </button>
                   ))}
                 </div>
               )}
               <label>
-                Nome
+                Name
                 <input
                   value={sourceName}
                   onChange={(event) => setSourceName(event.target.value)}
                 />
               </label>
               <label>
-                Collezione
+                Collection
                 <input
                   value={collection}
                   onChange={(event) => setCollection(event.target.value)}
@@ -3110,48 +3110,48 @@ function Editor({
               </label>
               {sourceProvider !== "indexeddb" && (
                 <label>
-                  Indirizzo API
+                  API address
                   <input
                     type="url"
                     value={sourceEndpoint}
                     onChange={(event) => setSourceEndpoint(event.target.value)}
-                    placeholder="https://api.esempio.it/progetti"
+                    placeholder="https://api.example.com/projects"
                   />
                   <small>
                     {sourceProvider === "generated"
-                      ? "È l’indirizzo predefinito del backend incluso nell’export."
-                      : "Non inserire token nell’indirizzo. Verranno richiesti all’avvio come variabile API_TOKEN."}
+                      ? "This is the default address of the backend included in the export."
+                      : "Do not put tokens in the address. They are read at startup from API_TOKEN."}
                   </small>
                 </label>
               )}
               <fieldset>
-                <legend>Campi dei record</legend>
-                <p className="property-help">Definisci le informazioni che vuoi salvare. Il campo <code>id</code> identifica ogni record.</p>
+                <legend>Record fields</legend>
+                <p className="property-help">Define the information you want to save. The <code>id</code> field identifies each record.</p>
                 {schemaFields.map((field) => (
                   <div className="schema-row" key={field.id}>
-                    <input aria-label="Nome campo" value={field.name} disabled={field.name === "id"} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, name: event.target.value } : item))} />
-                    <select aria-label={`Tipo campo ${field.name || "senza nome"}`} value={field.type} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}>
-                      <option value="string">Testo</option><option value="number">Numero</option><option value="boolean">Sì / no</option><option value="datetime">Data e ora</option>
+                    <input aria-label="Field name" value={field.name} disabled={field.name === "id"} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, name: event.target.value } : item))} />
+                    <select aria-label={`Field type ${field.name || "unnamed"}`} value={field.type} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}>
+                      <option value="string">Text</option><option value="number">Number</option><option value="boolean">Yes / no</option><option value="datetime">Date and time</option>
                     </select>
-                    <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Delete campo ${field.name}`} onClick={() => setSchemaFields((fields) => fields.filter((item) => item.id !== field.id))}>Delete</button>
+                    <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Delete field ${field.name}`} onClick={() => setSchemaFields((fields) => fields.filter((item) => item.id !== field.id))}>Delete</button>
                   </div>
                 ))}
-                <button type="button" className="secondary" onClick={() => setSchemaFields((fields) => [...fields, { id: crypto.randomUUID(), name: `campo${fields.length}`, type: "string" }])}>+ Aggiungi campo</button>
+                <button type="button" className="secondary" onClick={() => setSchemaFields((fields) => [...fields, { id: crypto.randomUUID(), name: `field${fields.length}`, type: "string" }])}>+ Add field</button>
               </fieldset>
               <button type="submit">
                 {sourceProvider === "indexeddb"
-                  ? "Crea sorgente IndexedDB"
+                  ? "Create IndexedDB source"
                   : sourceProvider === "generated"
-                    ? "Configura backend generato"
-                    : "Collega API REST"}
+                    ? "Configure generated backend"
+                    : "Connect REST API"}
               </button>
             </form>
             <section>
-              <h2>Sorgenti configurate</h2>
+              <h2>Configured sources</h2>
               {project.dataSources.length === 0 ? (
                 <div className="empty-panel">
-                  <strong>None sorgente</strong>
-                  <span>Crea il database locale per collegare la lista.</span>
+                  <strong>No sources</strong>
+                  <span>Create a local database to connect the list.</span>
                 </div>
               ) : (
                 project.dataSources.map((source) => (
@@ -3185,30 +3185,30 @@ function Editor({
                 ))
               )}
               {selectedSourceDefinition && (
-                <section className="source-schema-editor" aria-label="Evoluzione sorgente data sources">
-                  <div className="section-heading"><div><p className="eyebrow">Evoluzione sicura</p><h3>Schema v{selectedSourceDefinition.schemaVersion ?? 1}</h3></div><span>{selectedSourceDefinition.migrations?.length ?? 0} migrazioni</span></div>
-                  <p className="property-help">Aggiungi o cambia campi senza cancellare i record già salvati. Ogni aggiornamento crea una versione riproducibile.</p>
+                <section className="source-schema-editor" aria-label="Data source evolution">
+                  <div className="section-heading"><div><p className="eyebrow">Safe evolution</p><h3>Schema v{selectedSourceDefinition.schemaVersion ?? 1}</h3></div><span>{selectedSourceDefinition.migrations?.length ?? 0} migrations</span></div>
+                  <p className="property-help">Add or change fields without deleting saved records. Every update creates a reproducible version.</p>
                   <fieldset>
-                    <legend>Campi della versione successiva</legend>
+                    <legend>Fields in the next version</legend>
                     {sourceDraftFields.map((field) => <div className="schema-row" key={field.id}>
-                      <input aria-label="Nome campo schema esistente" value={field.name} disabled={field.name === "id"} onChange={(event) => setSourceDraftFields((fields) => fields.map((item) => item.id === field.id ? { ...item, name: event.target.value } : item))} />
-                      <select aria-label={`Tipo campo esistente ${field.name}`} value={field.type} onChange={(event) => setSourceDraftFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}><option value="string">Testo</option><option value="number">Numero</option><option value="boolean">Sì / no</option><option value="datetime">Data e ora</option></select>
-                      <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Rimuovi campo esistente ${field.name}`} onClick={() => setSourceDraftFields((fields) => fields.filter((item) => item.id !== field.id))}>Rimuovi</button>
+                      <input aria-label="Existing schema field name" value={field.name} disabled={field.name === "id"} onChange={(event) => setSourceDraftFields((fields) => fields.map((item) => item.id === field.id ? { ...item, name: event.target.value } : item))} />
+                      <select aria-label={`Existing field type ${field.name}`} value={field.type} onChange={(event) => setSourceDraftFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}><option value="string">Text</option><option value="number">Number</option><option value="boolean">Yes / no</option><option value="datetime">Date and time</option></select>
+                      <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Remove existing field ${field.name}`} onClick={() => setSourceDraftFields((fields) => fields.filter((item) => item.id !== field.id))}>Remove</button>
                     </div>)}
-                    <div className="inline-actions"><button type="button" className="secondary" onClick={() => setSourceDraftFields((fields) => [...fields, { id: crypto.randomUUID(), name: `campo${fields.length}`, type: "string" }])}>+ Nuovo campo</button><button type="button" onClick={migrateSelectedSource}>Salva nuova versione</button></div>
+                    <div className="inline-actions"><button type="button" className="secondary" onClick={() => setSourceDraftFields((fields) => [...fields, { id: crypto.randomUUID(), name: `field${fields.length}`, type: "string" }])}>+ New field</button><button type="button" onClick={migrateSelectedSource}>Save new version</button></div>
                   </fieldset>
                   <fieldset>
-                    <legend>Collega a un'altra sorgente</legend>
-                    {project.dataSources.length < 2 ? <p className="property-help">Crea una seconda sorgente per collegare, per esempio, progetti e clienti.</p> : <>
-                      <label>Campo locale<select aria-label="Campo locale relazione" value={relationField} onChange={(event) => setRelationField(event.target.value)}><option value="">Scegli campo…</option>{Object.keys(selectedSourceDefinition.schema).map((field) => <option key={field}>{field}</option>)}</select></label>
-                      <label>Sorgente collegata<select aria-label="Sorgente relazione" value={relationTarget} onChange={(event) => { setRelationTarget(event.target.value); setRelationTargetField("id"); }}><option value="">Scegli sorgente…</option>{project.dataSources.filter((source) => source.id !== selectedSourceDefinition.id).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
-                      <label>Campo collegato<select aria-label="Campo destinazione relazione" value={relationTargetField} onChange={(event) => setRelationTargetField(event.target.value)}>{Object.keys(project.dataSources.find((source) => source.id === relationTarget)?.schema ?? { id: "string" }).map((field) => <option key={field}>{field}</option>)}</select></label>
-                      <label>Cardinalità<select aria-label="Cardinalità relazione" value={relationKind} onChange={(event) => setRelationKind(event.target.value as "one" | "many")}><option value="one">Un elemento</option><option value="many">Più elements</option></select></label>
-                      <button type="button" onClick={addRelation}>Crea relazione</button>
+                    <legend>Connect another source</legend>
+                    {project.dataSources.length < 2 ? <p className="property-help">Create a second source to connect, for example, projects and clients.</p> : <>
+                      <label>Local field<select aria-label="Local relation field" value={relationField} onChange={(event) => setRelationField(event.target.value)}><option value="">Choose field…</option>{Object.keys(selectedSourceDefinition.schema).map((field) => <option key={field}>{field}</option>)}</select></label>
+                      <label>Connected source<select aria-label="Relation source" value={relationTarget} onChange={(event) => { setRelationTarget(event.target.value); setRelationTargetField("id"); }}><option value="">Choose source…</option>{project.dataSources.filter((source) => source.id !== selectedSourceDefinition.id).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
+                      <label>Connected field<select aria-label="Relation target field" value={relationTargetField} onChange={(event) => setRelationTargetField(event.target.value)}>{Object.keys(project.dataSources.find((source) => source.id === relationTarget)?.schema ?? { id: "string" }).map((field) => <option key={field}>{field}</option>)}</select></label>
+                      <label>Cardinality<select aria-label="Relation cardinality" value={relationKind} onChange={(event) => setRelationKind(event.target.value as "one" | "many")}><option value="one">One item</option><option value="many">Many items</option></select></label>
+                      <button type="button" onClick={addRelation}>Create relation</button>
                     </>}
-                    {(selectedSourceDefinition.relations ?? []).map((relation) => { const target = project.dataSources.find((source) => source.id === relation.targetSourceId); return <div className="relation-row" key={relation.id}><span><strong>{relation.field}</strong> → {target?.name ?? "Sorgente mancante"}.{relation.targetField} · {relation.kind === "one" ? "uno" : "molti"}</span><button type="button" className="secondary" onClick={() => removeRelation(relation.id)}>Rimuovi</button></div>; })}
+                    {(selectedSourceDefinition.relations ?? []).map((relation) => { const target = project.dataSources.find((source) => source.id === relation.targetSourceId); return <div className="relation-row" key={relation.id}><span><strong>{relation.field}</strong> → {target?.name ?? "Missing source"}.{relation.targetField} · {relation.kind === "one" ? "one" : "many"}</span><button type="button" className="secondary" onClick={() => removeRelation(relation.id)}>Remove</button></div>; })}
                   </fieldset>
-                  {(selectedSourceDefinition.migrations?.length ?? 0) > 0 && <details><summary>Cronologia schema</summary><ol>{[...(selectedSourceDefinition.migrations ?? [])].reverse().map((migration) => <li key={migration.version}><strong>Versione {migration.version}</strong> · {new Date(migration.createdAt).toLocaleString("it")}</li>)}</ol></details>}
+                  {(selectedSourceDefinition.migrations?.length ?? 0) > 0 && <details><summary>Schema history</summary><ol>{[...(selectedSourceDefinition.migrations ?? [])].reverse().map((migration) => <li key={migration.version}><strong>Version {migration.version}</strong> · {new Date(migration.createdAt).toLocaleString("en")}</li>)}</ol></details>}
                 </section>
               )}
               {selectedSource && (
@@ -3243,7 +3243,7 @@ function Editor({
                 <input
                   ref={assetInput}
                   className="visually-hidden"
-                  aria-label="Scegli asset"
+                  aria-label="Choose asset"
                   type="file"
                   accept="image/*,audio/*,video/*"
                   multiple
@@ -3251,7 +3251,7 @@ function Editor({
                 />
                 {project.assets.length === 0 ? (
                   <div className="empty-panel compact">
-                    <strong>Nessun asset</strong>
+                    <strong>No assets</strong>
                     <span>Carica immagini, audio o video fino a 2 MB.</span>
                   </div>
                 ) : (
@@ -3303,7 +3303,7 @@ function Editor({
                 checked={interactive}
                 onChange={(event) => setInteractive(event.target.checked)}
               />
-              Modalità interattiva
+              Interactive mode
             </label>
           </div>
           {currentPage ? (
@@ -3339,8 +3339,8 @@ function Editor({
             />
           ) : (
             <div className="empty-panel">
-              <strong>None pagina</strong>
-              <span>Crea una pagina per aprire la preview.</span>
+              <strong>No page</strong>
+              <span>Create a page to open Preview.</span>
             </div>
           )}
           <FlowRunHistory runs={project.flowRuns} flows={project.flows} onOpen={setLogs} />
@@ -3350,7 +3350,7 @@ function Editor({
       {tab === "settings" && (
         <Suspense
           fallback={
-            <main className="wide-workspace">Caricamento pubblicazione…</main>
+            <main className="wide-workspace">Loading publishing tools…</main>
           }
         >
           <ProjectSettings
@@ -3676,7 +3676,7 @@ function DataSourceConnections({
           Open flow {flow.name} <small>{flow.nodes.join(" · ")}</small>
         </button>
       ))}
-      {!view.components.length && !view.flows.length && <p className="property-help">Questa sorgente è pronta ma non è ancora collegata a elements o flow.</p>}
+      {!view.components.length && !view.flows.length && <p className="property-help">This source is ready but is not connected to any elements or flows yet.</p>}
       {view.warnings.map((warning) => <span className="requirement-warning" key={warning}>{warning}</span>)}
       <details>
         <summary>Campi e file generati</summary>
@@ -3690,7 +3690,7 @@ function DataSourceConnections({
 const componentHelp = Object.fromEntries(
   componentTypes.map((type) => [
     type,
-    `Aggiungi ${type} alla pagina. Puoi trascinarlo sul canvas oppure fare clic.`,
+    `Add ${type} to the page. Drag it onto the canvas or click it.`,
   ]),
 ) as Record<EditorComponent["type"], string>;
 const componentAliases: Partial<Record<EditorComponent["type"], string>> = {
@@ -4583,7 +4583,7 @@ function Properties({
   return (
     <div className="properties">
       <label>
-        Nome
+        Name
         <input
           value={component.name}
           onChange={(event) =>
@@ -4621,13 +4621,13 @@ function Properties({
           />
         </label>
       )}
-      <label data-help="Scegli il contenitore visuale che deve racchiudere questo elemento. Pagina lo riporta al livello principale.">
+      <label data-help="Choose the visual container for this element. Page moves it back to the top level.">
         Dentro
         <select
           value={component.parentId ?? ""}
           onChange={(event) => onReparent(event.target.value || undefined)}
         >
-          <option value="">Pagina (livello principale)</option>
+          <option value="">Page (top level)</option>
           {containers.map((item) => (
             <option key={item.id} value={item.id}>
               {componentPath(components, item.id)
@@ -4688,32 +4688,32 @@ function Properties({
         </label>
       </div>
       <label>
-        Raggio bordi
+        Corner radius
         <input
           value={style.borderRadius}
           onChange={(event) => setStyle("borderRadius", event.target.value)}
         />
       </label>
       <label>
-        Visibilità
+        Visibility
         <select
           value={style.display}
           onChange={(event) => setStyle("display", event.target.value)}
         >
-          <option value="block">Visibile</option>
-          <option value="none">Nascosto</option>
+          <option value="block">Visible</option>
+          <option value="none">Hidden</option>
         </select>
       </label>
       <div className="button-row">
         <button
           className="secondary"
-          data-help="Crea un gruppo verticale attorno a questo elemento, utile per organizzare più elements insieme."
+          data-help="Create a vertical group around this element to organize several elements together."
           onClick={onWrap}
         >
-          Raggruppa
+          Group
         </button>
         <button className="secondary" onClick={onDuplicate}>
-          Duplica
+          Duplicate
         </button>
         <button className="danger" onClick={onDelete}>
           Delete
@@ -4744,14 +4744,14 @@ function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; pau
   return (
     <section className="log-console" aria-labelledby="log-title">
       <div>
-        <h2 id="log-title">Console flow</h2>
-        <span>{logs.length ? `${logs.length} operazioni` : "In attesa"}</span>
+        <h2 id="log-title">Flow console</h2>
+        <span>{logs.length ? `${logs.length} operations` : "Waiting"}</span>
       </div>
-      {paused && <div className="flow-paused" role="status"><strong>In pausa sul nodo</strong><pre>{JSON.stringify(paused.value, null, 2)}</pre><button type="button" onClick={onResume}>Continua esecuzione</button></div>}
-      {logs.length > 0 && <div className="log-replay" role="group" aria-label="Riproduzione flow"><button type="button" className="secondary" onClick={() => showStep(0)}>Dall’inizio</button><button type="button" className="secondary" aria-label="Passo precedente" disabled={cursor <= 0} onClick={() => showStep(cursor - 1)}>←</button><output>{cursor < 0 ? `— / ${logs.length}` : `${cursor + 1} / ${logs.length}`}</output><button type="button" className="secondary" aria-label="Passo successivo" disabled={cursor >= logs.length - 1} onClick={() => showStep(cursor + 1)}>→</button><button type="button" className="secondary" aria-pressed={playing} onClick={() => { setCursor(-1); setPlaying((value) => !value); }}>{playing ? "Ferma replay" : "Riproduci"}</button></div>}
+      {paused && <div className="flow-paused" role="status"><strong>Paused at node</strong><pre>{JSON.stringify(paused.value, null, 2)}</pre><button type="button" onClick={onResume}>Continue execution</button></div>}
+      {logs.length > 0 && <div className="log-replay" role="group" aria-label="Flow replay"><button type="button" className="secondary" onClick={() => showStep(0)}>From start</button><button type="button" className="secondary" aria-label="Previous step" disabled={cursor <= 0} onClick={() => showStep(cursor - 1)}>←</button><output>{cursor < 0 ? `— / ${logs.length}` : `${cursor + 1} / ${logs.length}`}</output><button type="button" className="secondary" aria-label="Next step" disabled={cursor >= logs.length - 1} onClick={() => showStep(cursor + 1)}>→</button><button type="button" className="secondary" aria-pressed={playing} onClick={() => { setCursor(-1); setPlaying((value) => !value); }}>{playing ? "Stop replay" : "Replay"}</button></div>}
       {logs.length === 0 ? (
         <p>
-          Esegui il flow dalla preview per ispezionare input, output ed errori.
+          Run the flow from Preview to inspect input, output, and errors.
         </p>
       ) : (
         <ol>
@@ -4808,7 +4808,7 @@ function icon(type: EditorComponent["type"]) {
 function addVerticalTemplate(project: Project): Project {
   const page = {
     id: crypto.randomUUID(),
-    name: "Attività",
+    name: "Tasks",
     path: "/",
     components: [
       makeComponent("title"),
@@ -4910,7 +4910,7 @@ function landingFlows(project: Project): {
         {
           id: ids[3],
           type: "insert",
-          label: "Salva richiesta",
+          label: "Save request",
           position: { x: 540, y: 60 },
           config: { sourceId: source.id },
         },
@@ -4991,7 +4991,7 @@ function dashboardFlows(project: Project): {
   pages: Project["pages"];
 } {
   const source = project.dataSources[0];
-  if (!source) throw new Error("Sorgente dashboard mancante");
+  if (!source) throw new Error("Dashboard source is missing");
   const components = project.pages[0]?.components ?? [];
   const bySlot = (slot: string) =>
     components.find((component) => component.props.slot === slot);
@@ -5121,7 +5121,7 @@ function dashboardFlows(project: Project): {
   };
   const flows = [
     make("Carica progetti", bySlot("projects-table"), "query"),
-    make("Crea progetto", bySlot("create"), "insert", true),
+    make("Create project", bySlot("create"), "insert", true),
     make("Aggiorna progetto", bySlot("project-form"), "update", true),
     make("Delete progetto", bySlot("detail-modal"), "delete"),
     make("Cerca progetti", bySlot("search"), "filter"),

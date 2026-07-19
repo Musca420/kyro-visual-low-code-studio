@@ -101,7 +101,7 @@ async function body(request: IncomingMessage) {
   let raw = "";
   for await (const chunk of request) {
     raw += chunk;
-    if (raw.length > 4_000_000) throw new Error("Richiesta troppo grande");
+    if (raw.length > 4_000_000) throw new Error("Request is too large");
   }
   return JSON.parse(raw || "{}") as Record<string, unknown>;
 }
@@ -390,7 +390,7 @@ function liveBridge() {
               )
             )
               return reply(response, 409, {
-                error: "Una transazione è già in attesa",
+                error: "A transaction is already pending",
               });
             const command = {
               id: crypto.randomUUID(),
@@ -453,7 +453,7 @@ function liveBridge() {
               projectId = String(input.projectId ?? "");
             if (!projects.has(projectId))
               return reply(response, 403, {
-                error: "Apri il progetto prima di avviare il terminale",
+                error: "Open the project before starting the terminal",
               });
             const existing = [...terminalSessions.values()].find(
               (session) =>
@@ -550,7 +550,7 @@ function liveBridge() {
               const command = String(input.command ?? "");
               if (session.status !== "running")
                 return reply(response, 409, {
-                  error: "La sessione non è attiva",
+                  error: "The session is not active",
                 });
               if (
                 !command.trim() ||
@@ -778,7 +778,7 @@ function liveBridge() {
                 await step(
                   npmCommand,
                   [...npmPrefix, "run", "android:configure"],
-                  "Applico identità, permessi e comportamento nativo…",
+                  "Applying identity, permissions, and native behavior…",
                   60_000,
                 );
                 await step(
@@ -899,7 +899,7 @@ function liveBridge() {
           }
           if (url.pathname === "/api/codex/jobs" && request.method === "POST") {
             if (agent || agentJobId)
-              return reply(response, 409, { error: "Codex sta già lavorando" });
+              return reply(response, 409, { error: "Codex is already working" });
             const input = await body(request),
               prompt = String(input.prompt ?? ""),
               mode = input.mode === "apply" ? "apply" : "plan",
@@ -912,7 +912,7 @@ function liveBridge() {
             if (!current || input.revision !== current.revision)
               return reply(response, 409, {
                 error:
-                  "Il progetto è cambiato: aggiorna il contesto prima di continuare",
+                  "The project changed: refresh the context before continuing",
               });
             const id = crypto.randomUUID(),
               job: CodexJob = {
@@ -964,22 +964,22 @@ function liveBridge() {
             const bridgeBase = `${url.protocol}//${request.headers.host ?? "127.0.0.1:4173"}`;
             const approvedPlan = String(input.approvedPlan ?? "").trim();
             const liveBridgeContract = mode === "plan" ? `
-Usa soltanto il context pack Frontend Editor fornito qui sotto. Non eseguire comandi, non leggere file, non interrogare il bridge e non acquisire screenshot.
-Produci un piano breve basato su ID stabili, operazioni tipizzate e criteri osservabili. Il progetto visuale e il suo grafo sono la source of truth.
-Operazioni disponibili: add_page, update_page, remove_page, add_component, move_component, resize_component, reorder_component, wrap_component, remove_component, set_component_property, set_responsive_style, set_component_state_style, set_component_accessibility, set_component_intent, set_component_event, remove_component_event, set_theme_token, add_flow, update_flow, remove_flow, add_flow_node, update_flow_node, remove_flow_node, connect_nodes, remove_flow_edge, create_data_source, update_data_source, remove_data_source, bind_component_data, set_project_property, set_app_config, set_export_config. Ogni operazione usa {"type":"...","pageId":"... opzionale","args":{...}}.
-Firme essenziali: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; set_component_property args={componentId,property,value}, dove property="name" rinomina il livello; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; set_component_event args={componentId,event,flowId}; remove_component_event args={componentId,event}; remove_component args={componentId,confirmed:true}; add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config e set_export_config args={patch:{...}}. Usa componentType tra quelli gia presenti nel context o: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
-Termina sempre con una sola riga FRONTEND_EDITOR_OPERATIONS=<json> contenente da 1 a 50 operazioni valide. Usa pageId al livello dell'operazione quando il target non e la pagina attiva. Per stili multipli o breakpoint crea piu operazioni set_responsive_style.
+Use only the Kyro context pack provided below. Do not run commands, read files, query the bridge, or capture screenshots.
+Produce a short plan based on stable IDs, typed operations, and observable criteria. The visual project and its graph are the source of truth.
+Available operations: add_page, update_page, remove_page, add_component, move_component, resize_component, reorder_component, wrap_component, remove_component, set_component_property, set_responsive_style, set_component_state_style, set_component_accessibility, set_component_intent, set_component_event, remove_component_event, set_theme_token, add_flow, update_flow, remove_flow, add_flow_node, update_flow_node, remove_flow_node, connect_nodes, remove_flow_edge, create_data_source, update_data_source, remove_data_source, bind_component_data, set_project_property, set_app_config, set_export_config. Every operation uses {"type":"...","pageId":"... optional","args":{...}}.
+Essential signatures: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; set_component_property args={componentId,property,value}, where property="name" renames the layer; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; set_component_event args={componentId,event,flowId}; remove_component_event args={componentId,event}; remove_component args={componentId,confirmed:true}; add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config and set_export_config args={patch:{...}}. Use a componentType already present in context or: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
+Always finish with exactly one FRONTEND_EDITOR_OPERATIONS=<json> line containing 1 to 50 valid operations. Put pageId at operation level when the target is not the active page. Use multiple set_responsive_style operations for multiple styles or breakpoints.
 ` : `
-Il progetto visuale aperto e il suo grafo sono la source of truth. Non modificare codice generato per una modifica rappresentabile nell'editor.
-Usa $frontend-editor-live e la skill di dominio pertinente installata in .agents/skills. Non usare la skill Browser per modificare Frontend Editor.
-Il Live Bridge e disponibile nella variabile FRONTEND_EDITOR_LIVE_URL. Invoca gli strumenti tramite node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs; non stampare il payload completo di /api/live/status.
-Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi e senza acquisire screenshot tramite il bridge. Per modifiche correlate usa una sola apply_editor_transaction. Lo script attende il transactionId. Non chiamare /api/live/state.
+The open visual project and its graph are the source of truth. Do not edit generated code for a change that can be represented in the editor.
+Use $frontend-editor-live and the relevant domain skill installed in .agents/skills. Do not use the Browser skill to modify Kyro.
+The Live Bridge URL is available in FRONTEND_EDITOR_LIVE_URL. Invoke tools through node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs; do not print the full /api/live/status payload.
+The plan is already approved: execute it directly without repeating analysis or taking screenshots through the bridge. Use one apply_editor_transaction for related changes. The script waits for transactionId. Do not call /api/live/state.
 `;
             const instruction = `${
               mode === "plan"
-                ? "Proponi il piano minimo. Non modificare file o progetto."
-                : "Applica subito il piano approvato al grafo visuale tramite Live Bridge."
-            }\n${liveBridgeContract}${approvedPlan ? `\nPiano approvato:\n${approvedPlan}\n` : ""}\nRichiesta originale:\n${prompt}\n\nContext pack indicizzato:\n${JSON.stringify(input.context)}`;
+                ? "Propose the minimum plan. Do not modify files or the project."
+                : "Apply the approved plan to the visual graph through Live Bridge now."
+            }\n${liveBridgeContract}${approvedPlan ? `\nApproved plan:\n${approvedPlan}\n` : ""}\nOriginal request:\n${prompt}\n\nIndexed context pack:\n${JSON.stringify(input.context)}`;
             const operations = mode === "apply" ? approvedOperations(input.approvedPlan) : undefined;
             if (operations) {
               const context = (input.context ?? {}) as Record<string, unknown>;
@@ -1002,7 +1002,7 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
                 job.finishedAt = new Date().toISOString();
                 job.status = command.status === "applied" ? "completed" : "error";
                 job.errors = command.error ?? (command.status === "pending" ? "La transazione visuale non ha risposto" : "");
-                job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: command.status === "applied" ? `Modifica applicata al grafo. Transazione ${command.id}.` : job.errors } }) + "\n";
+                job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: command.status === "applied" ? `Change applied to the graph. Transaction ${command.id}.` : job.errors } }) + "\n";
                 agentJobId = undefined;
               })();
               return reply(response, 202, { jobId: id, status: job.status });
@@ -1125,7 +1125,7 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
           ) {
             if (loginProcess)
               return reply(response, 409, {
-                error: "Accesso Codex già in corso",
+                error: "Codex sign-in is already in progress",
               });
             const input = await body(request),
               id = crypto.randomUUID(),
@@ -1226,7 +1226,7 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
           }
           if (request.url === "/api/codex/run" && request.method === "POST") {
             if (agent)
-              return reply(response, 409, { error: "Codex sta già lavorando" });
+              return reply(response, 409, { error: "Codex is already working" });
             const input = await body(request),
               prompt = String(input.prompt ?? ""),
               mode = input.mode === "apply" ? "apply" : "plan";
@@ -1238,9 +1238,9 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
             if (!current || input.revision !== current.revision)
               return reply(response, 409, {
                 error:
-                  "Il progetto è cambiato: aggiorna il contesto prima di continuare",
+                  "The project changed: refresh the context before continuing",
               });
-            const instruction = `${mode === "plan" ? "Analizza e proponi un piano. Non modificare file." : "Applica la modifica richiesta e verifica il risultato."}\n\n${prompt}\n\nContesto Frontend Editor:\n${JSON.stringify(input.context)}`;
+            const instruction = `${mode === "plan" ? "Analyze and propose a plan. Do not modify files." : "Apply the requested change and verify the result."}\n\n${prompt}\n\nKyro context:\n${JSON.stringify(input.context)}`;
             agent = spawn(
               codexCommand,
               [

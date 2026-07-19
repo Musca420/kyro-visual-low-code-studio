@@ -28,8 +28,8 @@ export function parseModuleValue(value: string, type: CodeModule["inputType"]): 
   }
   try {
     const parsed = JSON.parse(value);
-    if (type === "list" && !Array.isArray(parsed)) throw new Error("È richiesto un elenco JSON");
-    if (type === "record" && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) throw new Error("È richiesto un oggetto JSON");
+    if (type === "list" && !Array.isArray(parsed)) throw new Error("A JSON list is required");
+    if (type === "record" && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) throw new Error("A JSON object is required");
     return parsed;
   } catch (error) {
     throw error instanceof SyntaxError ? new Error("JSON non valido") : error;
@@ -53,7 +53,7 @@ export function testCodeModule(module: CodeModule) {
 
 export function generateCodeModule(module: CodeModule) {
   const config = JSON.stringify(module.config);
-  return `// Estensione protetta generata dal grafo. Modifica questo file fuori dall'editor senza alterare il progetto visuale.\nexport type Input = ${tsType(module.inputType)}\nexport type Output = ${tsType(module.outputType)}\nconst config: Record<string, string> = ${config}\nexport function run(value: Input): Output {\n  ${operationSource(module.operation)}\n}\n`;
+  return `// Protected extension generated from the graph. Edit this file outside Kyro without changing the visual project.\nexport type Input = ${tsType(module.inputType)}\nexport type Output = ${tsType(module.outputType)}\nconst config: Record<string, string> = ${config}\nexport function run(value: Input): Output {\n  ${operationSource(module.operation)}\n}\n`;
 }
 
 const tsType = (type: CodeModule["inputType"]) => ({ unknown: "unknown", string: "string", number: "number", record: "Record<string, unknown>", list: "unknown[]" })[type];

@@ -1,5 +1,7 @@
 # Review finale verificata
 
+Current Kyro repository-first and DailyFlow evidence is recorded in [DAILYFLOW_VISUAL_RELEASE_REPORT.md](./DAILYFLOW_VISUAL_RELEASE_REPORT.md): final standalone export v3, Android emulator installation/update, visual CRUD and undo, English-first editor review, `kyro` CLI diagnostics, 112 unit/integration tests, and zero runtime dependency vulnerabilities.
+
 Data: 19 luglio 2026. Questa review confronta il repository con `PROJECT_SPEC.md`, `aggiunta.md` e `DESKTOP_PRODUCT_ROADMAP.md`. Le prove automatiche usano esclusivamente i controlli disponibili nell'interfaccia per creare componenti e record; non scrivono direttamente nel database del progetto.
 
 ## Esito

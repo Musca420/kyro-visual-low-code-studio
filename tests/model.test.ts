@@ -36,7 +36,7 @@ describe('project model', () => {
     project.reusableComponents.push({ id: 'feature', name: 'Feature', components: [card], exposedProperties: [{ componentId: card.id, property: 'label', label: 'Titolo' }] })
     expect(parseProject(project).reusableComponents[0].name).toBe('Feature')
     project.reusableComponents[0].exposedProperties[0].componentId = 'missing'
-    expect(() => parseProject(project)).toThrow('Proprietà esposta senza componente')
+    expect(() => parseProject(project)).toThrow('Exposed property without a component')
   })
   it('conserva al massimo una cronologia flow tipizzata nel progetto', () => {
     const project = createProject('Profiling')
@@ -91,6 +91,6 @@ describe('project model', () => {
     expect(restored.dataSources[1].schemaVersion).toBe(2)
     expect(restored.dataSources[1].relations?.[0]).toMatchObject({ field: 'clientId', targetSourceId: 'clients' })
     restored.dataSources[1].relations![0].targetField = 'missing'
-    expect(() => parseProject(restored)).toThrow('Campo relazione mancante Clienti.missing')
+    expect(() => parseProject(restored)).toThrow('Missing relation field Clienti.missing')
   })
 })

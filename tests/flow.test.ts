@@ -242,7 +242,7 @@ describe('flow runtime', () => {
     insert.mockClear()
     const rejected = await runFlow(upload, { input: new File(['testo'], 'note.txt', { type: 'text/plain' }), insert, refresh: async () => undefined })
     expect(insert).not.toHaveBeenCalled()
-    expect(rejected.some((entry) => entry.message === 'Il tipo di file non è accettato')).toBe(true)
+    expect(rejected.some((entry) => entry.message === 'This file type is not accepted')).toBe(true)
   })
 
   it('dirama i permessi per ruolo e chiude la sessione dal flow', async () => {

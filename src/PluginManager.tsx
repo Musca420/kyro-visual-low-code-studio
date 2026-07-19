@@ -20,7 +20,7 @@ export function PluginManager({ project, onChange, onCatalogChange }: { project:
   useEffect(() => { void refresh() }, [refresh])
   const install = async () => {
     try {
-      if (catalog.some((plugin) => plugin.id === example.id)) throw new Error('Il plugin è già installato: collisione ID impedita')
+      if (catalog.some((plugin) => plugin.id === example.id)) throw new Error('The plugin is already installed: duplicate ID blocked')
       await installPlugin(example)
       onChange({ ...project, plugins: [...project.plugins, { id: example.id, version: example.version, enabled: true }] })
       setFeedback('Plugin installato e abilitato')
@@ -45,7 +45,7 @@ export function PluginManager({ project, onChange, onCatalogChange }: { project:
       const state = project.plugins.find((plugin) => plugin.id === manifest.id)
       return <article className="plugin-card" key={manifest.id}>
         <div><strong>{manifest.name}</strong><span>{manifest.id} · v{manifest.version} · {manifest.author}</span><small>Permessi: {manifest.permissions.join(', ') || 'nessuno'}</small><small>Contributi isolati: {manifest.contributions.map((item) => typeof item === 'string' ? item : `${item.kind}:${item.label}`).join(' · ') || 'nessuno'}</small></div>
-        <div className="button-row"><button className="secondary" onClick={() => toggle(manifest.id)}>{state?.enabled ? 'Disabilita' : 'Abilita'}</button><button className="danger" onClick={() => remove(manifest.id)}>Rimuovi</button></div>
+        <div className="button-row"><button className="secondary" onClick={() => toggle(manifest.id)}>{state?.enabled ? 'Disable' : 'Enable'}</button><button className="danger" onClick={() => remove(manifest.id)}>Remove</button></div>
         {state?.enabled && manifest.contributions.filter((item) => typeof item !== 'string' && item.kind === 'theme').map((item) => typeof item === 'string' || item.kind !== 'theme' ? null : <button key={item.id} className="secondary" onClick={() => { onChange({ ...project, theme: { tokens: { ...project.theme.tokens, ...item.tokens } } }); setFeedback(`Tema plugin applicato: ${item.label}`) }}>Applica {item.label}</button>)}
       </article>
     })}

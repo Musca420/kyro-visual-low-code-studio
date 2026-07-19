@@ -9,6 +9,6 @@ export const visualPalettes = [
 
 export const visualGradients = [
   ["Aurora", "linear-gradient(135deg, #6d5dfc, #21c8a4)"],
-  ["Tramonto", "linear-gradient(135deg, #ff725e, #ffbf69)"],
-  ["Oceano", "linear-gradient(135deg, #0f4c81, #21c8d8)"],
+  ["Sunset", "linear-gradient(135deg, #ff725e, #ffbf69)"],
+  ["Ocean", "linear-gradient(135deg, #0f4c81, #21c8d8)"],
 ] as const;

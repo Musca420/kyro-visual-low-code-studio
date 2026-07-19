@@ -2,7 +2,7 @@
 
 **Run reusable flow** passes the current value into another visual flow and returns its final value to the calling graph. The guided target list excludes the current flow; preview and generated code share cycle detection and a maximum nesting depth. This keeps recurring behavior as readable Node-RED-style building blocks instead of duplicated chains.
 
-Editor visuale low-code locale per creare UI responsive, collegare flow deterministici, usare IndexedDB e generare un'app TypeScript/Vite indipendente.
+A local-first visual low-code editor for responsive interfaces, deterministic Node-RED-style flows, IndexedDB data, native capabilities, and independent TypeScript/Vite or Android exports.
 
 Il Flow Editor permette di aggiungere liberamente nodi da una palette ricercabile, organizzata in **Interazioni**, **Dati e API** e **Avanzato** con apertura progressiva. L'evento iniziale configura visualmente click, cambio campo, invio form, apertura pagina o timer; il collegamento al componente viene sincronizzato automaticamente e lo stesso trigger governa preview generica ed export. I nodi si collegano trascinando i pallini oppure con i menu accessibili **Uscita da collegare** e **Passo successivo**, che applicano la stessa verifica dei tipi. **Cambia elemento** mostra, nasconde, abilita, disabilita o aggiorna testo, valore, colore, sfondo e trasparenza di un elemento durante l'uso. Configurazione e collegamenti usano nomi comprensibili: success/error, uscite nominate dello switch o percorsi “ogni elemento/completato” del loop. Il ciclo impone sia un limite visuale di elementi sia un tetto globale di esecuzione. Stato applicativo, attese e debounce, composizione di testo e liste, API HTTP/HTTPS, CRUD, filtro, ordinamento e KPI usano lo stesso runtime. Quando i nodi comuni non bastano, **Funzione avanzata** crea una trasformazione tipizzata e protetta, la prova con casi input/risultato atteso, la esegue nel flow e la esporta come modulo TypeScript leggibile senza `eval`.
 
@@ -66,7 +66,7 @@ Use `kyro --home` when you explicitly want Home even if the current folder conta
 
 The CLI reads only the selected workspace, ignores dependencies, builds and symbolic links, and enforces explicit source-file and size limits. Press `Ctrl+C` in the launching terminal to stop Kyro. Electron packaging remains available for signed release builds only; it is not the repository workflow.
 
-## Verifica
+## Verification
 
 ```bash
 npm run typecheck
@@ -78,13 +78,13 @@ npm run test:e2e
 npm run desktop:test
 npm run desktop:test:packaged
 
-# Materializza, installa e verifica l'output indipendente
+# Materialize, install, and verify the independent output
 npm run export:sample
 npm --prefix generated-app install
 npm --prefix generated-app run build
 npm run test:generated
 
-# Dopo aver estratto e avviato gli ZIP di collaudo sulle porte 4181-4183
+# After extracting and starting the test ZIP files on ports 4181-4183
 SCENARIO_EXPORTS=1 npx playwright test e2e/exported-scenarios.spec.ts --workers=1
 ```
 

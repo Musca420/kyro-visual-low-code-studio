@@ -584,7 +584,7 @@ function genericPage(
           template === "blog" ? "Cerca articoli…" : "Cerca prodotti…",
       }),
       component("select", "Filtro", "Tutte le categorie", "filter", {
-        options: "Tutte le categorie,In evidenza,Novità",
+        options: "All categories,Featured,New",
       }),
     );
   }
@@ -605,7 +605,7 @@ function genericPage(
       component(
         "button",
         "Invia",
-        template === "auth" ? "Continua" : "Invia",
+        template === "auth" ? "Continue" : "Submit",
         "submit",
       ),
     );
@@ -631,7 +631,7 @@ export function createTemplateProject(id: TemplateId, name: string): Project {
     const project = createDashboardProject(name);
     project.pages.push(
       genericPage("company", "Report", "/report", 1),
-      genericPage("company", "Impostazioni", "/impostazioni", 2),
+      genericPage("company", "Settings", "/settings", 2),
     );
     return project;
   }

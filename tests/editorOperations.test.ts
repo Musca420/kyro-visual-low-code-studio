@@ -13,7 +13,7 @@ describe('structured editor operations', () => {
     ] } })
     expect(next.pages[0].components[0].props.label).toBe('Salva')
     expect(next.pages[0].components[0].styles.mobile.width).toBe('100%')
-    expect(project.pages[0].components[0].props.label).toBe('Aggiungi')
+    expect(project.pages[0].components[0].props.label).toBe('Add')
   })
 
   it('rifiuta una rimozione non confermata', () => {

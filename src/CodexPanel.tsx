@@ -380,7 +380,7 @@ export function CodexPanel({
             Cancel
           </button>
           <button
-            data-help="Chiude il pannello. La cronologia resta disponibile finché il progetto è aperto."
+            data-help="Closes the panel. History remains available while the project is open."
             className="icon-button"
             aria-label="Close Codex panel"
             onClick={onClose}
@@ -480,7 +480,7 @@ export function CodexPanel({
             ) : (
               <>
                 <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corso…" : "Accedi con ChatGPT"}</button>
-                <button className="secondary" disabled={authBusy} data-help="Mostra il flusso con codice dispositivo quando il browser non può tornare automaticamente all'app." onClick={() => void login(true)}>Use device code</button>
+                <button className="secondary" disabled={authBusy} data-help="Shows the device-code flow when the browser cannot return to the app automatically." onClick={() => void login(true)}>Use device code</button>
               </>
             )}
             {authBusy && loginSession && <button className="danger" onClick={() => void fetch(`/api/codex/login/${loginSession}/cancel`, { method: "POST" })}>Cancel sign-in</button>}

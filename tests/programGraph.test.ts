@@ -79,8 +79,8 @@ describe("unified program graph", () => {
     button.intent.expectedResult = "completa pagamento checkout";
     project.pages.push({ id: "page", name: "Home", path: "/", components: [button] });
     const payment = inspectComponentProgram(project, "page", button.id).issues.find((issue) => issue.id === "payment-provider");
-    expect(payment?.plan?.requirements).toContain("Webhook HTTPS per confermare l'esito");
-    expect(payment?.plan?.alternatives).toContain("Modalità demo senza addebiti reali");
+    expect(payment?.plan?.requirements).toContain("HTTPS webhook to confirm the result");
+    expect(payment?.plan?.alternatives).toContain("Demo mode without real charges");
     expect(payment?.plan?.confirmationRequired).toBe(true);
   });
 });

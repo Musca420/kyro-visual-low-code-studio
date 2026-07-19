@@ -1,5 +1,11 @@
 # Desktop product roadmap
 
+## Current distribution decision — repository first
+
+As of 19 July 2026, the supported local distribution is the repository plus the global `kyro` command. Run `npm install` and `npm link` once; then `kyro` opens the current project folder or Home from an ordinary folder, while `kyro path/to/project` opens an explicit folder. `kyro --check`, `--help`, and `--version` are non-interactive diagnostics.
+
+Unsigned desktop installers are not the supported user path because Windows Device Guard/SmartScreen can block each new hash. Electron packaging remains available for CI and future signed releases, but public desktop distribution is not claimed until signing identities and HTTPS release hosting exist. The open project format, Live Bridge, visual editor, Codex integration, persistence, and web/Android exports are identical in the repository workflow.
+
 Questa estensione è parte vincolante della Definition of Done complessiva insieme a `PROJECT_SPEC.md` e `aggiunta.md`. Frontend Editor non è completo finché UI, installazione, avvio, persistenza ed esperienza end-to-end non sono state provate realmente.
 
 ## Decisione desktop: Electron
@@ -19,7 +25,7 @@ Gli aggiornamenti desktop devono usare artefatti firmati. Windows e macOS posson
 | Accessibilità | WCAG 2.2 AA nei percorsi principali | Tastiera, focus visibile, nomi accessibili e audit automatico/manuale | Percorsi principali verificati: contrasto 4.5:1, nomi interattivi, focus visibile, tastiera e overflow mobile; non è una certificazione WCAG esterna |
 | Home | Recenti, ricerca, template, backup e ripristino | Chiudere/riaprire, cercare, esportare backup, cancellare/ripristinare senza perdita | Verificato |
 | Desktop | Avvio da icona su Windows/macOS/Linux | Bundle prodotti in CI per i tre sistemi; installazione e smoke test nativo per sistema | Windows verificato; workflow CI matrix Windows/macOS/Linux presente; esecuzione e firma macOS/Linux richiedono runner e identità esterni |
-| CLI | `frontend-editor [cartella]` globale | Installazione locale del comando, apertura cartella valida, errore comprensibile per percorso non valido | Verificato su Windows |
+| CLI | Global `kyro [folder]` command | Local link, current-folder detection, explicit folder, Home fallback, help/version/check and clear invalid-path error | Verified on Windows |
 | Persistenza | Progetti, cronologia, conversazioni, versioni ed export | Riavvio del processo desktop conserva ogni elemento; backup/restore round-trip | Verificata: versioni ripristinabili, ZIP riscaricabile dopo reload e inclusione nel backup |
 | Aggiornamenti | Canale firmato, rollback/rifiuto pacchetto invalido | Test manifest/versione/firma; prova reale dopo disponibilità certificati e hosting | Policy verificata: Ed25519, HTTPS, canale/piattaforma, anti-downgrade, dimensione e SHA-256; pubblicazione/installazione firmata bloccata da certificati e hosting esterni |
 | Codex | Contesto live, transazione, before/after, test e undo | Timeline persistente con screenshot e revisione; rollback atomico riprovato | Verificato |

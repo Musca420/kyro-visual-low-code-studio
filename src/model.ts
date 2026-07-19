@@ -537,10 +537,10 @@ const baseStyle = {
 
 export function makeComponent(type: EditorComponent["type"]): EditorComponent {
   const label: Partial<Record<EditorComponent["type"], string>> = {
-    input: "Nuova attività",
-    button: "Aggiungi",
-    list: "Attività",
-    title: "Titolo",
+    input: "New task",
+    button: "Add",
+    list: "Tasks",
+    title: "Title",
     text: "Testo",
   };
   const layout =
@@ -672,7 +672,7 @@ export function validateReferences(project: Project) {
         throw new Error(`Contenitore mancante nel blocco riutilizzabile ${definition.name}`);
     for (const exposed of definition.exposedProperties)
       if (!definitionIds.has(exposed.componentId))
-        throw new Error(`Proprietà esposta senza componente nel blocco ${definition.name}`);
+        throw new Error(`Exposed property without a component in block ${definition.name}`);
   }
   for (const page of project.pages) {
     const pageIds = new Set(page.components.map((component) => component.id));
@@ -685,7 +685,7 @@ export function validateReferences(project: Project) {
         );
       if (component.parentId === component.id)
         throw new Error(
-          `Un componente non può contenere sé stesso: ${component.id}`,
+          `A component cannot contain itself: ${component.id}`,
         );
       const visited = new Set([component.id]);
       let parentId = component.parentId;
@@ -701,7 +701,7 @@ export function validateReferences(project: Project) {
         if (!flowIds.has(flowId))
           throw new Error(`Flow mancante ${flowId} in ${component.id}`);
       if (component.binding && !sourceIds.has(component.binding.sourceId))
-        throw new Error(`Sorgente mancante ${component.binding.sourceId}`);
+        throw new Error(`Missing source ${component.binding.sourceId}`);
     }
   }
   for (const flow of project.flows) {
@@ -721,9 +721,9 @@ export function validateReferences(project: Project) {
   for (const source of project.dataSources)
     for (const relation of source.relations ?? []) {
       const target = project.dataSources.find((item) => item.id === relation.targetSourceId);
-      if (!target) throw new Error(`Sorgente collegata mancante ${relation.targetSourceId}`);
-      if (!(relation.field in source.schema)) throw new Error(`Campo relazione mancante ${source.name}.${relation.field}`);
-      if (!(relation.targetField in target.schema)) throw new Error(`Campo relazione mancante ${target.name}.${relation.targetField}`);
+      if (!target) throw new Error(`Missing connected source ${relation.targetSourceId}`);
+      if (!(relation.field in source.schema)) throw new Error(`Missing relation field ${source.name}.${relation.field}`);
+      if (!(relation.targetField in target.schema)) throw new Error(`Missing relation field ${target.name}.${relation.targetField}`);
     }
 }
 

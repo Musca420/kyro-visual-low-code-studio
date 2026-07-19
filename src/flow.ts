@@ -86,7 +86,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; value = await guarded(node.config.sourceId ? context.insert(next, node.config.sourceId) : context.insert(next), context) }
       if (node.type === 'query') {
         const previous = value
-        const records = await guarded(required(context.query, 'Caricamento dati non disponibile')(node.config.sourceId), context)
+        const records = await guarded(required(context.query, 'Data loading is not available')(node.config.sourceId), context)
         value = node.config.mode === 'one' ? findRecord(records, previous, node.config.id, node.config.field) : records
       }
       if (node.type === 'update') value = await guarded(required(context.update, 'Aggiornamento dati non disponibile')(value, node.config.sourceId), context)
@@ -99,7 +99,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '', node.config.operation === 'close' ? 'close' : 'open')
       if (node.type === 'updateUI') await required(context.updateUI, 'Aggiornamento interfaccia non disponibile')(node.config.componentId || '', node.config.operation || 'show', node.config.value || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
-      if (node.type === 'localNotification') await required(context.localNotification, 'Notifiche locali non disponibili')(node.config.title || 'Promemoria', node.config.body || String(value ?? ''), Math.min(604800000, Math.max(0, Number(node.config.delayMs) || 0)))
+      if (node.type === 'localNotification') await required(context.localNotification, 'Local notifications are not available')(node.config.title || 'Reminder', node.config.body || String(value ?? ''), Math.min(604800000, Math.max(0, Number(node.config.delayMs) || 0)))
       if (node.type === 'nativeAction') value = await guarded(Promise.resolve(required(context.nativeAction, 'Device actions are not available')(node.config.capability || '', node.config.action || '', value, node.config)), context)
       if (node.type === 'runFlow') value = await guarded(required(context.runSubflow, 'Reusable flows are not available')(node.config.flowId || '', value), context)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
@@ -166,7 +166,7 @@ const validate = (value: unknown, key = '', rule = 'required', expected = '', me
         : rule === 'min' ? Number(actual) >= Number(expected)
           : rule === 'max' ? Number(actual) <= Number(expected)
             : false
-  if (!valid) throw new Error(message || `Il campo ${key || 'corrente'} non è valido`)
+  if (!valid) throw new Error(message || `The ${key || 'current'} field is not valid`)
 }
 
 const filter = (value: unknown, key = '', expected = '') => {
@@ -222,11 +222,11 @@ const platformMatches = (info: { platform: string; version: string }, platform =
 }
 
 async function prepareFile(value: unknown, maxMb: number, accept = '') {
-  if (!(value instanceof File)) throw new Error('Scegli un file prima di continuare')
+  if (!(value instanceof File)) throw new Error('Choose a file before continuing')
   const limit = Math.min(10, Math.max(1, maxMb)) * 1024 * 1024
   if (value.size > limit) throw new Error(`Il file supera il limite di ${Math.min(10, Math.max(1, maxMb))} MB`)
   const accepted = accept.split(',').map((item) => item.trim()).filter(Boolean)
-  if (accepted.length && !accepted.some((item) => item.endsWith('/*') ? value.type.startsWith(item.slice(0, -1)) : value.type === item || value.name.toLowerCase().endsWith(item.toLowerCase()))) throw new Error('Il tipo di file non è accettato')
+  if (accepted.length && !accepted.some((item) => item.endsWith('/*') ? value.type.startsWith(item.slice(0, -1)) : value.type === item || value.name.toLowerCase().endsWith(item.toLowerCase()))) throw new Error('This file type is not accepted')
   const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(value) })
   return { name: value.name, type: value.type || 'application/octet-stream', size: value.size, dataUrl }
 }

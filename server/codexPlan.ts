@@ -30,7 +30,7 @@ export function quickVisualPlan(prompt: string, context: Record<string, unknown>
   const padding = prompt.match(/(?:spaziatura interna|padding)\D{0,20}(\d+(?:[.,]\d+)?(?:px|rem|em|%))/i)?.[1];
   if (padding) addStyle("padding", padding.replace(",", "."));
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: aggiorna ${String(context.componentName ?? componentId)} su ${breakpoints.join(", ")} senza modificare altri elementi.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: update ${String(context.componentName ?? componentId)} on ${breakpoints.join(", ")} without changing other elements.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 type IndexedPage = { id: string; name: string; path: string };
@@ -88,7 +88,7 @@ export function quickStructurePlan(prompt: string, context: Record<string, unkno
   if (/android/i.test(prompt) && context.exportTarget !== "android")
     operations.push({ type: "set_export_config", args: { patch: { target: "android", capacitor: true } } });
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: aggiorna la struttura indicizzata di ${String(context.projectName ?? "progetto")} con ${operations.length} operazioni atomiche e annullabili.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: update the indexed structure of ${String(context.projectName ?? "project")} with ${operations.length} atomic, undoable operations.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 export function quickNavigationFlowPlan(prompt: string, context: Record<string, unknown>) {
@@ -109,11 +109,11 @@ export function quickNavigationFlowPlan(prompt: string, context: Record<string, 
   const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = flowExists ? [] : [
     { type: "add_flow", args: { flowId, name: `Vai a ${destination.name}` } },
     { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-event`, type: "event", label: "Click", position: { x: 0, y: 0 }, config: { trigger: "click", componentId } } } },
-    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-navigate`, type: "navigate", label: `Apri ${destination.name}`, position: { x: 240, y: 0 }, config: { mode: "page", path: destination.path } } } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-navigate`, type: "navigate", label: `Open ${destination.name}`, position: { x: 240, y: 0 }, config: { mode: "page", path: destination.path } } } },
     { type: "connect_nodes", args: { flowId, source: `${flowId}-event`, target: `${flowId}-navigate`, path: "success" } },
   ];
   operations.push({ type: "set_component_event", pageId, args: { componentId, event: "click", flowId } });
-  return `Piano immediato: collega ${String(context.componentName ?? componentId)} alla pagina ${destination.name} con un flow visuale annullabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: connect ${String(context.componentName ?? componentId)} to ${destination.name} with an undoable visual flow.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 export function quickLocalNotificationPlan(prompt: string, context: Record<string, unknown>) {
@@ -134,12 +134,12 @@ export function quickLocalNotificationPlan(prompt: string, context: Record<strin
     { type: "add_flow", args: { flowId, name: `Notifica da ${String(context.componentName ?? componentId)}` } },
     { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-event`, type: "event", label: trigger === "change" ? "Quando cambia" : "Al click", position: { x: 0, y: 0 }, config: { trigger, componentId } } } },
     { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-notification`, type: "localNotification", label: "Programma promemoria", position: { x: 240, y: 0 }, config: { title, body, delayMs } } } },
-    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-success`, type: "notify", label: "Conferma", position: { x: 480, y: 0 }, config: { message: "Promemoria programmato", level: "success" } } } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-success`, type: "notify", label: "Confirmation", position: { x: 480, y: 0 }, config: { message: "Reminder scheduled", level: "success" } } } },
     { type: "connect_nodes", args: { flowId, source: `${flowId}-event`, target: `${flowId}-notification`, path: "success" } },
     { type: "connect_nodes", args: { flowId, source: `${flowId}-notification`, target: `${flowId}-success`, path: "success" } },
   ];
   operations.push({ type: "set_component_event", pageId, args: { componentId, event: trigger, flowId } });
-  return `Piano immediato: collega ${String(context.componentName ?? componentId)} a una notifica locale riutilizzabile, verificabile e annullabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: connect ${String(context.componentName ?? componentId)} to a reusable, verifiable, undoable local notification.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 type IndexedSource = { id: string; name?: string; schema?: Record<string, unknown> };
@@ -168,8 +168,8 @@ export function quickDataViewsPlan(prompt: string, context: Record<string, unkno
     calendars.forEach((component) => { bind(component, taskSource); property(component, "dateField", "dueDate"); });
   }
   if (charts.length) {
-    if (cards[0]) { bind(cards[0], taskSource); property(cards[0], "metric", "completed"); property(cards[0], "metricSuffix", "attività completate"); }
-    if (cards[1]) { bind(cards[1], taskSource); property(cards[1], "metric", "active"); property(cards[1], "metricSuffix", "attività aperte"); }
+    if (cards[0]) { bind(cards[0], taskSource); property(cards[0], "metric", "completed"); property(cards[0], "metricSuffix", "tasks completed"); }
+    if (cards[1]) { bind(cards[1], taskSource); property(cards[1], "metric", "active"); property(cards[1], "metricSuffix", "open tasks"); }
     if (cards[2]) { bind(cards[2], habitSource); property(cards[2], "metric", "maxStreak"); property(cards[2], "metricSuffix", "giorni di serie"); }
     charts.forEach((component, index) => { const source = index === 0 ? taskSource : habitSource; bind(component, source); property(component, "metric", "completed"); });
   }
@@ -185,7 +185,7 @@ export function quickDataViewsPlan(prompt: string, context: Record<string, unkno
     operations.push({ type: "update_flow_node", args: { flowId, nodeId: `${flowId}-event`, patch: { config: { pageId } } } });
   }
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: collega ${targets.length} viste visuali alle sorgenti esistenti con metriche, calendario e refresh generici.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: connect ${targets.length} visual views to existing sources with generic metrics, calendar, and refresh behavior.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 type IndexedComponent = { id: string; name: string; type: string; parentId?: string };
@@ -245,7 +245,7 @@ export function quickDashboardPlan(prompt: string, context: Record<string, unkno
   op("set_component_state_style", { componentId: addId, state: "focus", property: "outline", value: `3px solid ${primary}` });
   op("set_component_state_style", { componentId: addId, state: "focus", property: "outlineOffset", value: "3px" });
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: compone la dashboard mobile di ${String(context.projectName ?? "progetto")} usando l'indice del grafo, senza dati o flow.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: compose the mobile dashboard for ${String(context.projectName ?? "project")} from the graph index, without data or flows.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 type ScreenItem = {
@@ -395,7 +395,7 @@ export function quickDailyFlowScreenPlan(prompt: string, context: Record<string,
       },
     });
   });
-  return `Piano immediato: compone ${spec.title} dal grafo della pagina corrente con componenti mobili accessibili e modificabili.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: compose ${spec.title} from the current page graph with accessible, editable mobile components.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 export function quickCrudSurfacePlan(prompt: string, context: Record<string, unknown>) {
@@ -433,7 +433,7 @@ export function quickCrudSurfacePlan(prompt: string, context: Record<string, unk
   add("tasks-toast", "toast", "Task confirmation", undefined, { label: "Task saved" }, { label: "Operation confirmation", role: "status" });
   op("bind_component_data", { componentId: "tasks-list", sourceId, state: "data" });
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: prepara la superficie CRUD locale della pagina attività con form accessibile, ricerca, filtro e stati; i flow verranno collegati nel passo successivo.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: prepare the local CRUD surface for the Tasks page with an accessible form, search, filter, and states; flows will be connected in the next step.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 export function quickCrudFlowsPlan(prompt: string, context: Record<string, unknown>) {
@@ -518,7 +518,7 @@ export function quickCrudFlowsPlan(prompt: string, context: Record<string, unkno
   op("set_component_event", { componentId: list.id, event: "recordUpdate", flowId: "tasks-update" });
   op("set_component_event", { componentId: list.id, event: "recordDelete", flowId: "tasks-delete" });
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: collega caricamento e creazione delle attività con nodi success/error e un evento submit stabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: connect task loading and creation with success/error nodes and a stable submit event.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
 export function quickHabitsPlan(prompt: string, context: Record<string, unknown>) {
@@ -554,32 +554,32 @@ export function quickHabitsPlan(prompt: string, context: Record<string, unknown>
     op("bind_component_data", { componentId: "habits-list", sourceId, state: "data" });
   }
   if (!flows.some((flow) => flow.id === "habits-load")) {
-    op("add_flow", { flowId: "habits-load", name: "Carica abitudini" });
-    node("habits-load", "habits-load-event", "event", "Apertura pagina", 0, 0, { trigger: "pageLoad" });
-    node("habits-load", "habits-load-query", "query", "Leggi abitudini locali", 220, 0, { sourceId });
-    node("habits-load", "habits-load-refresh", "refresh", "Aggiorna lista e progresso", 440, 0, { componentId: "habits-list" });
-    node("habits-load", "habits-load-error", "notify", "Errore caricamento", 440, 140, { message: "Non riesco a caricare le abitudini", level: "error" });
+    op("add_flow", { flowId: "habits-load", name: "Load habits" });
+    node("habits-load", "habits-load-event", "event", "Page opened", 0, 0, { trigger: "pageLoad" });
+    node("habits-load", "habits-load-query", "query", "Read local habits", 220, 0, { sourceId });
+    node("habits-load", "habits-load-refresh", "refresh", "Refresh list and progress", 440, 0, { componentId: "habits-list" });
+    node("habits-load", "habits-load-error", "notify", "Load error", 440, 140, { message: "Habits could not be loaded", level: "error" });
     edge("habits-load", "habits-load-event", "habits-load-query"); edge("habits-load", "habits-load-query", "habits-load-refresh"); edge("habits-load", "habits-load-query", "habits-load-error", "error");
   }
   if (!flows.some((flow) => flow.id === "habits-create")) {
-    op("add_flow", { flowId: "habits-create", name: "Crea abitudine" });
-    node("habits-create", "habits-create-event", "event", "Invio modulo", 0, 0, { trigger: "submit", componentId: "habits-form" });
-    node("habits-create", "habits-create-read", "readInput", "Leggi campi", 200, 0, { componentId: "habits-form" });
-    node("habits-create", "habits-create-validate", "validate", "Nome obbligatorio", 400, 0, { field: "name", rule: "required", message: "Inserisci il nome dell'abitudine" });
-    node("habits-create", "habits-create-insert", "insert", "Salva in locale", 600, 0, { sourceId });
-    node("habits-create", "habits-create-refresh", "refresh", "Aggiorna lista", 800, 0, { componentId: "habits-list" });
-    node("habits-create", "habits-create-success", "notify", "Conferma", 1000, 0, { message: "Abitudine salvata", level: "success" });
-    node("habits-create", "habits-create-error", "notify", "Errore", 600, 160, { message: "Controlla il nome e riprova", level: "error" });
+    op("add_flow", { flowId: "habits-create", name: "Create habit" });
+    node("habits-create", "habits-create-event", "event", "Form submitted", 0, 0, { trigger: "submit", componentId: "habits-form" });
+    node("habits-create", "habits-create-read", "readInput", "Read fields", 200, 0, { componentId: "habits-form" });
+    node("habits-create", "habits-create-validate", "validate", "Name required", 400, 0, { field: "name", rule: "required", message: "Enter the habit name" });
+    node("habits-create", "habits-create-insert", "insert", "Save locally", 600, 0, { sourceId });
+    node("habits-create", "habits-create-refresh", "refresh", "Refresh list", 800, 0, { componentId: "habits-list" });
+    node("habits-create", "habits-create-success", "notify", "Confirmation", 1000, 0, { message: "Habit saved", level: "success" });
+    node("habits-create", "habits-create-error", "notify", "Error", 600, 160, { message: "Check the name and try again", level: "error" });
     edge("habits-create", "habits-create-event", "habits-create-read"); edge("habits-create", "habits-create-read", "habits-create-validate"); edge("habits-create", "habits-create-validate", "habits-create-insert"); edge("habits-create", "habits-create-validate", "habits-create-error", "error"); edge("habits-create", "habits-create-insert", "habits-create-refresh"); edge("habits-create", "habits-create-insert", "habits-create-error", "error"); edge("habits-create", "habits-create-refresh", "habits-create-success");
     op("set_component_event", { componentId: "habits-form", event: "submit", flowId: "habits-create" });
   }
   if (!flows.some((flow) => flow.id === "habits-complete")) {
-    op("add_flow", { flowId: "habits-complete", name: "Completa abitudine" });
-    node("habits-complete", "habits-complete-event", "event", "Completamento richiesto", 0, 0, { trigger: "recordAction", componentId: "habits-list" });
-    node("habits-complete", "habits-complete-update", "update", "Aggiorna serie", 240, 0, { sourceId });
-    node("habits-complete", "habits-complete-refresh", "refresh", "Aggiorna lista e progresso", 480, 0, { componentId: "habits-list" });
-    node("habits-complete", "habits-complete-success", "notify", "Conferma completamento", 720, 0, { message: "Abitudine completata", level: "success" });
-    node("habits-complete", "habits-complete-error", "notify", "Errore completamento", 480, 150, { message: "Non riesco ad aggiornare l'abitudine", level: "error" });
+    op("add_flow", { flowId: "habits-complete", name: "Complete habit" });
+    node("habits-complete", "habits-complete-event", "event", "Completion requested", 0, 0, { trigger: "recordAction", componentId: "habits-list" });
+    node("habits-complete", "habits-complete-update", "update", "Update streak", 240, 0, { sourceId });
+    node("habits-complete", "habits-complete-refresh", "refresh", "Refresh list and progress", 480, 0, { componentId: "habits-list" });
+    node("habits-complete", "habits-complete-success", "notify", "Completion confirmed", 720, 0, { message: "Habit completed", level: "success" });
+    node("habits-complete", "habits-complete-error", "notify", "Completion error", 480, 150, { message: "The habit could not be updated", level: "error" });
     edge("habits-complete", "habits-complete-event", "habits-complete-update"); edge("habits-complete", "habits-complete-update", "habits-complete-refresh"); edge("habits-complete", "habits-complete-update", "habits-complete-error", "error"); edge("habits-complete", "habits-complete-refresh", "habits-complete-success");
   }
   op("set_component_event", { componentId: "habits-list", event: "recordUpdate", flowId: "habits-complete" });
@@ -597,5 +597,5 @@ export function quickHabitsPlan(prompt: string, context: Record<string, unknown>
     if (values.options) op("set_component_property", { componentId, property: "options", value: values.options });
   });
   if (!operations.length || operations.length > 50) return undefined;
-  return `Piano immediato: collega Abitudini a IndexedDB con form validato, lista e flow visuali di caricamento, creazione e completamento.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+  return `Immediate plan: connect Habits to IndexedDB with a validated form, list, and visual load/create/complete flows.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }

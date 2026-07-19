@@ -137,7 +137,7 @@ export function VisualProperties({
           onChange={(event) => setStyle(key, event.target.value)}
         />
         <input
-          aria-label={`${label} valore`}
+          aria-label={`${label} value`}
           value={style[key]}
           onChange={(event) => setStyle(key, event.target.value)}
         />
@@ -249,7 +249,7 @@ export function VisualProperties({
             Permessi richiesti
             <input
               value={component.intent.permissions.join(", ")}
-              placeholder="Esempio: fotocamera, notifiche"
+              placeholder="Example: camera, notifications"
               onChange={(event) =>
                 onUpdate((item) => ({
                   ...item,
@@ -287,7 +287,7 @@ export function VisualProperties({
           </select>
         </label>
       )}
-      <label data-help="Scegli quale aspetto stai modificando. Base vale sempre; gli altri si attivano durante l'interazione.">
+      <label data-help="Choose the appearance you are editing. Base is always active; the others apply during interaction.">
         State to edit
         <select
           value={state}
@@ -385,7 +385,7 @@ export function VisualProperties({
           Angoli <output>{Number.parseInt(style.borderRadius) || 0}px</output>
           <input
             type="range"
-            aria-label="Angoli rapido"
+            aria-label="Quick corners"
             min="0"
             max="48"
             value={Number.parseInt(style.borderRadius) || 0}
@@ -399,7 +399,7 @@ export function VisualProperties({
           Inner spacing <output>{Number.parseInt(style.padding) || 0}px</output>
           <input
             type="range"
-            aria-label="Inner spacing rapido"
+            aria-label="Quick inner spacing"
             min="0"
             max="80"
             value={Number.parseInt(style.padding) || 0}
@@ -428,7 +428,7 @@ export function VisualProperties({
         <section className="quick-layout" aria-label="Disposizione del contenuto">
           <div>
             <strong>Disponi il contenuto</strong>
-            <small>Scegli una struttura, poi regola spazio e allineamento.</small>
+            <small>Choose a structure, then adjust spacing and alignment.</small>
           </div>
           <div className="layout-presets" role="group" aria-label="Content layout">
             <button
@@ -455,7 +455,7 @@ export function VisualProperties({
             Element gap <output>{Number.parseInt(style.gap) || 0}px</output>
             <input
               type="range"
-              aria-label="Spazio rapido tra elementi"
+              aria-label="Quick gap between elements"
               min="0"
               max="64"
               step="4"
@@ -536,10 +536,10 @@ export function VisualProperties({
           </div>
           <div className="field-pair">
             {select(
-              "Visibilità / layout",
+              "Visibility / layout",
               "display",
               ["block", "flex", "grid", "none"],
-              `Vale per il breakpoint ${breakpoint}. Scegli none per nascondere solo qui.`,
+              `Applies to the ${breakpoint} breakpoint. Choose none to hide it only here.`,
             )}
             {field(
               "Proporzioni",
@@ -554,7 +554,7 @@ export function VisualProperties({
         <summary>Allineamento e griglia</summary>
         <div className="property-section">
           <div className="field-pair">
-            {select("Direzione", "flexDirection", [
+            {select("Direction", "flexDirection", [
               "row",
               "column",
               "row-reverse",
@@ -808,7 +808,7 @@ export function VisualProperties({
         <summary>Accessibilita e aiuti</summary>
         <div className="property-section">
           <label>
-            Nome letto dagli ausili
+            Accessible name
             <input
               value={component.accessibility.label}
               onChange={(event) =>

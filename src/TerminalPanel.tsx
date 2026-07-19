@@ -154,13 +154,13 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
           onClick={() => void close()}
           disabled={session?.status !== "running"}
         >
-          Termina sessione
+          End session
         </button>
       </form>
       <p className="terminal-note">
-        La shell è locale e non viene esposta nell’export. Comandi di rete,
-        privilegi o scritture esterne al workspace richiedono la stessa cautela
-        di un terminale desktop.
+        The shell is local and is never included in exports. Network commands,
+        elevated privileges, or writes outside the workspace require the same
+        care as a desktop terminal.
       </p>
     </main>
   );

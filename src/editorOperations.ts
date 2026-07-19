@@ -25,15 +25,15 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'add_page') {
     const name = String(args.name ?? '').trim(), path = String(args.path ?? '').trim(), id = String(args.pageId ?? crypto.randomUUID())
-    if (!name || !path.startsWith('/')) throw new Error('Nome e percorso pagina sono obbligatori')
+    if (!name || !path.startsWith('/')) throw new Error('Page name and path are required')
     if (project.pages.some((page) => page.id === id || page.path === path)) throw new Error('ID o percorso pagina gia esistente')
     return parseProject({ ...project, pages: [...project.pages, { id, name, path, components: [] }] })
   }
   if (operation.type === 'update_page') {
     const id = String(args.pageId ?? pageId), page = project.pages.find((item) => item.id === id)
-    if (!page) throw new Error('Pagina non trovata')
+    if (!page) throw new Error('Page not found')
     const name = args.name === undefined ? page.name : String(args.name).trim(), path = args.path === undefined ? page.path : String(args.path).trim()
-    if (!name || !path.startsWith('/') || project.pages.some((item) => item.id !== id && item.path === path)) throw new Error('Nome o percorso pagina non valido')
+    if (!name || !path.startsWith('/') || project.pages.some((item) => item.id !== id && item.path === path)) throw new Error('Page name or path is not valid')
     return parseProject({ ...project, pages: project.pages.map((item) => item.id === id ? { ...item, name, path } : item) })
   }
   if (operation.type === 'remove_page') {
@@ -46,7 +46,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'set_theme_token') {
     const token = String(args.token ?? '').trim(), value = String(args.value ?? '').trim()
-    if (!token || !value) throw new Error('Token e valore sono obbligatori')
+    if (!token || !value) throw new Error('Token and value are required')
     return parseProject({ ...project, theme: { tokens: { ...project.theme.tokens, [token]: value } } })
   }
   if (operation.type === 'set_project_property') {
@@ -92,7 +92,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     if (args.intent) component.intent = { ...component.intent, ...object(args.intent) } as EditorComponent['intent']
     if (typeof args.parentId === 'string') {
       const parent = componentIn(project, pageId, args.parentId).component
-      if (!canContain(parent)) throw new Error(`${parent.name} non può contenere altri elementi`)
+      if (!canContain(parent)) throw new Error(`${parent.name} cannot contain other elements`)
       component.parentId = parent.id
     }
     return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: [...page.components, component] } : page) })
@@ -103,7 +103,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'add_flow') {
     const name = String(args.name ?? '').trim()
-    if (!name) throw new Error('Nome flow obbligatorio')
+    if (!name) throw new Error('Flow name is required')
     return parseProject({ ...project, flows: [...project.flows, { id: String(args.flowId ?? crypto.randomUUID()), name, nodes: [], edges: [] }] })
   }
   if (operation.type === 'update_flow') {
@@ -138,7 +138,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'create_data_source') {
     const name = String(args.name ?? '').trim(), collection = String(args.collection ?? '').trim(), schema = args.schema, provider = String(args.provider ?? 'indexeddb')
-    if (!name || !collection || !schema || typeof schema !== 'object') throw new Error('Nome, collezione e schema sono obbligatori')
+    if (!name || !collection || !schema || typeof schema !== 'object') throw new Error('Name, collection, and schema are required')
     return parseProject({ ...project, dataSources: [...project.dataSources, { id: String(args.sourceId ?? crypto.randomUUID()), name, provider, collection, schema, capabilities: ['get', 'query', 'insert', 'update', 'delete', 'subscribe'], secretStrategy: provider === 'rest' ? 'environment' : 'none', ...(args.endpoint ? { endpoint: args.endpoint } : {}), ...(args.environmentKey ? { environmentKey: args.environmentKey } : {}) }] })
   }
   if (operation.type === 'update_data_source') {
@@ -154,7 +154,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   let nextComponent = component
   if (operation.type === 'set_component_property') {
     const value = args.value
-    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') throw new Error('Il valore della proprietà deve essere testo, numero o booleano')
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') throw new Error('The property value must be text, a number, or a boolean')
     nextComponent = args.property === 'name'
       ? { ...component, name: String(value).trim() || component.name }
       : { ...component, props: { ...component.props, [String(args.property)]: value } }
@@ -190,7 +190,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
       if (parentId) {
         const parent = componentIn(project, pageId, parentId).component
         if (parent.id === component.id || descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id).has(parent.id)) throw new Error('Spostamento non valido: creerebbe un ciclo')
-        if (!canContain(parent)) throw new Error(`${parent.name} non può contenere altri elementi`)
+        if (!canContain(parent)) throw new Error(`${parent.name} cannot contain other elements`)
       }
     }
     const resetPlacement = (style: EditorComponent['styles']['desktop']) => ({ ...style, position: 'relative' as const, left: '0px', top: '0px', marginLeft: '0px', marginTop: '0px' })
@@ -227,7 +227,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     const wrapperType = String(args.componentType ?? 'container') as EditorComponent['type']
     if (!componentTypes.includes(wrapperType)) throw new Error(`Tipo contenitore non valido: ${wrapperType}`)
     const wrapper = makeComponent(wrapperType)
-    if (!canContain(wrapper)) throw new Error(`${wrapperType} non può contenere altri elementi`)
+    if (!canContain(wrapper)) throw new Error(`${wrapperType} cannot contain other elements`)
     wrapper.name = typeof args.name === 'string' && args.name.trim() ? args.name.trim() : `Gruppo di ${component.name}`
     wrapper.parentId = component.parentId
     const wrapped = { ...component, parentId: wrapper.id }

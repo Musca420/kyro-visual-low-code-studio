@@ -106,31 +106,31 @@ export function resolveCapabilities(
     issues.push({
       id: "interaction",
       kind: "interaction",
-      title: "Azione non ancora collegata",
-      explanation: "L'elemento può essere premuto, ma non avvia ancora alcun flow.",
+      title: "Action not connected yet",
+      explanation: "The element can be pressed, but it does not start a flow yet.",
       target: "flow",
     });
   if ((dataVisual || component.intent.entity) && !component.binding)
     issues.push({
       id: "data-binding",
       kind: "data",
-      title: "Dati non collegati",
+      title: "Data not connected",
       explanation: project.dataSources.length
-        ? "Scegli una sorgente esistente oppure creane una nuova e collega questo elemento."
-        : "Per mostrare dati serve una sorgente. Puoi salvarli sul dispositivo, collegare un servizio o generare un backend.",
+        ? "Choose an existing source or create a new one and connect this element."
+        : "Displaying data requires a source. Store it on the device, connect a service, or generate a backend.",
       target: "data",
     });
   if (component.type === "upload" && project.dataSources.every((source) => source.provider !== "generated"))
     issues.push({
       id: "storage",
       kind: "storage",
-      title: "Spazio file da scegliere",
-      explanation: "Il caricamento richiede uno storage o un backend: i file non devono essere simulati nel solo browser.",
+      title: "File storage is required",
+      explanation: "Uploads require storage or a backend; files must not be simulated only in the browser.",
       target: "codex",
       plan: {
-        requirements: ["Scegliere dove conservare i file", "Definire dimensione, formati e permessi", "Tenere eventuali chiavi soltanto nel backend"],
-        alternatives: ["File piccoli nel progetto locale", "Backend incluso e self-hosted", "Servizio storage esterno già usato dal team"],
-        costNote: "La soluzione locale non ha costi di servizio; uno storage esterno può applicare costi per spazio e traffico.",
+        requirements: ["Choose where files are stored", "Define size, formats, and permissions", "Keep any keys only in the backend"],
+        alternatives: ["Small files in the local project", "Included self-hosted backend", "External storage service already used by the team"],
+        costNote: "Local storage has no service fee; external storage may charge for space and traffic.",
         confirmationRequired: true,
       },
     });
@@ -138,13 +138,13 @@ export function resolveCapabilities(
     issues.push({
       id: "authentication",
       kind: "authentication",
-      title: "Accesso utenti non configurato",
-      explanation: "Scegli un accesso gestito oppure collega il provider di identità già usato dal progetto.",
+      title: "User access is not configured",
+      explanation: "Choose managed access or connect the identity provider already used by the project.",
       target: "settings",
       plan: {
-        requirements: ["Scegliere email/password oppure identità esterna", "Definire ruoli e pagine protette", "Configurare dominio e callback per un servizio esterno"],
-        alternatives: ["Accesso incluso nel backend generato", "Provider OIDC esistente", "Nessun account: dati soltanto locali"],
-        costNote: "Il backend incluso è self-hosted; un provider esterno può avere soglie gratuite e costi per utente.",
+        requirements: ["Choose email/password or external identity", "Define roles and protected pages", "Configure domain and callback for an external service"],
+        alternatives: ["Access included in the generated backend", "Existing OIDC provider", "No accounts: local data only"],
+        costNote: "The included backend is self-hosted; an external provider may have free tiers and per-user costs.",
         confirmationRequired: true,
       },
     });
@@ -152,13 +152,13 @@ export function resolveCapabilities(
     issues.push({
       id: "payment-provider",
       kind: "backend",
-      title: "Provider di pagamento necessario",
-      explanation: "Pagamenti e segreti richiedono un servizio esterno e operazioni sicure lato server.",
+      title: "Payment provider required",
+      explanation: "Payments and secrets require an external service and secure server-side operations.",
       target: "codex",
       plan: {
-        requirements: ["Account presso il provider scelto", "Chiave pubblica nel client e segreto soltanto nel backend", "Webhook HTTPS per confermare l'esito"],
-        alternatives: ["Link di pagamento ospitato: percorso più semplice", "Checkout incorporato con backend generato", "Modalità demo senza addebiti reali"],
-        costNote: "Frontend Editor non addebita costi, ma il provider può applicare commissioni e richiedere verifica dell'identità.",
+        requirements: ["Account with the chosen provider", "Public key in the client and secret only in the backend", "HTTPS webhook to confirm the result"],
+        alternatives: ["Hosted payment link: simplest path", "Embedded checkout with generated backend", "Demo mode without real charges"],
+        costNote: "Kyro does not charge fees, but the provider may charge commissions and require identity verification.",
         confirmationRequired: true,
       },
     });
@@ -170,13 +170,13 @@ export function resolveCapabilities(
     issues.push({
       id: "notification-permission",
       kind: "native",
-      title: "Permesso Android mancante",
-      explanation: "Le notifiche Android richiedono il permesso POST_NOTIFICATIONS e una richiesta comprensibile all'utente.",
+      title: "Android permission missing",
+      explanation: "Android notifications require POST_NOTIFICATIONS and a clear permission request.",
       target: "settings",
       plan: {
-        requirements: ["Dichiarare il permesso Android", "Spiegare all'utente perché serve", "Scegliere notifiche locali oppure push"],
-        alternatives: ["Notifiche locali sul dispositivo", "Push tramite servizio esterno", "Avvisi interni all'app senza permesso"],
-        costNote: "Le notifiche locali non richiedono un servizio; il push può richiedere account e infrastruttura esterna.",
+        requirements: ["Declare the Android permission", "Explain why it is needed", "Choose local or push notifications"],
+        alternatives: ["Local notifications on the device", "Push through an external service", "In-app alerts without permission"],
+        costNote: "Local notifications need no service; push may require an account and external infrastructure.",
         confirmationRequired: true,
       },
     });
@@ -238,13 +238,13 @@ export function inspectFlowNodeProgram(
       if (component.binding?.sourceId === linkedSource.id) componentIds.add(component.id);
   const errors: string[] = [];
   if (["event", "readInput", "refresh"].includes(node.type) && !node.config.componentId)
-    errors.push("Scegli il componente usato da questo nodo.");
+    errors.push("Choose the component used by this node.");
   if (["insert", "query", "update", "delete"].includes(node.type) && !node.config.sourceId)
-    errors.push("Scegli la sorgente dati usata da questo nodo.");
+    errors.push("Choose the data source used by this node.");
   if (node.type === "validate" && !node.config.message)
     errors.push("Scrivi il messaggio mostrato quando la validazione fallisce.");
   if (node.type === "module" && !node.config.moduleId)
-    errors.push("Scegli o crea il modulo protetto eseguito da questo nodo.");
+    errors.push("Choose or create the protected module run by this node.");
   if (node.type === "runFlow" && (!node.config.flowId || node.config.flowId === flow.id || !project.flows.some((item) => item.id === node.config.flowId)))
     errors.push("Choose another existing flow to reuse.");
   if (node.type === "http" && !node.config.url)
@@ -288,10 +288,10 @@ export function inspectDataSourceProgram(
   sourceId: string,
 ): DataSourceProgramView {
   const source = project.dataSources.find((item) => item.id === sourceId);
-  if (!source) throw new Error("Sorgente non trovata nel grafo");
+  if (!source) throw new Error("Source not found in the graph");
   const warnings: string[] = [];
   if (source.provider === "rest" && !source.environmentKey)
-    warnings.push("Dichiara il nome della variabile che conterrà la credenziale API.");
+    warnings.push("Declare the variable name that will contain the API credential.");
   if (source.provider !== "indexeddb" && !source.endpoint)
     warnings.push("Configura l'indirizzo del servizio dati.");
   return {
