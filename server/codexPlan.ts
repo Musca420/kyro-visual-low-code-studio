@@ -191,6 +191,7 @@ export function quickDataViewsPlan(prompt: string, context: Record<string, unkno
 type IndexedComponent = { id: string; name: string; type: string; parentId?: string };
 
 export function quickDashboardPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/dailyflow/i.test(String(context.projectName ?? ""))) return undefined;
   const asksToBuild = /(?:transform|create|build|compose|trasforma|crea|componi)/i.test(prompt);
   const asksForDashboard = /(?:dashboard|summary|riepilogo)/i.test(prompt);
   const asksForMobile = /(?:mobile|phone|telefono)/i.test(prompt);
@@ -340,6 +341,7 @@ const dailyFlowScreens: Record<string, { title: string; description: string; ite
 };
 
 export function quickDailyFlowScreenPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/dailyflow/i.test(String(context.projectName ?? ""))) return undefined;
   if (!/(?:create|design|compose|complete|build|crea|progetta|componi|completa).{0,30}(?:screen|page|schermata|pagina)/i.test(prompt)) return undefined;
   const pages = Array.isArray(context.pages) ? context.pages as IndexedPage[] : [];
   const page = pages.find((item) => item.id === context.pageId);

@@ -447,6 +447,7 @@ describe("web generator", () => {
     expect(files["src/main.ts"]).toContain("NativeApp.addListener");
     expect(files["src/main.ts"]).toContain("StatusBar.setStyle");
     expect(files["src/main.ts"]).toContain("Capacitor.isNativePlatform()");
+    expect(files["src/main.ts"]).toContain("const graphNotify");
     expect(files["src/main.ts"]).toContain("location.hash.slice(1) || \"/home\"");
     expect(files["src/main.ts"]).toContain("StatusBarStyle.Light");
     expect(files["src/style.css"]).toContain("safe-area-inset-top");

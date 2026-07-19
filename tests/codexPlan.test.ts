@@ -114,6 +114,27 @@ describe("approved Codex plan", () => {
     expect(operations?.at(-1)).toMatchObject({ type: "set_component_state_style", args: { componentId: "quick-add-head", state: "focus" } });
   });
 
+  it("non applica scorciatoie DailyFlow ad altri prodotti", () => {
+    const context = {
+      projectName: "NexusField Mobile",
+      pageId: "home",
+      componentId: "header",
+      componentType: "header",
+      pageComponents: [
+        { id: "header", type: "header", name: "Header" },
+        { id: "hero", type: "hero", name: "Hero" },
+        { id: "grid", type: "grid", name: "Grid" },
+        { id: "card-1", type: "card", name: "Card 1", parentId: "grid" },
+        { id: "card-2", type: "card", name: "Card 2", parentId: "grid" },
+        { id: "card-3", type: "card", name: "Card 3", parentId: "grid" },
+        { id: "footer", type: "footer", name: "Footer" },
+      ],
+      pages: [{ id: "home", name: "Calendar", path: "/calendar" }],
+    };
+    expect(quickDashboardPlan("Create a mobile dashboard", context)).toBeUndefined();
+    expect(quickDailyFlowScreenPlan("Create the complete page", context)).toBeUndefined();
+  });
+
   it("prepara la superficie CRUD locale delle attivita", () => {
     const pageComponents = [
       { id: "head", name: "Header", type: "header" }, { id: "section", name: "Section", type: "section" }, { id: "grid", name: "Grid", type: "grid" },
@@ -127,6 +148,7 @@ describe("approved Codex plan", () => {
 
   it("compone una schermata DailyFlow dal componente selezionato", () => {
     const operations = approvedOperations(quickDailyFlowScreenPlan("Create the complete mobile screen", {
+      projectName: "DailyFlow",
       pageId: "habits",
       componentId: "root",
       componentType: "section",
@@ -140,6 +162,7 @@ describe("approved Codex plan", () => {
 
   it("sostituisce i soli contenitori iniziali senza rimuovere due volte i figli", () => {
     const operations = approvedOperations(quickDailyFlowScreenPlan("Crea la schermata completa e mobile", {
+      projectName: "DailyFlow",
       pageId: "settings",
       componentId: "settings-child",
       componentType: "checkbox",

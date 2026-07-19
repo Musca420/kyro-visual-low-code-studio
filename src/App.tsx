@@ -1104,13 +1104,13 @@ function Editor({
             }
             if (command.tool === "undo_last_transaction") undo();
             else if (command.tool === "open_preview") setTab("preview");
-            else
-              change((value) =>
-                applyEditorOperation(value, pageId, {
-                  type: command.tool,
-                  args: command.args,
-                }),
-              );
+            else {
+              const next = applyEditorOperation(project, pageId, {
+                type: command.tool,
+                args: command.args,
+              });
+              change(next);
+            }
             await fetch(`/api/live/commands/${command.id}`, {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -1129,7 +1129,7 @@ function Editor({
       }
     }, 600);
     return () => clearInterval(timer);
-  }, [project.id, pageId, change, undo, finishBridgeCommand]);
+  }, [project, pageId, change, undo, finishBridgeCommand]);
 
   const patchPage = (
     update: (components: EditorComponent[]) => EditorComponent[],
