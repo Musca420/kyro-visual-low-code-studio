@@ -1,4 +1,3 @@
-import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import {
   execFile,
@@ -1162,7 +1161,7 @@ function liveBridge() {
   };
 }
 
-export default defineConfig({
+export default {
   base: "./",
   plugins: [react(), liveBridge()],
   server: { watch: { ignored: ["**/android-builds/**"] } },
@@ -1171,4 +1170,4 @@ export default defineConfig({
     setupFiles: "./tests/setup.ts",
     include: ["tests/**/*.test.{ts,tsx}"],
   },
-});
+};

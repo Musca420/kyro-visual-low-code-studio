@@ -1,7 +1,7 @@
 module.exports = {
   outDir: "desktop-dist",
   packagerConfig: {
-    asar: true,
+    asar: false,
     name: "FrontendEditor",
     executableName: "frontend-editor",
     ignore: [

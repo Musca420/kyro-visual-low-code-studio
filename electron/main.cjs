@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
-const { readdir, readFile, stat } = require("node:fs/promises");
+const { mkdir, readdir, readFile, stat } = require("node:fs/promises");
 const { basename, extname, join, relative, resolve } = require("node:path");
 const { verifyUpdateManifest } = require("./updatePolicy.cjs");
 
@@ -50,6 +50,7 @@ async function readWorkspace(root) {
 
 let mainWindow;
 let currentProject = projectArgument();
+let localServer;
 let updateStatus = { state: "disabled", message: "Canale aggiornamenti non configurato" };
 
 async function checkSecureUpdate() {
@@ -99,6 +100,10 @@ app.on("second-instance", (_event, argv) => {
 });
 
 app.whenReady().then(async () => {
+  if (!currentProject) {
+    currentProject = join(app.getPath("userData"), "workspace");
+    await mkdir(currentProject, { recursive: true });
+  }
   ipcMain.handle("desktop:workspace", () => currentProject ? readWorkspace(currentProject) : null);
   ipcMain.handle("desktop:update-status", () => updateStatus);
   ipcMain.handle("desktop:reveal", async (_event, path) => {
@@ -127,22 +132,30 @@ app.whenReady().then(async () => {
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  const editorUrl = process.env.FRONTEND_EDITOR_DEV_URL || await startLocalServer(currentProject);
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const productionEntry = `/${join(__dirname, "..", "dist", "index.html").replaceAll("\\", "/")}`;
-    const allowed = process.env.FRONTEND_EDITOR_DEV_URL
-      ? url.startsWith(process.env.FRONTEND_EDITOR_DEV_URL)
-      : new URL(url).pathname === productionEntry;
+    const allowed = url.startsWith(editorUrl);
     if (!allowed) event.preventDefault();
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.webContents.once("did-finish-load", () => void checkSecureUpdate());
-  if (process.env.FRONTEND_EDITOR_DEV_URL) {
-    await mainWindow.loadURL(process.env.FRONTEND_EDITOR_DEV_URL);
-  } else {
-    await mainWindow.loadFile(join(__dirname, "..", "dist", "index.html"));
-  }
+  await mainWindow.loadURL(editorUrl);
 });
 
+async function startLocalServer(workspace) {
+  process.env.FRONTEND_EDITOR_WORKSPACE = workspace;
+  const port = Number(process.env.FRONTEND_EDITOR_PORT) || 43127;
+  const { createServer } = await import("vite");
+  localServer = await createServer({
+    configFile: join(__dirname, "..", "vite.config.ts"),
+    root: join(__dirname, ".."),
+    server: { host: "127.0.0.1", port, strictPort: true },
+  });
+  await localServer.listen();
+  return `http://127.0.0.1:${port}`;
+}
+
 app.on("window-all-closed", () => {
+  void localServer?.close();
   if (process.platform !== "darwin") app.quit();
 });

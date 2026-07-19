@@ -622,6 +622,11 @@ function Editor({
     "http://127.0.0.1:8787/records",
   );
   const [feedback, setFeedback] = useState("");
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(""), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
   const [generatedFile, setGeneratedFile] = useState<{ path: string; content: string }>();
   const [flowId, setFlowId] = useState(initial.flows[0]?.id ?? "");
   const [selectedFlowNodeId, setSelectedFlowNodeId] = useState("");
@@ -3469,6 +3474,7 @@ function GuideBar({
   tab: WorkspaceTab;
   onOpen: (tab: WorkspaceTab) => void;
 }) {
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const components = project.pages.reduce(
     (count, page) => count + page.components.length,
     0,
@@ -3525,6 +3531,9 @@ function GuideBar({
         {tab === next.tab ? "Sei qui" : "Portami lì"}{" "}
         <span aria-hidden="true">→</span>
       </button>
+      <button className="secondary" onClick={() => setTutorialOpen(true)}>
+        Tutorial completo
+      </button>
       <details>
         <summary data-help="Mostra tutti i passi e quelli già completati.">
           Percorso
@@ -3542,6 +3551,24 @@ function GuideBar({
           ))}
         </ol>
       </details>
+      {tutorialOpen && (
+        <div className="tutorial-backdrop" role="presentation" onMouseDown={() => setTutorialOpen(false)}>
+          <section className="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="tutorial-close" aria-label="Chiudi tutorial" onClick={() => setTutorialOpen(false)}>×</button>
+            <span className="guide-kicker">Da zero al progetto finito</span>
+            <h2 id="tutorial-title">Costruisci come in Canva</h2>
+            <ol>
+              <li><strong>Aggiungi.</strong> Trascina un elemento dalla palette a sinistra dentro la pagina.</li>
+              <li><strong>Sposta.</strong> Selezionalo e trascinalo direttamente nel canvas. Le guide aiutano ad allinearlo.</li>
+              <li><strong>Ridimensiona.</strong> Usa le maniglie sul bordo destro, inferiore o sull’angolo.</li>
+              <li><strong>Personalizza.</strong> Nel pannello Design a destra scegli colori, testo, spaziatura e layout responsive.</li>
+              <li><strong>Dagli vita.</strong> Apri Flow per collegare clic, dati e azioni; oppure usa “Chiedi a Codex” dal clic destro.</li>
+              <li><strong>Concludi.</strong> Prova desktop e mobile in Preview, poi usa Esporta per ottenere il progetto autonomo.</li>
+            </ol>
+            <button autoFocus onClick={() => setTutorialOpen(false)}>Inizia dal canvas</button>
+          </section>
+        </div>
+      )}
     </aside>
   );
 }

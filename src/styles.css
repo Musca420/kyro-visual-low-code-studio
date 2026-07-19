@@ -477,12 +477,14 @@ label {
   box-shadow: 0 12px 28px #20244b1f;
   font-size: 13px;
   font-weight: 700;
+  pointer-events: none;
 }
 .global-feedback button {
   padding: 0;
   background: transparent;
   color: #5a50b9;
   font-size: 20px;
+  pointer-events: auto;
 }
 .guide-strip {
   display: flex;
@@ -494,6 +496,34 @@ label {
   color: #4d4764;
   font-size: 12px;
 }
+
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #02090dcc;
+  backdrop-filter: blur(10px);
+}
+
+.tutorial-dialog {
+  position: relative;
+  width: min(640px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel);
+  box-shadow: 0 28px 80px #0009;
+}
+
+.tutorial-dialog h2 { margin: 8px 0 18px; }
+.tutorial-dialog ol { display: grid; gap: 13px; margin: 0 0 22px; padding-left: 22px; color: var(--muted); }
+.tutorial-dialog li strong { color: var(--ink); }
+.tutorial-close { position: absolute; top: 14px; right: 14px; min-width: 36px; padding: 7px; }
 .guide-strip .guide-kicker {
   color: #675bdc;
   font-size: 10px;
