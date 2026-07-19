@@ -17,7 +17,7 @@ import {
 } from "./server/workspaceTransactions";
 import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
 
-const workspaceRoot = resolve(process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
+const workspaceRoot = resolve(process.env.KYRO_WORKSPACE ?? process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
 const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
 const workspaceSkillsRoot = resolve(workspaceRoot, ".agents/skills");
 const skillsReady = bundledSkillsRoot === workspaceSkillsRoot

@@ -8,6 +8,10 @@ artifacts/
 desktop-dist/
 out/
 .live-browser-profile/
+e2e/fixtures/**/.agents/
 *.log
+.env.signing
+.env.trustedsigning
+electron-windows-sign.log
 *.tsbuildinfo
 .DS_Store

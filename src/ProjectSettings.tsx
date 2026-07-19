@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { generateFiles } from "./generator";
 import type { Project } from "./model";
+import { nativeExtensionRequests } from "./nativeCapabilities";
 
 type AndroidStatus = {
   java: { available: boolean; version: string };
@@ -21,8 +22,9 @@ export function ProjectSettings({
   const [result, setResult] = useState("");
   const target = project.exportConfig.target;
   const app = project.appConfig;
+  const extensionRequests = nativeExtensionRequests(project);
   const android = project.exportConfig.android ?? {
-    packageId: `com.frontendeditor.${project.id.replace(/-/g, "").slice(0, 12)}`,
+    packageId: `studio.kyro.${project.id.replace(/-/g, "").slice(0, 12)}`,
     appName: project.name,
     orientation: "any" as const,
     themeColor: project.theme.tokens.primary ?? "#6d5dfc",
@@ -134,7 +136,7 @@ export function ProjectSettings({
           <p className="eyebrow">Pubblicazione guidata</p>
           <h1>Web, PWA e Android</h1>
           <p>
-            Scegli il risultato pratico. Frontend Editor configura i file
+            Choose the practical result. Kyro configures the files
             necessari senza chiederti librerie o comandi.
           </p>
         </div>
@@ -341,13 +343,22 @@ export function ProjectSettings({
                 </span>
               ))}
               <small>
-                Frontend Editor esporta soltanto i nomi: i valori segreti non
+                Kyro exports names only: secret values are never
                 vengono mai salvati.
               </small>
             </div>
           )}
         </div>
       </section>
+      {extensionRequests.length > 0 && <section className="settings-card extension-approvals" aria-label="Required extensions">
+        <h2>Extensions required by the flow</h2>
+        <p>Kyro found device actions that need an external package. Review each package before it is added to export and build.</p>
+        {extensionRequests.map((request) => <article key={request.packageName}>
+          <div><strong>{request.capabilityLabel}</strong><code>{request.packageName}@{request.version}</code><small>Permissions: {request.permissions.join(", ") || "none"}</small></div>
+          {request.approved ? <><span className="valid-chip">Approved</span><button type="button" className="secondary" onClick={() => onChange({ ...project, extensionApprovals: project.extensionApprovals.filter((approval) => approval.packageName !== request.packageName) })}>Revoke</button></> : <button type="button" onClick={() => onChange({ ...project, extensionApprovals: [...project.extensionApprovals, { packageName: request.packageName, version: request.version, reason: request.capabilityLabel, approvedAt: new Date().toISOString() }] })}>Review and approve</button>}
+        </article>)}
+        <small>Approval is version-specific and is stored in the open project model. Undo or Revoke removes it. Installation happens only inside the isolated export/build folder.</small>
+      </section>}
       {target === "pwa" && (
         <section className="settings-card">
           <h2>PWA pronta da installare</h2>
@@ -559,7 +570,7 @@ export function ProjectSettings({
               <p>
                 La build di sviluppo non richiede la tua chiave privata. Per
                 pubblicare, Android Studio guidera la creazione e custodia del
-                keystore: Frontend Editor non deve conoscere o salvare la
+                keystore: Kyro must not know or save the
                 password.
               </p>
             </details>

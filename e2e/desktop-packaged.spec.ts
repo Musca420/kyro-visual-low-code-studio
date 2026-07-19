@@ -2,11 +2,11 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-test("il pacchetto desktop si avvia indipendentemente e apre il progetto", async ({ browserName }, testInfo) => {
+test("the packaged Kyro app starts independently and exposes visual actions", async ({ browserName }, testInfo) => {
   test.skip(process.env.RUN_PACKAGED_DESKTOP !== "1", "Richiede prima npm run desktop:package");
   const executable = process.env.DESKTOP_EXECUTABLE
     ? resolve(process.env.DESKTOP_EXECUTABLE)
-    : resolve("desktop-dist/FrontendEditor-win32-x64/frontend-editor.exe");
+    : resolve("desktop-dist/Kyro-win32-x64/kyro.exe");
   test.skip(!existsSync(executable), "Pacchetto Windows non presente");
   const fixture = resolve("e2e/fixtures/desktop-project");
   const application = await electron.launch({
@@ -15,13 +15,19 @@ test("il pacchetto desktop si avvia indipendentemente e apre il progetto", async
   });
   try {
     const window = await application.firstWindow();
-    await expect(window).toHaveTitle("Frontend Editor");
+    await expect(window).toHaveTitle("Kyro — Visual Low-Code Studio");
     await expect(window.locator(".project-title input")).toHaveValue("desktop-project", { timeout: 15_000 });
     await expect(window.getByText("Studio Aurora", { exact: true }).first()).toBeVisible();
+    await window.getByRole("button", { name: "Design" }).click();
+    const canvasTitle = window.getByTestId("component-title").first();
+    await canvasTitle.click();
+    await window.getByRole("tab", { name: "Actions 0" }).click();
+    await expect(window.getByText("No actions connected yet.", { exact: true })).toBeVisible();
+    await expect(window.getByRole("button", { name: "Ask Codex" }).first()).toBeVisible();
     await window.screenshot({
       path: process.env.DESKTOP_EXECUTABLE
-        ? "artifacts/frontend-editor-desktop-installed.png"
-        : "artifacts/frontend-editor-desktop-packaged.png",
+        ? "artifacts/kyro-desktop-installed.png"
+        : "artifacts/kyro-desktop-packaged.png",
     });
   } finally {
     await application.close();

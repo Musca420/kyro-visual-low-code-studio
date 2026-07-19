@@ -102,4 +102,18 @@ describe('structured editor operations', () => {
     const removed = applyEditorOperation(connected, 'tasks', { type: 'remove_component_event', args: { componentId: form.id, event: 'submit' } })
     expect(removed.pages[0].components[0].events.submit).toBeUndefined()
   })
+
+  it('approves only an exact dependency requested by the visual flow', () => {
+    const project = createProject('Native')
+    project.pages.push({ id: 'home', name: 'Home', path: '/', components: [] })
+    project.flows.push({ id: 'ble-flow', name: 'Scan', nodes: [{ id: 'scan', type: 'nativeAction', label: 'Scan devices', position: { x: 0, y: 0 }, config: { capability: 'bluetooth', action: 'scan' } }], edges: [] })
+
+    expect(() => applyEditorOperation(project, 'home', { type: 'approve_dependency', args: { packageName: '@capacitor-community/bluetooth-le', version: '^8.0.0' } })).toThrow('confirmed=true')
+    expect(() => applyEditorOperation(project, 'home', { type: 'approve_dependency', args: { packageName: '@evil/package', version: '^1.0.0', confirmed: true } })).toThrow('not required')
+
+    const approved = applyEditorOperation(project, 'home', { type: 'approve_dependency', args: { packageName: '@capacitor-community/bluetooth-le', version: '^8.0.0', confirmed: true } })
+    expect(approved.extensionApprovals).toEqual([expect.objectContaining({ packageName: '@capacitor-community/bluetooth-le', version: '^8.0.0', reason: 'Bluetooth Low Energy' })])
+    const revoked = applyEditorOperation(approved, 'home', { type: 'revoke_dependency', args: { packageName: '@capacitor-community/bluetooth-le', confirmed: true } })
+    expect(revoked.extensionApprovals).toHaveLength(0)
+  })
 })

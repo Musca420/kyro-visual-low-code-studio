@@ -252,6 +252,9 @@ export const flowNodeTypes = [
   "updateUI",
   "notify",
   "localNotification",
+  "requestPermission",
+  "nativeAction",
+  "platformCondition",
   "module",
   "log",
 ] as const;
@@ -487,6 +490,12 @@ export const projectSchema = z.object({
     z.object({ id: z.string(), version: z.string(), enabled: z.boolean() }),
   ),
   dependencies: z.record(z.string(), z.string()),
+  extensionApprovals: z.array(z.object({
+    packageName: z.string().regex(/^@[a-z0-9-]+\/[a-z0-9-]+$/),
+    version: z.string().regex(/^[~^]?\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/),
+    reason: z.string().min(1),
+    approvedAt: z.string().datetime(),
+  })).default([]),
   exportConfig: z.object({
     target: z.enum(["web", "pwa", "android"]).default("web"),
     capacitor: z.boolean().default(false),

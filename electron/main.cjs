@@ -5,6 +5,10 @@ const { verifyUpdateManifest } = require("./updatePolicy.cjs");
 
 if (require("electron-squirrel-startup")) app.quit();
 
+if (/^\d{2,5}$/.test(process.env.KYRO_DEBUG_PORT || "")) {
+  app.commandLine.appendSwitch("remote-debugging-port", process.env.KYRO_DEBUG_PORT);
+}
+
 const allowedExtensions = new Set([
   ".css", ".html", ".htm", ".js", ".json", ".jsx", ".md", ".mjs",
   ".svelte", ".ts", ".tsx", ".txt", ".vue", ".yaml", ".yml",
@@ -18,7 +22,7 @@ const maxBytes = 4_000_000;
 
 function projectArgument() {
   const flag = process.argv.indexOf("--project");
-  const candidate = flag >= 0 ? process.argv[flag + 1] : process.env.FRONTEND_EDITOR_WORKSPACE;
+  const candidate = flag >= 0 ? process.argv[flag + 1] : process.env.KYRO_WORKSPACE || process.env.FRONTEND_EDITOR_WORKSPACE;
   return candidate ? resolve(candidate) : undefined;
 }
 
@@ -131,7 +135,7 @@ app.whenReady().then(async () => {
     minHeight: 640,
     backgroundColor: "#0b1114",
     show: false,
-    title: "Frontend Editor",
+    title: "Kyro — Visual Low-Code Studio",
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -142,7 +146,7 @@ app.whenReady().then(async () => {
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
-  const editorUrl = process.env.FRONTEND_EDITOR_DEV_URL || await startLocalServer(agentWorkspace);
+  const editorUrl = process.env.KYRO_DEV_URL || process.env.FRONTEND_EDITOR_DEV_URL || await startLocalServer(agentWorkspace);
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const allowed = url.startsWith(editorUrl);
     if (!allowed) event.preventDefault();
@@ -153,12 +157,15 @@ app.whenReady().then(async () => {
 });
 
 async function startLocalServer(workspace) {
+  process.env.KYRO_WORKSPACE = workspace;
   process.env.FRONTEND_EDITOR_WORKSPACE = workspace;
-  const port = Number(process.env.FRONTEND_EDITOR_PORT) || 43127;
+  const port = Number(process.env.KYRO_PORT || process.env.FRONTEND_EDITOR_PORT) || 43127;
   const { createServer } = await import("vite");
   localServer = await createServer({
     configFile: join(__dirname, "..", "vite.config.ts"),
     root: join(__dirname, ".."),
+    cacheDir: join(app.getPath("temp"), `kyro-vite-${app.getVersion()}`),
+    optimizeDeps: { force: true },
     server: { host: "127.0.0.1", port, strictPort: true },
   });
   await localServer.listen();

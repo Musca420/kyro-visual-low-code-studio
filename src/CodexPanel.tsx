@@ -476,7 +476,7 @@ export function CodexPanel({
                 : "Le azioni locali restano disponibili. Collega ChatGPT qui per richieste nuove e complesse; non serve il terminale."}
             </small>
             {authenticated ? (
-              <button className="secondary" data-help="Disconnette l'account tramite il comando ufficiale codex logout. Frontend Editor non legge le credenziali." onClick={() => void logout()}>Esci da Codex</button>
+              <button className="secondary" data-help="Signs out through the official codex logout command. Kyro never reads your credentials." onClick={() => void logout()}>Sign out of Codex</button>
             ) : (
               <>
                 <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corso…" : "Accedi con ChatGPT"}</button>

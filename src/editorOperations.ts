@@ -1,5 +1,6 @@
 import { componentTypes, makeComponent, parseProject, type Breakpoint, type EditorComponent, type Flow, type Project } from './model'
 import { canContain, descendantIds } from './hierarchy'
+import { nativeExtensionRequests } from './nativeCapabilities'
 
 export type EditorOperation = { type: string; pageId?: string; args?: Record<string, unknown> }
 
@@ -59,6 +60,20 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   if (operation.type === 'set_export_config') {
     const patch = object(args.patch), android = object(patch.android)
     return parseProject({ ...project, exportConfig: { ...project.exportConfig, ...patch, ...(patch.android ? { android: { ...project.exportConfig.android, ...android } } : {}) } })
+  }
+  if (operation.type === 'approve_dependency') {
+    if (args.confirmed !== true) throw new Error('Dependency approval requires confirmed=true')
+    const packageName = String(args.packageName ?? ''), version = String(args.version ?? '')
+    const request = nativeExtensionRequests(project).find((item) => item.packageName === packageName && item.version === version)
+    if (!request) throw new Error('This exact dependency is not required by the current visual flow')
+    const approval = { packageName, version, reason: request.capabilityLabel, approvedAt: new Date().toISOString() }
+    return parseProject({ ...project, extensionApprovals: [...project.extensionApprovals.filter((item) => item.packageName !== packageName), approval] })
+  }
+  if (operation.type === 'revoke_dependency') {
+    if (args.confirmed !== true) throw new Error('Dependency revocation requires confirmed=true')
+    const packageName = String(args.packageName ?? '')
+    if (!project.extensionApprovals.some((item) => item.packageName === packageName)) throw new Error('Dependency approval not found')
+    return parseProject({ ...project, extensionApprovals: project.extensionApprovals.filter((item) => item.packageName !== packageName) })
   }
   if (operation.type === 'add_component') {
     const type = String(args.componentType) as EditorComponent['type']

@@ -1,11 +1,12 @@
 {
-  "name": "frontend-editor",
-  "description": "Editor visuale local-first per siti e applicazioni con Codex integrato.",
-  "author": "Frontend Editor contributors",
+  "name": "kyro-studio",
+  "description": "Kyro is a local-first visual low-code studio with an integrated Codex agent.",
+  "author": "Kyro contributors",
   "private": true,
-  "version": "0.1.11",
+  "version": "0.1.13",
   "main": "electron/main.cjs",
   "bin": {
+    "kyro": "bin/frontend-editor.mjs",
     "frontend-editor": "bin/frontend-editor.mjs"
   },
   "type": "module",
@@ -14,6 +15,7 @@
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "desktop:package": "npm run build && electron-forge package",
     "desktop:make": "npm run build && electron-forge make",
+    "desktop:make:signed": "npm run build && node scripts/require-windows-signing.mjs && electron-forge make && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-signatures.ps1",
     "desktop:test": "playwright test e2e/desktop-shell.spec.ts e2e/desktop-production.spec.ts --workers=1",
     "desktop:test:packaged": "node scripts/test-desktop-packaged.mjs",
     "update:manifest": "node scripts/sign-update.cjs",
@@ -24,6 +26,7 @@
     "test:e2e": "playwright test",
     "export:sample": "vite-node scripts/materialize-export.ts",
     "export:specialized": "vite-node scripts/materialize-specialized-exports.ts",
+    "export:native-verification": "vite-node scripts/materialize-native-export.ts",
     "test:generated": "playwright test --config=playwright.generated.config.ts",
     "test:specialized": "playwright test --config=playwright.specialized.config.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"

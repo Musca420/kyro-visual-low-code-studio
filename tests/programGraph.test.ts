@@ -21,7 +21,7 @@ describe("unified program graph", () => {
       "state-loading",
       "state-error",
     ]);
-    expect(view.generatedFiles).toContain("project.frontend-editor.json");
+    expect(view.generatedFiles).toContain("project.kyro.json");
   });
 
   it("attraversa eventi, flow e sorgenti collegati", () => {

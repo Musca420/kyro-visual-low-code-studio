@@ -61,6 +61,9 @@ import {
   type ComponentBranch,
 } from "./hierarchy";
 import { VisualProperties } from "./VisualProperties";
+import { ComponentActions } from "./ComponentActions";
+import { isComponentEvent, type ActionEventDefinition } from "./actionCatalog";
+import { runNativeWeb } from "./nativeCapabilities";
 import { visualGradients, visualPalettes } from "./visualPresets";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
@@ -190,13 +193,13 @@ function Dashboard({
     });
   }, [loading, onOpen, onRefresh]);
   const create = async (template: "blank" | "todo" | TemplateId = "blank") => {
-    if (!name.trim()) return setError("Inserisci un nome per il progetto");
+    if (!name.trim()) return setError("Enter a project name");
     let project =
       template === "blank" || template === "todo"
         ? createProject(name)
         : createTemplateProject(template, name);
     if (template === "todo") project = addVerticalTemplate(project);
-    const packageName = `com.frontendeditor.${
+    const packageName = `studio.kyro.${
       name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "")
@@ -207,8 +210,8 @@ function Dashboard({
       state: {
         ...project.state,
         projectBrief: {
-          objective: brief.trim() || `Creare ${name.trim()}`,
-          audience: "Utente finale",
+          objective: brief.trim() || `Create ${name.trim()}`,
+          audience: "End user",
           platform: target,
         },
       },
@@ -331,41 +334,41 @@ function Dashboard({
         </p>
       )}
       <header className="hero">
-        <div className="brand-mark">FE</div>
-        <p className="eyebrow">Visual low-code studio</p>
+        <div className="brand-mark">K</div>
+        <p className="eyebrow">Kyro · Visual Low-Code Studio</p>
         <h1>
-          Trasforma un’idea in un’app
+          Turn an idea into an app
           <br />
-          <span>che funziona davvero.</span>
+          <span>that truly works.</span>
         </h1>
         <p>
-          Crea interfaccia, dati e comportamento nello stesso spazio. Il
-          progetto resta tuo, esportabile e leggibile.
+          Design the interface, data, and behavior in one place. Your project
+          stays open, readable, and ready to export.
         </p>
       </header>
       <section className="create-card" aria-labelledby="create-title">
         <div>
-          <p className="eyebrow">Nuovo progetto</p>
-          <h2 id="create-title">Da dove vuoi iniziare?</h2>
+          <p className="eyebrow">New project</p>
+          <h2 id="create-title">Where would you like to start?</h2>
         </div>
         <fieldset className="target-picker">
-          <legend>1. Dove vuoi usarlo?</legend>
+          <legend>1. Where will it run?</legend>
           {(
             [
               [
                 "web",
-                "Sito Web",
-                "Si apre nel browser e si pubblica su qualsiasi hosting.",
+                "Website",
+                "Runs in a browser and can be hosted anywhere.",
               ],
               [
                 "pwa",
-                "PWA installabile",
-                "Si installa dal browser e conserva una base offline.",
+                "Installable PWA",
+                "Installs from the browser and includes offline support.",
               ],
               [
                 "android",
-                "Applicazione Android",
-                "Genera configurazione Capacitor e progetto Android guidato.",
+                "Android app",
+                "Generates a guided Capacitor and Android project.",
               ],
             ] as const
           ).map(([value, label, help]) => (
@@ -387,10 +390,10 @@ function Dashboard({
           ))}
         </fieldset>
         <label className="theme-choice">
-          2. Colore principale
+          2. Primary color
           <span className="color-field">
             <input
-              aria-label="Colore tema"
+              aria-label="Theme color"
               type="color"
               value={themeColor}
               onChange={(event) => setThemeColor(event.target.value)}
@@ -399,26 +402,26 @@ function Dashboard({
           </span>
         </label>
         <label>
-          3. Nome progetto
+          3. Project name
           <input
-            aria-label="Nome progetto"
+            aria-label="Project name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") void create("blank");
             }}
-            placeholder="La mia applicazione"
+            placeholder="My application"
           />
         </label>
         <label>
-          4. Cosa deve permettere di fare?
+          4. What should it help people do?
           <textarea
-            aria-label="Obiettivo progetto"
+            aria-label="Project goal"
             value={brief}
             onChange={(event) => setBrief(event.target.value)}
-            placeholder="Esempio: organizzare attivita, appuntamenti e abitudini quotidiane anche offline"
+            placeholder="Example: organize tasks, appointments, and daily habits, even offline"
           />
-          <small>Codex usera questo obiettivo come contesto stabile in ogni pagina.</small>
+          <small>Codex uses this goal as stable context on every page.</small>
         </label>
         {error && (
           <p className="form-error" role="alert">
@@ -426,12 +429,12 @@ function Dashboard({
           </p>
         )}
         <div className="template-heading">
-          <p className="template-step">5. Scegli un punto di partenza</p>
+          <p className="template-step">5. Choose a starting point</p>
           <label className="template-search">
-            <span className="visually-hidden">Cerca template</span>
+            <span className="visually-hidden">Search templates</span>
             <input
               type="search"
-              placeholder="Cerca template…"
+              placeholder="Search templates…"
               value={templateQuery}
               onChange={(event) => setTemplateQuery(event.target.value)}
             />
@@ -440,13 +443,13 @@ function Dashboard({
         <div className="template-grid">
           <button className="template" onClick={() => create("blank")}>
             <span>＋</span>
-            <strong>Progetto vuoto</strong>
-            <small>Parti da una tela pulita</small>
+            <strong>Blank project</strong>
+            <small>Start with a clean canvas</small>
           </button>
           <button className="template" onClick={() => create("todo")}>
             <span>✓</span>
-            <strong>Lista attività</strong>
-            <small>Vertical slice già configurato</small>
+            <strong>Task list</strong>
+            <small>A working vertical slice</small>
           </button>
           {templateCatalog
             .filter((template) =>
@@ -471,14 +474,14 @@ function Dashboard({
           className="visually-hidden"
           type="file"
           accept="application/json,.json"
-          aria-label="File progetto da importare"
+          aria-label="Project file to import"
           onChange={(event) => void importFile(event.target.files?.[0])}
         />
         <button
           className="text-button"
           onClick={() => importRef.current?.click()}
         >
-          Importa un progetto JSON
+          Import a JSON project
         </button>
         <input
           ref={(node) => {
@@ -488,17 +491,17 @@ function Dashboard({
           className="visually-hidden"
           type="file"
           multiple
-          aria-label="Cartella progetto da importare"
+          aria-label="Project folder to import"
           onChange={(event) => void importFolder(event.target.files)}
         />
         <button
           className="folder-import-button"
           onClick={() => folderRef.current?.click()}
         >
-          <strong>Importa una cartella Web o app</strong>
+          <strong>Import a website or app folder</strong>
           <span>
-            Riprendi HTML/CSS, React, Vue, Svelte o Capacitor. Dipendenze e
-            build generate vengono ignorate automaticamente.
+            Continue from HTML/CSS, React, Vue, Svelte, or Capacitor. Generated
+            dependencies and build folders are ignored automatically.
           </span>
         </button>
         {importResult && (
@@ -510,42 +513,42 @@ function Dashboard({
       <section className="recent" aria-labelledby="recent-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Salvati su questo dispositivo</p>
-            <h2 id="recent-title">Progetti recenti</h2>
+            <p className="eyebrow">Saved on this device</p>
+            <h2 id="recent-title">Recent projects</h2>
           </div>
           <div className="backup-actions">
             <label>
-              <span className="visually-hidden">Cerca nei progetti recenti</span>
+              <span className="visually-hidden">Search recent projects</span>
               <input
                 type="search"
-                placeholder="Cerca progetti…"
+                placeholder="Search projects…"
                 value={projectQuery}
                 onChange={(event) => setProjectQuery(event.target.value)}
               />
             </label>
-            <button className="secondary" onClick={() => void downloadBackup()}>Crea backup</button>
-            <button className="secondary" onClick={() => backupRef.current?.click()}>Ripristina backup</button>
+            <button className="secondary" onClick={() => void downloadBackup()}>Create backup</button>
+            <button className="secondary" onClick={() => backupRef.current?.click()}>Restore backup</button>
             <input
               ref={backupRef}
               className="visually-hidden"
               type="file"
               accept="application/json,.json"
-              aria-label="File backup da ripristinare"
+              aria-label="Backup file to restore"
               onChange={(event) => void restoreBackupFile(event.target.files?.[0])}
             />
           </div>
         </div>
         {loading ? (
-          <p>Caricamento…</p>
+          <p>Loading…</p>
         ) : projects.length === 0 ? (
           <div className="empty-panel">
-            <strong>Nessun progetto ancora</strong>
-            <span>Assegna un nome e scegli un punto di partenza.</span>
+            <strong>No projects yet</strong>
+            <span>Name your project and choose a starting point.</span>
           </div>
         ) : visibleProjects.length === 0 ? (
           <div className="empty-panel" role="status">
-            <strong>Nessun progetto trovato</strong>
-            <span>Prova un nome diverso oppure cancella la ricerca.</span>
+            <strong>No projects found</strong>
+            <span>Try another name or clear the search.</span>
           </div>
         ) : (
           <div className="project-grid">
@@ -557,28 +560,28 @@ function Dashboard({
                 >
                   <span className="project-thumb">
                     {project.pages[0]?.components.length ?? 0}
-                    <small>componenti</small>
+                    <small>components</small>
                   </span>
                   <strong>{project.name}</strong>
                   <small>
-                    Formato v{project.formatVersion} · {project.pages.length}{" "}
-                    pagine
+                    Format v{project.formatVersion} · {project.pages.length}{" "}
+                    pages
                   </small>
                 </button>
                 <div className="project-actions">
-                  <button onClick={() => duplicate(project)}>Duplica</button>
+                  <button onClick={() => duplicate(project)}>Duplicate</button>
                   <button
                     className="danger"
                     onClick={async () => {
                       if (
-                        confirm(`Eliminare definitivamente “${project.name}”?`)
+                        confirm(`Delete “${project.name}” permanently?`)
                       ) {
                         await deleteProject(project.id);
                         await onRefresh();
                       }
                     }}
                   >
-                    Elimina
+                    Delete
                   </button>
                 </div>
               </article>
@@ -612,6 +615,7 @@ function Editor({
     height: number;
   }>();
   const [tab, setTab] = useState<WorkspaceTab>("design");
+  const [inspectorMode, setInspectorMode] = useState<"design" | "actions">("design");
   const [breakpoint, setBreakpoint] = useState<Breakpoint>("desktop");
   const [interactive, setInteractive] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -626,7 +630,7 @@ function Editor({
   const [future, setFuture] = useState<Project[]>([]);
   const [versions, setVersions] = useState<ProjectVersion[]>([]);
   const [exportHistory, setExportHistory] = useState<ExportRecord[]>([]);
-  const [saveState, setSaveState] = useState("Salvato");
+  const [saveState, setSaveState] = useState("Saved");
   const [logs, setLogs] = useState<FlowLog[]>([]);
   const [pausedFlow, setPausedFlow] = useState<{ nodeId: string; value: unknown }>();
   const [sourceName, setSourceName] = useState("Attività locali");
@@ -827,9 +831,10 @@ function Editor({
     }).catch(() => undefined);
   }, [project, currentPage, selected, breakpoint, tab]);
 
-  const askCodex = (action: string) => {
-    if (!contextMenu || !currentPage) return;
-    const component = contextMenu.component;
+  const askCodex = (action: string, direct?: { component: EditorComponent; bounds: CodexContext["bounds"]; prompt?: string }) => {
+    const source = direct ?? contextMenu;
+    if (!source || !currentPage) return;
+    const component = source.component;
     const context: CodexContext = {
       projectId: project.id,
       projectName: project.name,
@@ -850,7 +855,7 @@ function Editor({
           (item) => item.name,
         ),
       ],
-      bounds: contextMenu.bounds,
+      bounds: source.bounds,
       properties: component.props,
       styles: component.styles,
       events: component.events,
@@ -880,7 +885,7 @@ function Editor({
       generatedFiles: [
         "src/main.ts",
         "src/style.css",
-        "project.frontend-editor.json",
+        "project.kyro.json",
       ],
       errors: [],
       capabilities: inspectComponentProgram(project, currentPage.id, component.id).issues,
@@ -893,10 +898,12 @@ function Editor({
         "add_flow", "update_flow", "remove_flow", "add_flow_node", "connect_nodes",
         "create_data_source", "update_data_source", "remove_data_source", "bind_component_data",
         "set_theme_token", "set_app_config", "set_export_config", "apply_editor_transaction",
+        "approve_dependency", "revoke_dependency",
         "undo_transaction", "capture_preview", "read_runtime_logs", "run_preview",
         "generate_backend", "export_web", "export_android", "build_android",
       ],
       installedSkills: [
+        "kyro-live-context", "kyro-actions", "kyro-native", "kyro-extensions",
         "frontend-editor-live", "frontend-editor-design", "frontend-editor-flow",
         "frontend-editor-data", "frontend-editor-app", "frontend-editor-test",
         "frontend-editor-publish",
@@ -911,7 +918,7 @@ function Editor({
       "Migliora componente": `Migliora usabilità, responsive design e accessibilità di “${component.name}”.`,
       "Spiega elemento": `Spiega in parole semplici cos’è “${component.name}”, cosa fa e come posso modificarlo.`,
     };
-    setCodexRequest({ context, prompt: prompts[action] });
+    setCodexRequest({ context, prompt: direct?.prompt ?? prompts[action] });
     setContextMenu(undefined);
   };
 
@@ -1569,6 +1576,50 @@ function Editor({
     change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? { ...source, relations: (source.relations ?? []).filter((relation) => relation.id !== relationId) } : source) });
     setFeedback("Relazione rimossa");
   };
+  const connectComponentAction = (component: EditorComponent, event: ActionEventDefinition, existingFlowId?: string) => {
+    const selectedFlow = existingFlowId ? project.flows.find((item) => item.id === existingFlowId) : undefined;
+    const newFlow: Flow | undefined = selectedFlow ? undefined : {
+      id: crypto.randomUUID(),
+      name: `${component.name} · ${event.label}`,
+      nodes: [{
+        id: crypto.randomUUID(),
+        type: "event",
+        label: event.label,
+        position: { x: 40, y: 80 },
+        config: { trigger: event.id, componentId: component.id },
+      }],
+      edges: [],
+    };
+    const targetFlow = selectedFlow ?? newFlow!;
+    change({
+      ...project,
+      flows: newFlow ? [...project.flows, newFlow] : project.flows,
+      pages: project.pages.map((page) => page.id === pageId ? {
+        ...page,
+        components: page.components.map((item) => item.id === component.id ? { ...item, events: { ...item.events, [event.id]: targetFlow.id } } : item),
+      } : page),
+    });
+    setFlowId(targetFlow.id);
+    setSelectedFlowNodeId(targetFlow.nodes.find((node) => node.type === "event")?.id ?? "");
+    setTab("flow");
+    setFeedback(`${event.label} is connected to ${targetFlow.name}`);
+  };
+  const removeComponentAction = (component: EditorComponent, eventId: string) => {
+    change({ ...project, pages: project.pages.map((page) => page.id === pageId ? {
+      ...page,
+      components: page.components.map((item) => item.id === component.id ? { ...item, events: Object.fromEntries(Object.entries(item.events).filter(([name]) => name !== eventId)) } : item),
+    } : page) });
+    setFeedback("Action disconnected. The reusable flow was kept.");
+  };
+  const askCodexForAction = (component: EditorComponent, event?: ActionEventDefinition) => {
+    const element = document.querySelector<HTMLElement>(`[data-component-id="${component.id}"]`);
+    const rect = element?.getBoundingClientRect();
+    askCodex("Chiedi a Codex", {
+      component,
+      bounds: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : { x: 0, y: 0, width: 0, height: 0 },
+      prompt: event ? `When “${event.label}” happens on “${component.name}”, ` : `Create or improve an action for “${component.name}”: `,
+    });
+  };
   const createFlow = () => {
     if (project.state.experience === "landing") {
       const flows = landingFlows(project);
@@ -1883,6 +1934,13 @@ function Editor({
         notification = `Promemoria programmato: ${title}${body ? ` · ${body}` : ""} (${Math.round(delayMs / 1000)} s)`;
         level = "success";
       },
+      requestPermission: async (permission) => {
+        if (permission === "notifications" && "Notification" in window) return (Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission) === "granted";
+        if (permission === "geolocation" && navigator.permissions) return (await navigator.permissions.query({ name: "geolocation" })).state === "granted";
+        return false;
+      },
+      nativeAction: (capability, action, value, config) => runNativeWeb(capability, action, value, config),
+      platformInfo: () => ({ platform: "web", version: navigator.userAgent }),
       signOut: () => { notification = "Sessione chiusa nella preview"; level = "success"; },
       runModule: (moduleId, value) => {
         const module = project.codeModules.find((item) => item.id === moduleId);
@@ -1971,7 +2029,7 @@ function Editor({
     const blob = new Blob([serializeProject(project)], {
       type: "application/json",
     });
-    const fileName = `${project.name}.frontend-editor.json`;
+    const fileName = `${project.name}.kyro.json`;
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = fileName;
@@ -1981,7 +2039,7 @@ function Editor({
   };
   const openGeneratedFile = async (path: string) => {
     try {
-      const content = path === "project.frontend-editor.json"
+      const content = path === "project.kyro.json" || path === "project.frontend-editor.json"
         ? serializeProject(project)
         : path.endsWith("/")
           ? `Cartella generata durante la build: ${path}`
@@ -2098,11 +2156,11 @@ function Editor({
             onMouseDown={(event) => event.stopPropagation()}
           >
             <label>
-              <span className="visually-hidden">Cerca un comando</span>
+              <span className="visually-hidden">Search commands</span>
               <input
                 autoFocus
                 type="search"
-                placeholder="Cosa vuoi fare?"
+                placeholder="What would you like to do?"
                 value={commandQuery}
                 onChange={(event) => setCommandQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -2110,7 +2168,7 @@ function Editor({
                 }}
               />
             </label>
-            <p>Comandi rapidi · Ctrl+K</p>
+            <p>Quick commands · Ctrl+K</p>
             <div className="command-results">
               {commands.slice(0, 12).map(([label, keywords, action]) => (
                 <button
@@ -2127,8 +2185,7 @@ function Editor({
               ))}
               {!commands.length && (
                 <span>
-                  Nessun comando trovato. Prova “preview”, “pagina” o il nome di
-                  un componente.
+                  No command found. Try “preview”, “page”, or a component name.
                 </span>
               )}
             </div>
@@ -2139,13 +2196,13 @@ function Editor({
         <button
           className="brand-button"
           onClick={onClose}
-          aria-label="Chiudi progetto e torna alla dashboard"
+          aria-label="Close project and return to the dashboard"
         >
-          <span>FE</span>
+          <span>K</span>
         </button>
         <div className="project-title">
           <input
-            aria-label="Nome progetto"
+            aria-label="Project name"
             value={project.name}
             onChange={(event) =>
               change({ ...project, name: event.target.value })
@@ -2159,7 +2216,7 @@ function Editor({
             className="icon-button"
             onClick={undo}
             disabled={!history.length}
-            aria-label="Annulla"
+            aria-label="Undo"
           >
             ↶
           </button>
@@ -2167,20 +2224,20 @@ function Editor({
             className="icon-button"
             onClick={redo}
             disabled={!future.length}
-            aria-label="Ripristina"
+            aria-label="Redo"
           >
             ↷
           </button>
           <button
             className="icon-button"
-            data-help="Cerca azioni e componenti. Scorciatoia Ctrl+K."
+            data-help="Search actions and components. Shortcut: Ctrl+K."
             onClick={() => setCommandOpen(true)}
-            aria-label="Apri comandi rapidi"
+            aria-label="Open quick commands"
           >
             ⌘
           </button>
           <details className="history-menu">
-            <summary>Versioni {versions.length}</summary>
+            <summary>Versions {versions.length}</summary>
             <div>
               {versions.slice(0, 8).map((version) => (
                 <button
@@ -2188,20 +2245,20 @@ function Editor({
                   className="secondary"
                   onClick={() => {
                     change(version.project);
-                    setFeedback(`Ripristinata revisione ${version.revision}`);
+                    setFeedback(`Restored revision ${version.revision}`);
                   }}
                 >
-                  Revisione {version.revision}
-                  <small>{new Date(version.createdAt).toLocaleString("it")}</small>
+                  Revision {version.revision}
+                  <small>{new Date(version.createdAt).toLocaleString("en")}</small>
                 </button>
               ))}
             </div>
           </details>
           <details className="history-menu">
-            <summary>Export {exportHistory.length}</summary>
+            <summary>Exports {exportHistory.length}</summary>
             <div>
               {exportHistory.length === 0 ? (
-                <span>Nessun export archiviato</span>
+                <span>No archived exports</span>
               ) : exportHistory.slice(0, 8).map((record) => (
                 <button
                   key={record.id}
@@ -2209,13 +2266,13 @@ function Editor({
                   onClick={() => downloadStoredExport(record)}
                 >
                   {record.fileName}
-                  <small>{new Date(record.createdAt).toLocaleString("it")}</small>
+                  <small>{new Date(record.createdAt).toLocaleString("en")}</small>
                 </button>
               ))}
             </div>
           </details>
           <button className="secondary" onClick={exportProject}>
-            Esporta JSON
+            Export JSON
           </button>
           <button
             onClick={() =>
@@ -2225,7 +2282,7 @@ function Editor({
                 )
                 .then(async ({ blob, fileName }) => {
                   await archiveExport(blob, fileName, project.exportConfig.target);
-                  setFeedback("App TypeScript esportata come ZIP e archiviata");
+                  setFeedback("TypeScript app exported as a ZIP and archived");
                 })
                 .catch((error) =>
                   setFeedback(
@@ -2234,39 +2291,39 @@ function Editor({
                 )
             }
           >
-            Esporta app
+            Export app
           </button>
         </div>
       </header>
-      <nav className="workspace-tabs" aria-label="Aree di lavoro">
+      <nav className="workspace-tabs" aria-label="Workspaces">
         {(
           [
             [
               "design",
               "Design",
-              "Disegna pagine e componenti senza scrivere codice.",
+              "Design pages and components without writing code.",
             ],
             [
               "flow",
               "Flow",
-              "Definisci cosa accade quando l’utente interagisce.",
+              "Define what happens when a person interacts.",
             ],
-            ["data", "Dati", "Crea e collega archivi locali per i contenuti."],
+            ["data", "Data", "Create and connect local or remote data sources."],
             [
               "preview",
               "Preview",
-              "Prova l’app esattamente come la userà una persona.",
+              "Use the app exactly as a real person will.",
             ],
-            ["plugins", "Plugin", "Aggiungi capacità controllate all’editor."],
+            ["plugins", "Extensions", "Add reviewed capabilities to Kyro."],
             [
               "terminal",
-              "Terminale",
-              "Esegui comandi avanzati nella cartella locale del progetto.",
+              "Terminal",
+              "Run advanced commands in the local project folder.",
             ],
             [
               "settings",
-              "Pubblica",
-              "Scegli Web, PWA o Android e configura il risultato senza terminale.",
+              "Publish",
+              "Configure Web, PWA, or Android without using a terminal.",
             ],
           ] as [WorkspaceTab, string, string][]
         ).map(([value, label, help]) => (
@@ -2287,13 +2344,13 @@ function Editor({
       {project.importedSource && (
         <details className="import-source-banner">
           <summary>
-            Sorgente importata · {project.importedSource.detected} ·{" "}
-            {project.importedSource.files.length} file preservati
+            Imported source · {project.importedSource.detected} ·{" "}
+            {project.importedSource.files.length} preserved files
           </summary>
           <p>
             {project.importedSource.exactModel
-              ? "Il modello Frontend Editor è stato ripristinato integralmente: puoi continuare da canvas, flow, dati e pubblicazione."
-              : "Gli elementi riconosciuti sono modificabili sul canvas. Il codice non ancora convertito resta nella cartella original-project dell’export."}
+              ? "The complete Kyro model was restored: continue in Design, Flow, Data, or Publish."
+              : "Recognized elements are editable on the canvas. Unconverted code remains in the export's original-project folder."}
           </p>
           {project.importedSource.warnings.map((warning) => (
             <span key={warning}>{warning}</span>
@@ -2303,7 +2360,7 @@ function Editor({
       {feedback && (
         <div className="global-feedback" role="status">
           {feedback}
-          <button aria-label="Chiudi messaggio" onClick={() => setFeedback("")}>
+          <button aria-label="Close message" onClick={() => setFeedback("")}>
             ×
           </button>
         </div>
@@ -2315,7 +2372,7 @@ function Editor({
               type="button"
               className="panel-resizer panel-resizer-left"
               role="separator"
-              aria-label="Ridimensiona pannello elementi"
+              aria-label="Resize elements panel"
               aria-orientation="vertical"
               aria-valuemin={190}
               aria-valuemax={420}
@@ -2324,11 +2381,11 @@ function Editor({
               onKeyDown={(event) => resizePanelWithKeyboard("left", event)}
               onDoubleClick={() => setPanelWidth("left", 240)}
             />
-            <PanelTitle eyebrow="Struttura" title="Pagine" />
+            <PanelTitle eyebrow="Structure" title="Pages" />
             <div className="page-list">
               {project.pages.map((page) => (
                 <button
-                  data-help={`Apri la pagina ${page.name} per modificarla.`}
+                  data-help={`Open ${page.name} to edit it.`}
                   className={page.id === pageId ? "active" : ""}
                   key={page.id}
                   onClick={() => {
@@ -2342,19 +2399,19 @@ function Editor({
                 </button>
               ))}
               <button
-                data-help="Crea una nuova schermata vuota nel progetto."
+                data-help="Create a new blank screen in the project."
                 className="dashed"
                 onClick={addPage}
               >
-                ＋ Aggiungi pagina
+                ＋ Add page
               </button>
             </div>
-            <PanelTitle eyebrow="Elementi" title="Palette" />
+            <PanelTitle eyebrow="Elements" title="Palette" />
             <label className="palette-search">
-              <span className="visually-hidden">Cerca componenti</span>
+              <span className="visually-hidden">Search components</span>
               <input
                 type="search"
-                placeholder="Cerca componenti…"
+                placeholder="Search components…"
                 value={paletteQuery}
                 onChange={(event) => setPaletteQuery(event.target.value)}
               />
@@ -2592,13 +2649,13 @@ function Editor({
                 )}
                 {!currentPage ? (
                   <div className="canvas-empty">
-                    <strong>Crea la prima pagina</strong>
-                    <button onClick={addPage}>Aggiungi pagina</button>
+                    <strong>Create your first page</strong>
+                    <button onClick={addPage}>Add page</button>
                   </div>
                 ) : currentPage.components.length === 0 ? (
                   <div className="canvas-empty">
-                    <strong>Trascina qui un componente</strong>
-                    <span>oppure fai clic su un elemento nella palette</span>
+                    <strong>Drag a component here</strong>
+                    <span>or click an element in the palette</span>
                   </div>
                 ) : (
                   branches.map((branch) => (
@@ -2643,7 +2700,7 @@ function Editor({
               type="button"
               className="panel-resizer panel-resizer-right"
               role="separator"
-              aria-label="Ridimensiona pannello proprietà"
+              aria-label="Resize properties panel"
               aria-orientation="vertical"
               aria-valuemin={230}
               aria-valuemax={480}
@@ -2653,15 +2710,27 @@ function Editor({
               onDoubleClick={() => setPanelWidth("right", 300)}
             />
             <PanelTitle
-              eyebrow="Ispezione"
+              eyebrow="Inspector"
               title={
                 selected.length > 1
-                  ? `${selected.length} elementi`
-                  : (activeComponent?.name ?? "Proprietà")
+                  ? `${selected.length} elements`
+                  : (activeComponent?.name ?? "Properties")
               }
             />
+            {activeComponent && <div className="inspector-tabs" role="tablist" aria-label="Element inspector">
+              <button type="button" role="tab" aria-selected={inspectorMode === "design"} className={inspectorMode === "design" ? "active" : ""} onClick={() => setInspectorMode("design")}>Design</button>
+              <button type="button" role="tab" aria-selected={inspectorMode === "actions"} className={inspectorMode === "actions" ? "active" : ""} onClick={() => setInspectorMode("actions")}>Actions <span>{Object.keys(activeComponent.events).length}</span></button>
+            </div>}
             {activeComponent ? (
-              <>
+              inspectorMode === "actions" ? <ComponentActions
+                component={activeComponent}
+                flows={project.flows}
+                onCreate={(event) => connectComponentAction(activeComponent, event)}
+                onLink={(event, targetFlowId) => connectComponentAction(activeComponent, event, targetFlowId)}
+                onOpen={(targetFlowId) => { setFlowId(targetFlowId); setSelectedFlowNodeId(project.flows.find((item) => item.id === targetFlowId)?.nodes.find((node) => node.type === "event")?.id ?? ""); setTab("flow"); }}
+                onRemove={(eventId) => removeComponentAction(activeComponent, eventId)}
+                onAskCodex={(event) => askCodexForAction(activeComponent, event)}
+              /> : <>
                 {activeProgram && (
                   <ProgramConnections
                     view={activeProgram}
@@ -2710,7 +2779,7 @@ function Editor({
                       .map((item) => ({
                         ...item!,
                         id: crypto.randomUUID(),
-                        name: `${item!.name} copia`,
+                        name: `${item!.name} copy`,
                       }));
                     patchPage((items) => [...items, ...copies]);
                     setSelected(copies.map((item) => item.id));
@@ -2730,9 +2799,9 @@ function Editor({
                 }
               />
             ) : (
-              <div className="empty-panel compact"><strong>Nessuna pagina</strong></div>
+              <div className="empty-panel compact"><strong>No page</strong></div>
             )}
-            <PanelTitle eyebrow="Gerarchia" title="Livelli" />
+            <PanelTitle eyebrow="Hierarchy" title="Layers" />
             <ol className="layers" role="tree">
               {branches.map((branch) => (
                 <LayerBranch
@@ -2753,17 +2822,31 @@ function Editor({
         <main className="wide-workspace">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Comportamento</p>
+              <p className="eyebrow">Behavior</p>
               <h1>Flow editor</h1>
               <p>
-                Collega eventi e operazioni. I percorsi success ed error sono
-                distinti e validati.
+                Start from a page and element, choose an event, then connect what
+                happens next. Every branch stays visible and reusable.
               </p>
+              <div className="flow-context-picker" aria-label="Flow context">
+                <label>Page<select value={pageId} onChange={(event) => { setPageId(event.target.value); setSelected([]); setSelectedFlowNodeId(""); }}>
+                  {project.pages.map((page) => <option key={page.id} value={page.id}>{page.name}</option>)}
+                </select></label>
+                <label>Element<select value={activeComponent?.id ?? ""} onChange={(event) => { const id = event.target.value; setSelected(id ? [id] : []); const component = currentPage?.components.find((item) => item.id === id); const firstFlow = component && project.flows.find((item) => Object.values(component.events).includes(item.id)); if (firstFlow) { setFlowId(firstFlow.id); setSelectedFlowNodeId(firstFlow.nodes.find((node) => node.type === "event")?.id ?? ""); } }}>
+                  <option value="">Page events</option>
+                  {currentPage?.components.map((component) => <option key={component.id} value={component.id}>{component.name} · {component.type}</option>)}
+                </select></label>
+                <label>Event<select disabled={!activeComponent || Object.keys(activeComponent.events).length === 0} value={activeComponent && Object.values(activeComponent.events).includes(flow?.id ?? "") ? flow?.id : ""} onChange={(event) => { const target = project.flows.find((item) => item.id === event.target.value); if (!target) return; setFlowId(target.id); setSelectedFlowNodeId(target.nodes.find((node) => node.type === "event")?.id ?? ""); }}>
+                  <option value="">{activeComponent ? "Choose a connected event…" : "Choose an element first"}</option>
+                  {activeComponent && Object.entries(activeComponent.events).map(([eventId, targetFlowId]) => <option key={eventId} value={targetFlowId}>{eventId} → {project.flows.find((item) => item.id === targetFlowId)?.name ?? "Missing flow"}</option>)}
+                </select></label>
+                {activeComponent && <button type="button" className="secondary" onClick={() => { setInspectorMode("actions"); setTab("design"); }}>Add or edit actions</button>}
+              </div>
               {project.flows.length > 0 && (
                 <label>
-                  Flow attivo
+                  Active flow
                   <select
-                    aria-label="Flow attivo"
+                    aria-label="Active flow"
                     value={flow?.id}
                     onChange={(event) => {
                       setFlowId(event.target.value);
@@ -2781,14 +2864,14 @@ function Editor({
             </div>
             <button onClick={createFlow}>
               {project.state.experience === "landing"
-                ? "Crea interazioni landing"
+                ? "Create landing interactions"
                 : project.state.experience === "dashboard"
-                  ? "Crea flow dashboard"
-                  : "Crea flow dati"}
+                  ? "Create dashboard flow"
+                  : "Create data flow"}
             </button>
           </div>
           {pluginNodes.length > 0 && (
-            <div className="plugin-contribution-bar" aria-label="Nodi forniti dai plugin">
+            <div className="plugin-contribution-bar" aria-label="Nodes provided by extensions">
               <span>Plugin</span>
               {pluginNodes.map((contribution) => (
                 <button
@@ -2803,7 +2886,7 @@ function Editor({
           )}
           <Suspense
             fallback={
-              <div className="flow-canvas">Caricamento editor flow…</div>
+              <div className="flow-canvas">Loading Flow editor…</div>
             }
           >
             <FlowEditor
@@ -2825,7 +2908,7 @@ function Editor({
               })}
               onChange={(updated) =>
                 change((() => {
-                  const triggers = updated.nodes.filter((node) => node.type === "event" && ["click", "change", "submit"].includes(node.config.trigger ?? "click") && node.config.componentId);
+                  const triggers = updated.nodes.filter((node) => node.type === "event" && isComponentEvent(node.config.trigger ?? "click") && node.config.componentId);
                   return {
                     ...project,
                     flows: project.flows.map((item) => item.id === updated.id ? updated : item),
@@ -2869,7 +2952,7 @@ function Editor({
               <p className="eyebrow">Dati reali, senza scelte oscure</p>
               <h1>Dati & integrazioni</h1>
               <p>
-                Scegli dove devono vivere i dati. Frontend Editor configura il
+                Choose where data should live. Kyro configures the
                 collegamento e non salva mai password o token nel progetto.
               </p>
             </div>

@@ -1,9 +1,10 @@
-import JSZip from "jszip";
+﻿import JSZip from "jszip";
 import type { Breakpoint, EditorComponent, Project } from "./model";
 import { parseProject, serializeProject } from "./model";
 import { buildExperienceAssets } from "./PreviewFrame";
 import { canContain, componentTree, type ComponentBranch } from "./hierarchy";
 import { generateCodeModule } from "./codeModules";
+import { nativePackagesForProject, nativePermissionsForProject } from "./nativeCapabilities";
 
 const htmlEscape = (value: unknown) =>
   String(value ?? "").replace(
@@ -159,6 +160,7 @@ function commonExportFiles(project: Project) {
       2,
     ),
     "capacitor.config.ts": `export default { appId: 'com.frontendeditor.${project.id.replace(/-/g, "").slice(0, 12)}', appName: ${JSON.stringify(project.name)}, webDir: 'dist' }`,
+    "project.kyro.json": serializeProject(project),
     "project.frontend-editor.json": serializeProject(project),
     "app.frontend-editor.json": JSON.stringify(project.appConfig, null, 2),
     ...(project.appConfig.environmentVariables.length
@@ -263,6 +265,7 @@ function platformFiles(
     `import type { CapacitorConfig } from '@capacitor/cli'\nconst config: CapacitorConfig = { appId: ${JSON.stringify(android.packageId)}, appName: ${JSON.stringify(android.appName)}, webDir: 'dist', backgroundColor: ${JSON.stringify(themeColor)}, android: { backgroundColor: ${JSON.stringify(themeColor)}, allowMixedContent: false, captureInput: true }, plugins: { App: { disableBackButtonHandler: ${!android.backButton} } } }\nexport default config\n`;
   const permissions = [...new Set([
     ...android.permissions,
+    ...nativePermissionsForProject(project),
     ...(usesLocalNotifications ? ["notifications" as const] : []),
   ])]
     .map(
@@ -272,6 +275,9 @@ function platformFiles(
           geolocation: "android.permission.ACCESS_FINE_LOCATION",
           notifications: "android.permission.POST_NOTIFICATIONS",
           microphone: "android.permission.RECORD_AUDIO",
+          bluetoothScan: "android.permission.BLUETOOTH_SCAN",
+          bluetoothConnect: "android.permission.BLUETOOTH_CONNECT",
+          geolocationLegacy: "android.permission.ACCESS_FINE_LOCATION",
         })[permission],
     )
     .filter(Boolean);
@@ -447,7 +453,7 @@ ${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource($
       : `export {};const deliver=(detail)=>dispatchEvent(new MessageEvent('message',{data:{channel:'frontend-editor-host',...detail}}));const send=async(type,payload={})=>{try{if(type==='READY')deliver({records:await window.dashboardData.query()});if(type==='DASHBOARD_ACTION')deliver({records:await window.dashboardData.action(payload.action,payload.payload),action:payload.action})}catch(error){deliver({records:await window.dashboardData.query(),error:error instanceof Error?error.message:String(error)})}};${assets.script}`;
   return {
     ...commonExportFiles(project),
-    "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}${assets.markup}${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
+    "index.html": `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}${assets.markup}${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": experience === "landing" ? landingMain : dashboardMain,
     "src/ui.js": ui,
     "src/style.css": baseCss,
@@ -690,7 +696,7 @@ void refresh()
       null,
       2,
     ),
-    "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}<main>${body}</main>${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
+    "index.html": `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}<main>${body}</main>${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": main,
     "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}html[data-theme=dark]{color-scheme:dark;color:#f3f4f6;background:#0f1115}html[data-theme=dark] body{color:#f3f4f6!important;background:#0f1115!important;background-image:none!important}html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark] select,html[data-theme=dark] li{color:#f3f4f6;background:#1d2229;border-color:#4b5563}html[data-theme=dark] .generated-container{color:#f3f4f6!important;background:#171a1f!important;border-color:#374151!important}html[data-theme=dark] .app-bottom-nav{color:#f3f4f6;background:#171a1ff2;border-color:#374151}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}${authenticationCss}main{position:relative;min-height:680px;width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}.app-page-nav{display:flex;gap:12px}.app-page-nav a{color:#5547d9}.app-bottom-nav{position:sticky;z-index:20;bottom:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;order:99;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid #cfd4df;background:#fffffff0;backdrop-filter:blur(16px)}.app-bottom-nav a{display:grid;place-items:center;min-height:44px;padding:8px;border-radius:10px;color:inherit;text-decoration:none;font-size:12px;font-weight:700}.app-bottom-nav a[aria-current]{background:#6d5dfc;color:#fff}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.choice-control{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}.choice-control input{width:20px;height:20px;min-width:20px;margin:0;padding:0;accent-color:#6d5dfc}.choice-control span{line-height:1.35}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}${pageBackgroundCss(project)}`,
     "tsconfig.json": JSON.stringify(
@@ -709,6 +715,7 @@ void refresh()
       2,
     ),
     "capacitor.config.ts": `export default { appId: 'com.frontendeditor.${project.id.replace(/-/g, "").slice(0, 12)}', appName: ${JSON.stringify(project.name)}, webDir: 'dist' }`,
+    "project.kyro.json": serializeProject(project),
     "project.frontend-editor.json": serializeProject(project),
     "README.md": `# ${project.name}\n\n\`npm install\`, poi \`npm run dev\`. Build: \`npm run build\`. Per Android installare @capacitor/cli e @capacitor/android, quindi \`npx cap add android\` e \`npx cap sync\`. Nessun segreto è incluso.`,
   });
@@ -722,7 +729,62 @@ void refresh()
       .map((item) => `# ${item.description}\n${item.name}=`)
       .join("\n\n");
   Object.assign(files, preservedSourceFiles(project));
-  return withCodeModules(project, withGeneratedBackend(project, files));
+  return withNativeCapabilities(project, withCodeModules(project, withGeneratedBackend(project, files)));
+}
+
+function withNativeCapabilities(project: Project, files: Record<string, string>) {
+  if (!usesNativeRuntime(project)) return files;
+  const requested = new Set(project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "requestPermission").map((node) => node.config.permission)));
+  const packages: Record<string, string> = { "@capacitor/core": "^8.0.0", ...nativePackagesForProject(project) };
+  if (project.flows.some((flow) => flow.nodes.some((node) => node.type === "platformCondition"))) packages["@capacitor/device"] = "^8.0.0";
+  if (requested.has("camera")) packages["@capacitor/camera"] = "^8.0.0";
+  if (requested.has("geolocation")) packages["@capacitor/geolocation"] = "^8.0.0";
+  if (requested.has("notifications")) packages["@capacitor/local-notifications"] = "^8.0.0";
+  const pkg = JSON.parse(files["package.json"]) as { dependencies?: Record<string, string> };
+  pkg.dependencies = { ...pkg.dependencies, ...packages };
+  files["package.json"] = JSON.stringify(pkg, null, 2);
+  const has = (name: string) => Boolean(packages[name]);
+  const imports = [
+    "import { Capacitor } from '@capacitor/core'",
+    has("@capacitor/camera") ? "import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'" : "",
+    has("@capacitor/geolocation") ? "import { Geolocation } from '@capacitor/geolocation'" : "",
+    has("@capacitor/device") ? "import { Device } from '@capacitor/device'" : "",
+    has("@capacitor/network") ? "import { Network } from '@capacitor/network'" : "",
+    has("@capacitor/haptics") ? "import { Haptics, ImpactStyle } from '@capacitor/haptics'" : "",
+    has("@capacitor/share") ? "import { Share } from '@capacitor/share'" : "",
+    has("@capacitor/clipboard") ? "import { Clipboard } from '@capacitor/clipboard'" : "",
+    has("@capacitor/filesystem") ? "import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'" : "",
+    has("@capacitor/motion") ? "import { Motion } from '@capacitor/motion'" : "",
+    has("@capacitor/local-notifications") ? "import { LocalNotifications } from '@capacitor/local-notifications'" : "",
+    has("@capacitor/push-notifications") ? "import { PushNotifications } from '@capacitor/push-notifications'" : "",
+    has("@capacitor-community/bluetooth-le") ? "import { BleClient } from '@capacitor-community/bluetooth-le'" : "",
+  ].filter(Boolean).join("\n");
+  files["src/native.ts"] = `${imports}
+type Options = Record<string, string>
+const parseOptions = (text = ''): Options => Object.fromEntries(text.split(/\\r?\\n|,/).map((line) => line.split('=')).filter((pair) => pair.length > 1).map(([key, ...rest]) => [key.trim(), rest.join('=').trim()]))
+const webInfo = () => ({ platform: 'web', version: navigator.userAgent })
+export async function getPlatformInfo() { ${has("@capacitor/device") ? "if (Capacitor.isNativePlatform()) { const info = await Device.getInfo(); return { platform: info.platform, version: info.osVersion } }" : ""} return webInfo() }
+export async function requestNativePermission(permission: string, _rationale = '') { if (!Capacitor.isNativePlatform()) { if (permission === 'notifications' && 'Notification' in window) return (Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission) === 'granted'; if (permission === 'geolocation' && navigator.permissions) return (await navigator.permissions.query({ name: 'geolocation' })).state === 'granted'; return false }
+  ${has("@capacitor/camera") ? "if (permission === 'camera') return (await Camera.requestPermissions({ permissions: ['camera', 'photos'] })).camera === 'granted'" : ""}
+  ${has("@capacitor/geolocation") ? "if (permission === 'geolocation') return (await Geolocation.requestPermissions()).location === 'granted'" : ""}
+  ${has("@capacitor/local-notifications") ? "if (permission === 'notifications') return (await LocalNotifications.requestPermissions()).display === 'granted'" : ""}
+  return false }
+export async function runNativeAction(capability: string, action: string, value: unknown, raw: Options) { const options = { ...raw, ...parseOptions(raw.options) }
+  ${has("@capacitor/camera") ? "if (capability === 'camera') { const photo = await Camera.getPhoto({ resultType: CameraResultType.Uri, source: action === 'takePhoto' ? CameraSource.Camera : CameraSource.Photos, quality: Math.min(100, Math.max(1, Number(options.quality) || 85)) }); return { path: photo.path, webPath: photo.webPath, format: photo.format, saved: photo.saved } }" : ""}
+  ${has("@capacitor/geolocation") ? "if (capability === 'location' && action === 'getCurrentPosition') { const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: options.highAccuracy === 'true', timeout: 10000 }); return { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy } }" : ""}
+  ${has("@capacitor/device") ? "if (capability === 'device' && action === 'getInfo') return Device.getInfo(); if (capability === 'device' && action === 'getBattery') return Device.getBatteryInfo()" : ""}
+  ${has("@capacitor/network") ? "if (capability === 'network' && action === 'getStatus') return Network.getStatus()" : ""}
+  ${has("@capacitor/haptics") ? "if (capability === 'haptics') { if (action === 'vibrate') await Haptics.vibrate({ duration: Math.min(1000, Math.max(20, Number(options.duration) || 100)) }); else await Haptics.impact({ style: options.style === 'heavy' ? ImpactStyle.Heavy : options.style === 'light' ? ImpactStyle.Light : ImpactStyle.Medium }); return value }" : ""}
+  ${has("@capacitor/share") ? "if (capability === 'share' && action === 'share') return Share.share({ title: options.title, text: options.text || String(value || ''), url: options.url || undefined })" : ""}
+  ${has("@capacitor/clipboard") ? "if (capability === 'clipboard' && action === 'write') { await Clipboard.write({ string: options.value || String(value || '') }); return value } if (capability === 'clipboard' && action === 'read') return Clipboard.read()" : ""}
+  ${has("@capacitor/filesystem") ? "if (capability === 'files' && action === 'writeFile') return Filesystem.writeFile({ path: options.path || 'file.txt', data: options.data || String(value || ''), directory: Directory.Data, encoding: Encoding.UTF8 }); if (capability === 'files' && action === 'readFile') return Filesystem.readFile({ path: options.path || 'file.txt', directory: Directory.Data, encoding: Encoding.UTF8 }); if (capability === 'files' && action === 'deleteFile') return Filesystem.deleteFile({ path: options.path || 'file.txt', directory: Directory.Data })" : ""}
+  ${has("@capacitor/push-notifications") ? "if (capability === 'push' && action === 'register') { const permission = await PushNotifications.requestPermissions(); if (permission.receive !== 'granted') throw new Error('Push notification permission was denied'); await PushNotifications.register(); return { registered: true } }" : ""}
+  ${has("@capacitor-community/bluetooth-le") ? "if (capability === 'bluetooth') { await BleClient.initialize(); if (action === 'requestDevice') return BleClient.requestDevice({ optionalServices: (options.services || '').split(',').filter(Boolean) }); if (action === 'scan') { const devices: unknown[] = []; await BleClient.requestLEScan({}, (result) => devices.push(result)); await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Number(options.duration) || 3000))); await BleClient.stopLEScan(); return devices } if (action === 'connect') return BleClient.connect(String(options.deviceId || (value as { deviceId?: string })?.deviceId || '')); if (action === 'disconnect') return BleClient.disconnect(String(options.deviceId || (value as { deviceId?: string })?.deviceId || '')) }" : ""}
+  if (capability === 'location' && action === 'openMap') { const input = value as { latitude?: number; longitude?: number }; location.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(String(options.latitude || input?.latitude || '') + ',' + String(options.longitude || input?.longitude || '')); return value }
+  throw new Error('This device action is not available in the current target: ' + capability + '.' + action)
+}
+`;
+  return files;
 }
 
 function withCodeModules(project: Project, files: Record<string, string>) {
@@ -740,8 +802,12 @@ function referencedModules(project: Project) {
 }
 
 function moduleImports(project: Project) {
-  return referencedModules(project).map((module, index) => `import { run as runExtension${index} } from './extensions/${moduleFile(module.id)}'`).join("\n");
+  const extensions = referencedModules(project).map((module, index) => `import { run as runExtension${index} } from './extensions/${moduleFile(module.id)}'`);
+  if (usesNativeRuntime(project)) extensions.push("import { getPlatformInfo, requestNativePermission, runNativeAction } from './native'");
+  return extensions.join("\n");
 }
+
+const usesNativeRuntime = (project: Project) => project.flows.some((flow) => flow.nodes.some((node) => ["requestPermission", "nativeAction", "platformCondition"].includes(node.type)));
 
 function modulePipeline(project: Project, initial: string) {
   return referencedModules(project).reduce((value, _module, index) => `runExtension${index}(${value} as never)`, initial);
@@ -750,16 +816,22 @@ function modulePipeline(project: Project, initial: string) {
 function generatedFlowRuntime(project: Project) {
   const runners = referencedModules(project).map((module, index) => `${JSON.stringify(module.id)}: runExtension${index}`).join(",");
   const bindings = project.pages.flatMap((page) => page.components.flatMap((component) => Object.entries(component.events).map(([event, flowId]) => ({ componentId: component.id, event, flowId }))));
-  const automatic = project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "event" && ["pageLoad", "timer"].includes(node.config.trigger)).map((node) => ({ flowId: flow.id, trigger: node.config.trigger, interval: Math.min(3600000, Math.max(500, Number(node.config.interval) || 5000)), pagePath: project.pages.find((page) => page.id === node.config.pageId)?.path })));
+  const automatic = project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "event" && ["pageLoad", "timer", "pageVisible", "pageHidden", "online", "offline", "deviceShake"].includes(node.config.trigger)).map((node) => ({ flowId: flow.id, trigger: node.config.trigger, interval: Math.min(3600000, Math.max(500, Number(node.config.interval) || 5000)), pagePath: project.pages.find((page) => page.id === node.config.pageId)?.path })));
+  const nativeFallback = usesNativeRuntime(project) ? "" : `const requestNativePermission = async (_permission: string, _rationale = '') => false
+const getPlatformInfo = async () => ({ platform: 'web', version: navigator.userAgent })
+const runNativeAction = async (capability: string, action: string, _value: unknown, _config: Record<string, string>): Promise<never> => { throw new Error('Device action is not available: ' + capability + '.' + action) }`;
   return `type GraphNode = { id: string; type: string; label: string; position: { x: number; y: number }; config: Record<string, string> }
 type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: string }[] }
 const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
 const graphState: Record<string, unknown> = ${JSON.stringify(project.state)}
 const graphDebounce = new Map<string, number>()
 const extensionRunners: Record<string, (value: never) => unknown> = { ${runners} }
+${nativeFallback}
 const graphField = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
 const graphElement = (id = '') => document.getElementById(id) ?? document.querySelector<HTMLElement>('[data-component="' + CSS.escape(id) + '"]')
+const graphListen = (element: HTMLElement | null, name: string, run: (event: Event) => void) => { if (!element) return; const native: Record<string, string> = { doubleClick: 'dblclick', pointerEnter: 'pointerenter', pointerLeave: 'pointerleave', keyDown: 'keydown' }; if (native[name]) return element.addEventListener(native[name], run); if (name === 'longPress') { let timer = 0, start: { x: number; y: number; time: number } | undefined; const cancel = () => { clearTimeout(timer); timer = 0 }; element.addEventListener('pointerdown', (event) => { start = { x: event.clientX, y: event.clientY, time: Date.now() }; timer = window.setTimeout(() => start && run(new CustomEvent('longPress', { detail: { kyroGesture: true, x: start.x, y: start.y, duration: Date.now() - start.time } })), 600) }); element.addEventListener('pointerup', cancel); element.addEventListener('pointercancel', cancel); element.addEventListener('pointerleave', cancel); return } if (name === 'swipeLeft' || name === 'swipeRight') { let start: { x: number; y: number; time: number } | undefined; element.addEventListener('pointerdown', (event) => { start = { x: event.clientX, y: event.clientY, time: Date.now() } }); element.addEventListener('pointerup', (event) => { if (!start) return; const dx = event.clientX - start.x, dy = event.clientY - start.y, duration = Math.max(1, Date.now() - start.time), matches = Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) && (name === 'swipeLeft' ? dx < 0 : dx > 0); if (matches) run(new CustomEvent(name, { detail: { kyroGesture: true, distanceX: dx, distanceY: dy, duration, velocity: dx / duration } })); start = undefined }); return } element.addEventListener(name, run) }
 const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
+const graphPlatformMatches = (info: { platform: string; version: string }, platform = '', minimum = '', maximum = '') => { if (platform && info.platform.toLowerCase() !== platform.toLowerCase()) return false; const current = Number.parseInt(info.version, 10), min = minimum ? Number.parseInt(minimum, 10) : undefined, max = maximum ? Number.parseInt(maximum, 10) : undefined; return !(min !== undefined && (!Number.isFinite(current) || current < min)) && !(max !== undefined && (!Number.isFinite(current) || current > max)) }
 const graphNavigate = (mode = 'page', path = '/') => { if (mode === 'back') return history.back(); if (mode === 'url') { const url = new URL(path); if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo HTTP o HTTPS'); return location.assign(url.toString()) } location.hash = path }
 const graphRole = () => { try { const payload = authToken.split('.')[0]; return String(JSON.parse(atob(payload.replaceAll('-', '+').replaceAll('_', '/'))).role || 'viewer') } catch { return 'viewer' } }
 const graphSignOut = () => { authToken = ''; sessionStorage.removeItem('frontend-editor-session'); location.reload() }
@@ -773,7 +845,9 @@ async function runGraph(flowId: string, input: unknown = '') {
     try {
       if (current.type === 'readInput') value = (graphElement(current.config.componentId) as HTMLInputElement | null)?.value ?? input
       if (current.type === 'validate') { const actual = current.config.field ? graphField(value, current.config.field) : value, rule = current.config.rule || 'required', expected = current.config.value || ''; const valid = rule === 'required' ? actual !== undefined && actual !== null && String(actual).trim() !== '' : rule === 'email' ? /^\\S+@\\S+\\.\\S+$/.test(String(actual ?? '')) : rule === 'minLength' ? String(actual ?? '').length >= Math.max(0, Number(expected) || 0) : rule === 'min' ? Number(actual) >= Number(expected) : rule === 'max' ? Number(actual) <= Number(expected) : false; if (!valid) throw new Error(current.config.message || 'Il valore non è valido') }
-      const condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
+      let condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
+      if (current.type === 'requestPermission') { const granted = await requestNativePermission(current.config.permission, current.config.rationale); value = { permission: current.config.permission, granted }; condition = granted }
+      if (current.type === 'platformCondition') { const info = await getPlatformInfo(); condition = graphPlatformMatches(info, current.config.platform, current.config.minVersion, current.config.maxVersion); value = { ...info, matches: condition } }
       const switchValue = current.type === 'switch' ? String(current.config.field ? graphField(value, current.config.field) ?? '' : value ?? '') : '', switchMatch = current.type === 'switch' ? (current.config.cases || '').split(',').map((item) => item.trim()).filter(Boolean).find((item) => item === switchValue) : undefined
       let loopPath: string | undefined
       if (current.type === 'loop') { let state = loops.get(current.id); if (!state) { if (!Array.isArray(value)) throw new Error('Il ciclo richiede un elenco'); const limit = Math.min(100, Math.max(1, Number(current.config.max) || 100)); if (value.length > limit) throw new Error('Il ciclo supera il limite di ' + limit + ' elementi'); state = { items: value, index: 0 }; loops.set(current.id, state) } else state.index += 1; if (state.index < state.items.length) { value = state.items[state.index]; loopPath = 'each' } else { value = state.items; loops.delete(current.id); loopPath = 'done' } }
@@ -802,19 +876,23 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'updateUI') { const element = graphElement(current.config.componentId) as (HTMLElement & { value?: string; disabled?: boolean }) | null, operation = current.config.operation || 'show', next = current.config.value || ''; if (!element) throw new Error('Elemento da cambiare non trovato'); if (operation === 'show') element.hidden = false; if (operation === 'hide') element.hidden = true; if (operation === 'enable') element.disabled = false; if (operation === 'disable') element.disabled = true; if (operation === 'text') element.textContent = next; if (operation === 'value') element.value = next; if (['background', 'color', 'opacity'].includes(operation)) element.style[operation as 'background' | 'color' | 'opacity'] = next }
       if (current.type === 'notify') graphNotify(current.config.message || String(value))
       if (current.type === 'localNotification') await graphScheduleLocalNotification(current.config.title, current.config.body || String(value ?? ''), current.config.delayMs)
+      if (current.type === 'nativeAction') value = await runNativeAction(current.config.capability, current.config.action, value, current.config)
       if (current.type === 'log') console.debug(current.config.message || current.label, value)
       path = loopPath ?? (current.type === 'switch' ? (switchMatch ? 'case:' + switchMatch : 'error') : condition ? 'success' : 'error')
     } catch (error) { path = 'error'; graphNotify('Errore: ' + (error instanceof Error ? error.message : String(error)), true) }
     const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
   }
 }
-${bindings.map((binding) => `{ const element = graphElement(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement; const input = event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.type === 'file' ? target.files?.[0] : target?.value ?? ''; void runGraph(${JSON.stringify(binding.flowId)}, input) }; element?.addEventListener(${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
+${bindings.map((binding) => `{ const element = graphElement(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement, gesture = (event as CustomEvent).detail?.kyroGesture ? (event as CustomEvent).detail : undefined; const input = gesture ?? (event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.type === 'file' ? target.files?.[0] : target?.value ?? ''); void runGraph(${JSON.stringify(binding.flowId)}, input) }; graphListen(element, ${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
 const graphPath = () => decodeURIComponent(location.hash.slice(1) || ${JSON.stringify(project.pages[0]?.path ?? "/")})
 const graphPageMatches = (pagePath?: string) => !pagePath || graphPath() === pagePath
 const graphRunPageLoads = () => { ${automatic.filter((item) => item.trigger === "pageLoad").map((item) => `if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)})`).join("; ")} }
 graphRunPageLoads()
 addEventListener('hashchange', graphRunPageLoads)
-${automatic.filter((item) => item.trigger === "timer").map((item) => `setInterval(() => { if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)}) }, ${item.interval})`).join("\n")}`;
+${automatic.filter((item) => item.trigger === "timer").map((item) => `setInterval(() => { if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)}) }, ${item.interval})`).join("\n")}
+${automatic.filter((item) => item.trigger === "online" || item.trigger === "offline").map((item) => `addEventListener(${JSON.stringify(item.trigger)}, () => { if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)}) })`).join("\n")}
+${automatic.filter((item) => item.trigger === "pageVisible" || item.trigger === "pageHidden").map((item) => `document.addEventListener('visibilitychange', () => { if (graphPageMatches(${JSON.stringify(item.pagePath)}) && (${JSON.stringify(item.trigger)} === 'pageVisible') === !document.hidden) void runGraph(${JSON.stringify(item.flowId)}) })`).join("\n")}
+${automatic.filter((item) => item.trigger === "deviceShake").map((item, index) => `{ let graphLastShake${index} = 0; addEventListener('devicemotion', (event) => { const value = event.accelerationIncludingGravity, strength = Math.abs(value?.x ?? 0) + Math.abs(value?.y ?? 0) + Math.abs(value?.z ?? 0); if (strength > 28 && Date.now() - graphLastShake${index} > 1200 && graphPageMatches(${JSON.stringify(item.pagePath)})) { graphLastShake${index} = Date.now(); void runGraph(${JSON.stringify(item.flowId)}, { x: value?.x, y: value?.y, z: value?.z }) } }) }`).join("\n")}`;
 }
 
 export async function downloadGeneratedApp(project: Project) {

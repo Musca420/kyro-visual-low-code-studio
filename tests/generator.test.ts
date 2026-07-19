@@ -34,6 +34,28 @@ describe("web generator", () => {
     expect(pkg.dependencies["@capacitor/local-notifications"]).toBe("^8.0.0");
     expect(files["scripts/configure-android.mjs"]).toContain("android.permission.POST_NOTIFICATIONS");
   });
+
+  it("deriva capacità native, dipendenze e permessi Android dal grafo", () => {
+    const project = createProject("Native graph export");
+    project.pages.push({ id: "home", name: "Home", path: "/", components: [] });
+    project.exportConfig = { target: "android", capacitor: true, android: { packageId: "studio.kyro.nativegraph", appName: "Native graph", orientation: "any", themeColor: "#00b8c8", versionName: "1.0.0", versionCode: 1, permissions: [], statusBarStyle: "dark", keyboardResize: true, backButton: true } };
+    project.flows.push({ id: "device", name: "Device", nodes: [
+      { id: "event", type: "event", label: "Tap", position: { x: 0, y: 0 }, config: { trigger: "pageLoad", pageId: "home" } },
+      { id: "permission", type: "requestPermission", label: "Permission", position: { x: 1, y: 0 }, config: { permission: "camera", rationale: "Take a profile photo" } },
+      { id: "platform", type: "platformCondition", label: "Android 15", position: { x: 2, y: 0 }, config: { platform: "android", minVersion: "15" } },
+      { id: "photo", type: "nativeAction", label: "Photo", position: { x: 3, y: 0 }, config: { capability: "camera", action: "takePhoto" } },
+    ], edges: [
+      { id: "1", source: "event", target: "permission", path: "success" },
+      { id: "2", source: "permission", target: "platform", path: "success" },
+      { id: "3", source: "platform", target: "photo", path: "success" },
+    ] });
+    const files = generateFiles(project), pkg = JSON.parse(files["package.json"]);
+    expect(pkg.dependencies).toMatchObject({ "@capacitor/camera": "^8.0.0", "@capacitor/device": "^8.0.0" });
+    expect(files["src/native.ts"]).toContain("Camera.getPhoto");
+    expect(files["src/main.ts"]).toContain("requestNativePermission");
+    expect(files["src/main.ts"]).toContain("graphPlatformMatches");
+    expect(files["scripts/configure-android.mjs"]).toContain("android.permission.CAMERA");
+  });
   it("mantiene la navigazione mobile configurata nell'app esportata", () => {
     const project = createProject("Mobile routes");
     project.pages.push(
@@ -169,16 +191,24 @@ describe("web generator", () => {
     const input = makeComponent("input");
     input.id = "search";
     input.events.change = "search-flow";
-    project.pages.push({ id: "page", name: "Home", path: "/", components: [input] });
+    const button = makeComponent("button");
+    button.id = "hold";
+    button.events.longPress = "hold-flow";
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [input, button] });
     project.flows.push(
       { id: "search-flow", name: "Cerca", nodes: [{ id: "change", type: "event", label: "Quando cambia", position: { x: 0, y: 0 }, config: { trigger: "change", componentId: "search" } }, { id: "ui", type: "updateUI", label: "Cambia campo", position: { x: 1, y: 0 }, config: { componentId: "search", operation: "background", value: "#22d3ee" } }], edges: [{ id: "edge", source: "change", target: "ui", path: "success" }] },
+      { id: "hold-flow", name: "Tieni premuto", nodes: [{ id: "hold-event", type: "event", label: "Pressione lunga", position: { x: 0, y: 0 }, config: { trigger: "longPress", componentId: "hold" } }], edges: [] },
       { id: "load-flow", name: "Carica", nodes: [{ id: "load", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } }], edges: [] },
       { id: "timer-flow", name: "Aggiorna", nodes: [{ id: "timer", type: "event", label: "Timer", position: { x: 0, y: 0 }, config: { trigger: "timer", interval: "1200" } }], edges: [] },
+      { id: "online-flow", name: "Online", nodes: [{ id: "online", type: "event", label: "Online", position: { x: 0, y: 0 }, config: { trigger: "online", pageId: "page" } }], edges: [] },
     );
     const source = generateFiles(project)["src/main.ts"];
-    expect(source).toContain('addEventListener("change"');
+    expect(source).toContain('graphListen(element, "change"');
+    expect(source).toContain('graphListen(element, "longPress"');
+    expect(source).toContain("name === 'longPress'");
     expect(source).toContain('void runGraph("load-flow")');
     expect(source).toContain('setInterval(() => { if (graphPageMatches(undefined)) void runGraph("timer-flow") }, 1200)');
+    expect(source).toContain('addEventListener("online"');
     expect(source).toContain("current.type === 'updateUI'");
     expect(source).toContain("typeof value === 'object'");
     expect(source).toContain("Object.fromEntries(new FormData");
@@ -469,6 +499,7 @@ describe("web generator", () => {
     expect(files["server/index.mjs"]).toContain("text/event-stream");
     expect(files[".env.example"]).toContain("AUTH_SECRET=");
     expect(files["index.html"]).toContain('rel="manifest"');
-    expect(files["project.frontend-editor.json"]).not.toContain("API_TOKEN=");
+    expect(files["project.kyro.json"]).not.toContain("API_TOKEN=");
+    expect(files["project.frontend-editor.json"]).toBe(files["project.kyro.json"]);
   });
 });

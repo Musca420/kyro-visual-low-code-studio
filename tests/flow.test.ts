@@ -300,4 +300,27 @@ describe('flow runtime', () => {
     const missing = await runFlow(one, { input: { projectId: 'missing' }, insert: async () => undefined, refresh: async () => undefined, query: async () => records })
     expect(missing.at(-1)?.message).toBe('Record missing non trovato')
   })
+
+  it('esegue permessi, condizioni di piattaforma e capacità native come nodi generici', async () => {
+    const native: Flow = { id: 'native', name: 'Device capability', nodes: [
+      { id: 'event', type: 'event', label: 'Tap', position: { x: 0, y: 0 }, config: {} },
+      { id: 'permission', type: 'requestPermission', label: 'Camera permission', position: { x: 1, y: 0 }, config: { permission: 'camera', rationale: 'Scan a code' } },
+      { id: 'platform', type: 'platformCondition', label: 'Android 15+', position: { x: 2, y: 0 }, config: { platform: 'android', minVersion: '15' } },
+      { id: 'camera', type: 'nativeAction', label: 'Take photo', position: { x: 3, y: 0 }, config: { capability: 'camera', action: 'takePhoto' } },
+      { id: 'denied', type: 'notify', label: 'Denied', position: { x: 2, y: 1 }, config: { message: 'Permission denied' } },
+    ], edges: [
+      { id: '1', source: 'event', target: 'permission', path: 'success' },
+      { id: '2', source: 'permission', target: 'platform', path: 'success' },
+      { id: '3', source: 'permission', target: 'denied', path: 'error' },
+      { id: '4', source: 'platform', target: 'camera', path: 'success' },
+      { id: '5', source: 'platform', target: 'denied', path: 'error' },
+    ] }
+    const requestPermission = vi.fn(async () => true), nativeAction = vi.fn(async () => ({ path: 'photo.jpg' })), notify = vi.fn()
+    const success = await runFlow(native, { input: '', insert: async () => undefined, refresh: async () => undefined, requestPermission, platformInfo: () => ({ platform: 'android', version: '15' }), nativeAction, notify })
+    expect(requestPermission).toHaveBeenCalledWith('camera', 'Scan a code')
+    expect(nativeAction).toHaveBeenCalledWith('camera', 'takePhoto', expect.objectContaining({ matches: true }), expect.objectContaining({ capability: 'camera' }))
+    expect(success.at(-1)?.value).toEqual({ path: 'photo.jpg' })
+    await runFlow(native, { input: '', insert: async () => undefined, refresh: async () => undefined, requestPermission: () => false, platformInfo: () => ({ platform: 'android', version: '15' }), nativeAction, notify })
+    expect(notify).toHaveBeenCalledWith('Permission denied', 'error')
+  })
 })

@@ -1,9 +1,12 @@
+const windowsSign = require("./windows-sign.cjs");
+
 module.exports = {
   outDir: "desktop-dist",
   packagerConfig: {
     asar: false,
-    name: "FrontendEditor",
-    executableName: "frontend-editor",
+    name: "Kyro",
+    executableName: "kyro",
+    ...(windowsSign ? { windowsSign } : {}),
     ignore: [
       /^\/.git($|\/)/,
       /^\/android-builds($|\/)/,
@@ -11,6 +14,7 @@ module.exports = {
       /^\/desktop-dist($|\/)/,
       /^\/e2e($|\/)/,
       /^\/generated-app($|\/)/,
+      /^\/node_modules\/\.vite($|\/)/,
       /^\/.live-browser-profile($|\/)/,
       /^\/out($|\/)/,
       /^\/playwright-report($|\/)/,
@@ -19,7 +23,7 @@ module.exports = {
     ],
   },
   makers: [
-    { name: "@electron-forge/maker-squirrel", config: { name: "frontend_editor" } },
+    { name: "@electron-forge/maker-squirrel", config: { name: "kyro_studio", ...(windowsSign ? { windowsSign } : {}) } },
     { name: "@electron-forge/maker-zip", platforms: ["darwin"] },
     { name: "@electron-forge/maker-deb", config: {} },
     { name: "@electron-forge/maker-rpm", config: {} },

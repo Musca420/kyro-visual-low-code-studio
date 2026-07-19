@@ -1,0 +1,3 @@
+interface:
+  display_name: "Kyro Live Context"
+  short_description: "Read only the active visual graph slice"

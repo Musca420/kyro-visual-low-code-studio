@@ -268,7 +268,7 @@ export function importExistingFolder(
     throw new Error("Nessun file sorgente supportato trovato nella cartella.");
   const stack = detectStack(files);
   const exact = files.find((file) =>
-    file.path.endsWith("project.frontend-editor.json"),
+    file.path.endsWith("project.kyro.json") || file.path.endsWith("project.frontend-editor.json"),
   );
   const now = new Date().toISOString();
   if (exact) {

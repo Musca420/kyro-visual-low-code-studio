@@ -1,4 +1,5 @@
 import type { EditorComponent, Project } from "./model";
+import { nativeCapabilities, nativeCapability, nativeNodeIssue } from "./nativeCapabilities";
 
 export type CapabilityIssue = {
   id: string;
@@ -179,6 +180,25 @@ export function resolveCapabilities(
         confirmationRequired: true,
       },
     });
+  const connectedFlowIds = new Set(Object.values(component.events));
+  const connectedNodes = project.flows.filter((flow) => connectedFlowIds.has(flow.id)).flatMap((flow) => flow.nodes);
+  for (const requested of component.intent.permissions) {
+    const capability = nativeCapability(requested) ?? nativeCapabilities.find((item) => item.permissions.includes(requested));
+    const configured = connectedNodes.some((node) => node.type === "nativeAction" && node.config.capability === capability?.id);
+    if (capability && !configured) issues.push({
+      id: `native-${capability.id}`,
+      kind: "native",
+      title: `${capability.label} is not connected`,
+      explanation: `${component.name} declares that it needs ${capability.label}, but its actions do not contain the required device node yet.`,
+      target: "flow",
+      plan: {
+        requirements: [...capability.permissions.map((permission) => `Permission: ${permission}`), ...Object.keys(capability.packages).map((dependency) => `Extension: ${dependency}`)],
+        alternatives: capability.platforms.includes("web") ? ["Use the supported web API", "Use the Android device capability", "Remove this requirement"] : ["Use the Android device capability", "Remove this requirement"],
+        costNote: capability.externalApproval ? "This uses a community extension. Kyro will review and ask before installing it." : "This capability has no Kyro fee; external services may have their own terms.",
+        confirmationRequired: capability.externalApproval,
+      },
+    });
+  }
   for (const state of component.intent.requiredStates) {
     const types: Record<typeof state, EditorComponent["type"][]> = {
       loading: ["loader", "skeleton"],
@@ -227,6 +247,12 @@ export function inspectFlowNodeProgram(
     errors.push("Scegli o crea il modulo protetto eseguito da questo nodo.");
   if (node.type === "http" && !node.config.url)
     errors.push("Inserisci l'indirizzo HTTP o HTTPS del servizio.");
+  const nativeIssue = nativeNodeIssue(node);
+  if (nativeIssue) errors.push(nativeIssue);
+  if (node.type === "requestPermission" && !node.config.permission)
+    errors.push("Choose the permission to request.");
+  if (node.type === "platformCondition" && !node.config.platform)
+    errors.push("Choose a platform for this condition.");
   const nodeById = (id: string) => flow.nodes.find((item) => item.id === id);
   return {
     nodeId,
@@ -288,7 +314,7 @@ export function inspectDataSourceProgram(
 }
 
 function generatedFiles(project: Project, origin: "component" | "flow" | "data") {
-  const files = ["project.frontend-editor.json", "src/main.ts"];
+  const files = ["project.kyro.json", "project.frontend-editor.json", "src/main.ts"];
   if (origin === "component") files.push("src/style.css");
   if (origin !== "component" && project.dataSources.some((source) => source.provider === "generated"))
     files.push("server/index.mjs");

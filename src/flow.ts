@@ -13,6 +13,9 @@ export type FlowContext = {
   updateUI?: (componentId: string, operation: string, value: string) => Promise<void> | void
   notify?: (message: string, level: string) => Promise<void> | void
   localNotification?: (title: string, body: string, delayMs: number) => Promise<void> | void
+  requestPermission?: (permission: string, rationale: string) => Promise<boolean> | boolean
+  nativeAction?: (capability: string, action: string, value: unknown, config: Record<string, string>) => Promise<unknown> | unknown
+  platformInfo?: () => Promise<{ platform: string; version: string }> | { platform: string; version: string }
   runModule?: (moduleId: string, value: unknown) => Promise<unknown> | unknown
   getState?: (key: string) => unknown
   setState?: (key: string, value: unknown) => void
@@ -52,7 +55,9 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.config.breakpoint === 'true' && breakpointMatches(value, node.config.breakpointWhen, node.config.breakpointValue)) await context.onBreakpoint?.(node.id, value)
       if (node.type === 'readInput') value = context.input
       if (node.type === 'validate') validate(value, node.config.field, node.config.rule, node.config.value, node.config.message)
-      const conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
+      let conditionResult = node.type === 'condition' ? matches(value, node.config.field, node.config.operator, node.config.value) : undefined
+      if (node.type === 'requestPermission') { const granted = await required(context.requestPermission, 'Permission requests are not available')(node.config.permission || '', node.config.rationale || ''); value = { permission: node.config.permission, granted }; conditionResult = granted }
+      if (node.type === 'platformCondition') { const info = await required(context.platformInfo, 'Platform information is not available')(); conditionResult = platformMatches(info, node.config.platform, node.config.minVersion, node.config.maxVersion); value = { ...info, matches: conditionResult } }
       const switchPath = node.type === 'switch' ? switchCase(value, node.config.field, node.config.cases) : undefined
       let loopPath: string | undefined
       if (node.type === 'loop') {
@@ -94,6 +99,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'updateUI') await required(context.updateUI, 'Aggiornamento interfaccia non disponibile')(node.config.componentId || '', node.config.operation || 'show', node.config.value || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'localNotification') await required(context.localNotification, 'Notifiche locali non disponibili')(node.config.title || 'Promemoria', node.config.body || String(value ?? ''), Math.min(604800000, Math.max(0, Number(node.config.delayMs) || 0)))
+      if (node.type === 'nativeAction') value = await guarded(Promise.resolve(required(context.nativeAction, 'Device actions are not available')(node.config.capability || '', node.config.action || '', value, node.config)), context)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
       path = loopPath ?? switchPath ?? (conditionResult === false ? 'error' : 'success')
       push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value, durationMs: Math.max(0, clock() - nodeStarted) })
@@ -188,6 +194,14 @@ const switchCase = (value: unknown, key = '', cases = '') => {
 }
 
 const breakpointMatches = (value: unknown, when = 'always', expected = '') => when === 'always' || (when === 'equals' ? String(value) === expected : when === 'contains' ? String(value).toLowerCase().includes(expected.toLowerCase()) : false)
+
+const platformMatches = (info: { platform: string; version: string }, platform = '', minimum = '', maximum = '') => {
+  if (platform && info.platform.toLowerCase() !== platform.toLowerCase()) return false
+  const current = Number.parseInt(info.version, 10), min = minimum ? Number.parseInt(minimum, 10) : undefined, max = maximum ? Number.parseInt(maximum, 10) : undefined
+  if (min !== undefined && (!Number.isFinite(current) || current < min)) return false
+  if (max !== undefined && (!Number.isFinite(current) || current > max)) return false
+  return true
+}
 
 async function prepareFile(value: unknown, maxMb: number, accept = '') {
   if (!(value instanceof File)) throw new Error('Scegli un file prima di continuare')

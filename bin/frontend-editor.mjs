@@ -10,11 +10,11 @@ const folderArgument = process.argv.slice(2).find((value) => !value.startsWith("
 const candidate = resolve(folderArgument ?? process.cwd());
 const info = await stat(candidate).catch(() => undefined);
 if (!info?.isDirectory()) {
-  console.error(`Frontend Editor: la cartella non esiste: ${candidate}`);
+  console.error(`Kyro: the folder does not exist: ${candidate}`);
   process.exit(2);
 }
 if (process.argv.includes("--check")) {
-  console.log(`Frontend Editor aprirà: ${candidate}`);
+  console.log(`Kyro will open: ${candidate}`);
   process.exit(0);
 }
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";

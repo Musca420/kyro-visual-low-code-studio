@@ -3,7 +3,7 @@ import { installPlugin, listPlugins, removePlugin } from './db'
 import type { PluginManifest, Project } from './model'
 
 const example: PluginManifest = {
-  id: 'example.focus-theme', name: 'Focus Theme', version: '1.0.0', author: 'Frontend Editor',
+  id: 'example.focus-theme', name: 'Focus Theme', version: '1.0.0', author: 'Kyro',
   compatibility: '1.x', dependencies: [], permissions: ['components', 'flows', 'data', 'themes'],
   contributions: [
     { kind: 'component', id: 'focus-card', label: 'Focus card', componentType: 'card', props: { label: 'Focus card' }, styles: { background: '#102a2f', color: '#e6fffb', borderColor: '#22d3ee', borderWidth: '1px', borderStyle: 'solid', boxShadow: '0 16px 38px #06181d40' } },
