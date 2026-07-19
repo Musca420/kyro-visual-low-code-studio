@@ -1,5 +1,7 @@
 # Kyro — Visual Low-Code Studio
 
+> OpenAI Build Week 2026 · Developer Tools track. See [hackathon compliance](./HACKATHON_COMPLIANCE.md), the binding [NexusField validation plan](./final_plan.md), and the [visual release evidence](./DAILYFLOW_VISUAL_RELEASE_REPORT.md).
+
 **Run reusable flow** passes the current value into another visual flow and returns its final value to the calling graph. The guided target list excludes the current flow; preview and generated code share cycle detection and a maximum nesting depth. This keeps recurring behavior as readable Node-RED-style building blocks instead of duplicated chains.
 
 A local-first visual low-code editor for responsive interfaces, deterministic Node-RED-style flows, IndexedDB data, native capabilities, and independent TypeScript/Vite or Android exports.
