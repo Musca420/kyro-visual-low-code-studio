@@ -29,6 +29,9 @@ test("genera e compila Android esclusivamente dal percorso guidato", async ({
   await expect(
     page.locator(".environment-list li").filter({ hasText: "Android SDK" }),
   ).toHaveClass(/ok/);
+  const previousJobIds = new Set(await page.evaluate(async () =>
+    (await fetch("/api/android/jobs").then((response) => response.json())).map((job: { id: string }) => job.id),
+  ));
   await page.getByRole("button", { name: "Prepara progetto Android" }).click();
   const status = page.locator(".android-result");
   let finalJob: {
@@ -40,12 +43,12 @@ test("genera e compila Android esclusivamente dal percorso guidato", async ({
   await expect
     .poll(
       async () => {
-        finalJob = await page.evaluate(async () => {
+        finalJob = await page.evaluate(async (knownIds) => {
           const jobs = await fetch("/api/android/jobs").then((response) =>
             response.json(),
           );
-          return jobs.at(-1) ?? {};
-        });
+          return jobs.findLast((job: { id: string }) => !knownIds.includes(job.id)) ?? {};
+        }, [...previousJobIds]);
         return finalJob.status;
       },
       { timeout: 900_000 },

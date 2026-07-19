@@ -46,7 +46,7 @@ Prove del layout Essenziale: `artifacts/frontend-editor-canva-essential-layout-d
 - `npm run export:sample` e `npm run build` in `generated-app`: export materializzato e compilato indipendentemente, incluso il runtime autenticazione del grafo.
 - `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
 - `npx playwright test`: 47 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
-- `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 75 secondi; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
+- `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 54 secondi il 19 luglio 2026; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
 - `RUN_PACKAGED_DESKTOP=1`: 1 smoke test dedicato superato; eseguibile Windows avviato indipendentemente e cartella progetto aperta.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
 - `npm run desktop:test`: 2/2, renderer di produzione e apertura cartella nella shell Electron.
@@ -84,6 +84,7 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - React Flow poteva adattare soltanto il nodo appena montato, produrre una viewport vuota dopo una cancellazione o confondere click e drag; ora non sposta automaticamente il grafo durante la configurazione, “Mostra tutto” usa i bounds del modello, “Nodi nel flow” seleziona e centra sempre ogni passo, il corpo seleziona senza intercettare le porte e le handle hanno un target più grande. I percorsi flow critici sono stati ripetuti in parallelo e la suite completa è verde.
 - Cambiare contenitore richiedeva il selettore “Dentro” e conservava coordinate assolute potenzialmente invisibili: livelli e canvas accettano ora il drag di elementi esistenti, evidenziano il target, rifiutano cicli e normalizzano la posizione su tutti i breakpoint; nesting, uscita e undo/redo sono riprodotti dal browser.
 - Riordinare elementi annidati richiedeva i piccoli pulsanti su/gi e non indicava chiaramente la destinazione: il pannello Livelli ora distingue rilascio prima, dentro e dopo, applica lo spostamento come singola operazione annullabile e conserva lo stesso ordine in preview.
+- Il collaudo Android poteva associare il nuovo clic a una build precedente già completata quando il server conservava più job: ora registra gli ID esistenti, segue esclusivamente il job appena creato e ha ricompilato realmente l'APK in 54 secondi.
 
 ## Limiti esterni e rischi residui
 
