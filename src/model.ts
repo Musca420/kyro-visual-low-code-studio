@@ -251,6 +251,7 @@ export const flowNodeTypes = [
   "openModal",
   "updateUI",
   "notify",
+  "localNotification",
   "module",
   "log",
 ] as const;

@@ -1879,6 +1879,10 @@ function Editor({
       openModal: (componentId, operation) => { modal = { componentId, operation }; },
       updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
       notify: (message, kind) => { notification = message; level = kind; },
+      localNotification: (title, body, delayMs) => {
+        notification = `Promemoria programmato: ${title}${body ? ` · ${body}` : ""} (${Math.round(delayMs / 1000)} s)`;
+        level = "success";
+      },
       signOut: () => { notification = "Sessione chiusa nella preview"; level = "success"; },
       runModule: (moduleId, value) => {
         const module = project.codeModules.find((item) => item.id === moduleId);

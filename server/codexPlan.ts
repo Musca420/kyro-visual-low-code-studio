@@ -116,6 +116,32 @@ export function quickNavigationFlowPlan(prompt: string, context: Record<string, 
   return `Piano immediato: collega ${String(context.componentName ?? componentId)} alla pagina ${destination.name} con un flow visuale annullabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
+export function quickLocalNotificationPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/(?:notifica locale|promemoria)/i.test(prompt)) return undefined;
+  const componentId = String(context.componentId ?? ""), pageId = String(context.pageId ?? "");
+  if (!componentId || !pageId) return undefined;
+  const componentType = String(context.componentType ?? "button");
+  const trigger = ["input", "select", "checkbox", "switch"].includes(componentType) ? "change" : "click";
+  const title = prompt.match(/titolo\s+[“"']?(.+?)[”"']?(?:\s+e\s+(?:testo|messaggio)|[.;]|$)/i)?.[1]?.trim() || "Promemoria";
+  const body = prompt.match(/(?:testo|messaggio)\s+[“"']?(.+?)[”"']?(?:\s+(?:tra|dopo)\s+\d+|[.;]|$)/i)?.[1]?.trim() || "Hai qualcosa da completare";
+  const amount = Number(prompt.match(/(?:tra|dopo)\s+(\d+(?:[.,]\d+)?)/i)?.[1]?.replace(",", ".") || 0);
+  const unit = prompt.match(/(?:tra|dopo)\s+\d+(?:[.,]\d+)?\s*(millisecondi|secondi|minuti|ore|giorni)/i)?.[1]?.toLowerCase();
+  const multiplier = unit?.startsWith("millisecond") ? 1 : unit?.startsWith("minut") ? 60000 : unit?.startsWith("or") ? 3600000 : unit?.startsWith("giorn") ? 86400000 : 1000;
+  const delayMs = String(Math.min(604800000, Math.max(0, Math.round((amount || 2) * multiplier))));
+  const flowId = `notify-${slug(componentId)}`.slice(0, 80);
+  const flowExists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = flowExists ? [] : [
+    { type: "add_flow", args: { flowId, name: `Notifica da ${String(context.componentName ?? componentId)}` } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-event`, type: "event", label: trigger === "change" ? "Quando cambia" : "Al click", position: { x: 0, y: 0 }, config: { trigger, componentId } } } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-notification`, type: "localNotification", label: "Programma promemoria", position: { x: 240, y: 0 }, config: { title, body, delayMs } } } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-success`, type: "notify", label: "Conferma", position: { x: 480, y: 0 }, config: { message: "Promemoria programmato", level: "success" } } } },
+    { type: "connect_nodes", args: { flowId, source: `${flowId}-event`, target: `${flowId}-notification`, path: "success" } },
+    { type: "connect_nodes", args: { flowId, source: `${flowId}-notification`, target: `${flowId}-success`, path: "success" } },
+  ];
+  operations.push({ type: "set_component_event", pageId, args: { componentId, event: trigger, flowId } });
+  return `Piano immediato: collega ${String(context.componentName ?? componentId)} a una notifica locale riutilizzabile, verificabile e annullabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
 type IndexedComponent = { id: string; name: string; type: string; parentId?: string };
 
 export function quickDashboardPlan(prompt: string, context: Record<string, unknown>) {

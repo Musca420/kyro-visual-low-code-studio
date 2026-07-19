@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickHabitsPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
+import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
 
 describe("approved Codex plan", () => {
+  it("crea una notifica locale generica dal componente selezionato", () => {
+    const operations = approvedOperations(quickLocalNotificationPlan("Quando lo attivo programma una notifica locale tra 2 secondi con titolo Promemoria e testo La giornata ti aspetta", {
+      componentId: "notifications-toggle", componentName: "Promemoria", componentType: "checkbox", pageId: "settings", flowIndex: [],
+    }));
+    expect(operations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "localNotification", config: expect.objectContaining({ delayMs: "2000" }) }) }) }),
+      expect.objectContaining({ type: "set_component_event", args: expect.objectContaining({ componentId: "notifications-toggle", event: "change" }) }),
+    ]));
+  });
   it("estrae solo una lista compatta di operazioni tipizzate", () => {
     expect(approvedOperations('Piano\nFRONTEND_EDITOR_OPERATIONS=[{"type":"set_responsive_style","args":{"componentId":"title","breakpoint":"mobile","property":"lineHeight","value":"1.1"}}]')).toHaveLength(1);
     expect(approvedOperations("FRONTEND_EDITOR_OPERATIONS=not-json")).toBeUndefined();

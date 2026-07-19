@@ -27,8 +27,20 @@ describe('preview component markup', () => {
     expect(renderComponent(select)).toContain('<option>Alta</option>')
   })
 
+  it('rende checkbox e radio come controlli compatti dentro una riga accessibile', () => {
+    const checkbox = makeComponent('checkbox')
+    checkbox.id = 'notifications'
+    checkbox.props.label = 'Notifiche locali'
+    const html = renderComponent(checkbox)
+    expect(html).toContain('class="choice-control"')
+    expect(html).toContain('data-component="notifications"')
+    expect(html).toContain('id="preview-notifications-control"')
+    expect(html).toContain('<span>Notifiche locali</span>')
+  })
+
   it('crea una navigazione mobile generica dalla configurazione del progetto', () => {
     const project = createProject('App mobile')
+    project.pages.push({ id: 'settings', name: 'Impostazioni', path: '/settings', components: [] })
     project.appConfig.mobileBottomNavigation = {
       enabled: true,
       items: [{ label: 'Home & lavoro', path: '/home' }, { label: 'Dati', path: '/data' }],
@@ -37,5 +49,8 @@ describe('preview component markup', () => {
     expect(html).toContain('data-fe-page="/home"')
     expect(html).toContain('Home &amp; lavoro')
     expect(html).toContain('data-fe-page="/data" aria-current="page"')
+    expect(html).toContain('[data-flow-status]')
+    expect(html).toContain('class="app-nav-more"')
+    expect(html).toContain('data-fe-page="/settings"')
   })
 })

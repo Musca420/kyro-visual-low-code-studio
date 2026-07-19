@@ -20,6 +20,15 @@ const flow: Flow = {
 }
 
 describe('flow runtime', () => {
+  it('programma una notifica locale tramite il contesto tipizzato', async () => {
+    const flow: Flow = { id: 'reminder', name: 'Promemoria', nodes: [
+      { id: 'event', type: 'event', label: 'Click', position: { x: 0, y: 0 }, config: {} },
+      { id: 'notification', type: 'localNotification', label: 'Programma', position: { x: 1, y: 0 }, config: { title: 'Promemoria', body: 'Controlla la giornata', delayMs: '2500' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'notification', path: 'success' }] };
+    const localNotification = vi.fn();
+    await runFlow(flow, { input: '', insert: async () => undefined, refresh: async () => undefined, localNotification });
+    expect(localNotification).toHaveBeenCalledWith('Promemoria', 'Controlla la giornata', 2500);
+  });
   it('runs the success path deterministically', async () => {
     const insert = vi.fn(async (value: unknown) => ({ text: String(value) }))
     const refresh = vi.fn(async () => undefined)

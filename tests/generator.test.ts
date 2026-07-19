@@ -4,11 +4,27 @@ import { createProject, makeComponent } from "../src/model";
 import { createTemplateProject } from "../src/templates";
 
 describe("web generator", () => {
+  it("esporta notifiche locali web e Android solo quando il grafo le usa", () => {
+    const project = createProject("Reminder app");
+    project.exportConfig.target = "android";
+    project.pages.push({ id: "page", name: "Home", path: "/", components: [] });
+    project.flows.push({ id: "reminder", name: "Promemoria", nodes: [
+      { id: "event", type: "event", label: "Click", position: { x: 0, y: 0 }, config: {} },
+      { id: "notification", type: "localNotification", label: "Programma", position: { x: 1, y: 0 }, config: { title: "Promemoria", body: "Controlla", delayMs: "2000" } },
+    ], edges: [{ id: "edge", source: "event", target: "notification", path: "success" }] });
+    const files = generateFiles(project), pkg = JSON.parse(files["package.json"]);
+    expect(files["src/main.ts"]).toContain("graphScheduleLocalNotification");
+    expect(files["src/main.ts"]).toContain("LocalNotifications.schedule");
+    expect(files["src/main.ts"]).toContain("current.type === 'localNotification'");
+    expect(pkg.dependencies["@capacitor/local-notifications"]).toBe("^8.0.0");
+    expect(files["scripts/configure-android.mjs"]).toContain("android.permission.POST_NOTIFICATIONS");
+  });
   it("mantiene la navigazione mobile configurata nell'app esportata", () => {
     const project = createProject("Mobile routes");
     project.pages.push(
       { id: "home", name: "Home", path: "/home", components: [] },
       { id: "data", name: "Dati", path: "/data", components: [] },
+      { id: "settings", name: "Impostazioni", path: "/settings", components: [] },
     );
     project.appConfig.mobileBottomNavigation = {
       enabled: true,
@@ -18,6 +34,9 @@ describe("web generator", () => {
     expect(files["index.html"]).toContain('class="app-bottom-nav"');
     expect(files["src/main.ts"]).toContain("aria-current");
     expect(files["src/style.css"]).toContain("safe-area-inset-bottom");
+    expect(files["index.html"]).toContain('class="app-nav-more"');
+    expect(files["index.html"]).toContain('href="#/settings"');
+    expect(files["src/main.ts"]).toContain(".app-nav-more");
   });
 
   it("mantiene tipi, vincoli e opzioni dei form visuali", () => {
@@ -33,6 +52,11 @@ describe("web generator", () => {
     expect(html).toContain('placeholder="Dettagli"');
     expect(html).toContain('<option>Concluso</option>');
     expect(html).toContain('aria-live="polite" hidden');
+    const checkbox = makeComponent("checkbox"); checkbox.id = "enabled"; checkbox.props.label = "Attivo";
+    project.pages[0].components.push(checkbox);
+    const choiceFiles = generateFiles(project);
+    expect(choiceFiles["index.html"]).toContain('id="enabled" class="choice-control"');
+    expect(choiceFiles["src/style.css"]).toContain(".choice-control input{width:20px");
   });
 
   it("isola più sorgenti e binding nel runtime esportato", () => {

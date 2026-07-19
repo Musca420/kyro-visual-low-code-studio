@@ -12,6 +12,7 @@ export type FlowContext = {
   openModal?: (componentId: string, operation: "open" | "close") => Promise<void> | void
   updateUI?: (componentId: string, operation: string, value: string) => Promise<void> | void
   notify?: (message: string, level: string) => Promise<void> | void
+  localNotification?: (title: string, body: string, delayMs: number) => Promise<void> | void
   runModule?: (moduleId: string, value: unknown) => Promise<unknown> | unknown
   getState?: (key: string) => unknown
   setState?: (key: string, value: unknown) => void
@@ -92,6 +93,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '', node.config.operation === 'close' ? 'close' : 'open')
       if (node.type === 'updateUI') await required(context.updateUI, 'Aggiornamento interfaccia non disponibile')(node.config.componentId || '', node.config.operation || 'show', node.config.value || '')
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
+      if (node.type === 'localNotification') await required(context.localNotification, 'Notifiche locali non disponibili')(node.config.title || 'Promemoria', node.config.body || String(value ?? ''), Math.min(604800000, Math.max(0, Number(node.config.delayMs) || 0)))
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
       path = loopPath ?? switchPath ?? (conditionResult === false ? 'error' : 'success')
       push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value, durationMs: Math.max(0, clock() - nodeStarted) })
