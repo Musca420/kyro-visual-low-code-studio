@@ -39,4 +39,23 @@ describe('structured editor operations', () => {
     const removed = applyEditorOperation(wrapped, 'page', { type: 'remove_component', args: { componentId: stack.id, confirmed: true } })
     expect(removed.pages[0].components).toHaveLength(0)
   })
+
+  it('riordina e riposiziona un componente tra fratelli in una sola operazione', () => {
+    const project = createProject('Reorder')
+    const column = makeComponent('stack')
+    const first = { ...makeComponent('button'), name: 'Uno', parentId: column.id }
+    const second = { ...makeComponent('button'), name: 'Due', parentId: column.id }
+    const third = { ...makeComponent('button'), name: 'Tre' }
+    project.pages.push({ id: 'page', name: 'Home', path: '/', components: [column, first, second, third] })
+
+    const moved = applyEditorOperation(project, 'page', {
+      type: 'move_component',
+      args: { componentId: third.id, parentId: column.id, index: 1 },
+    })
+    const siblings = moved.pages[0].components.filter((item) => item.parentId === column.id)
+
+    expect(siblings.map((item) => item.name)).toEqual(['Uno', 'Tre', 'Due'])
+    expect(siblings[1].styles.desktop).toMatchObject({ position: 'relative', left: '0px', top: '0px' })
+    expect(project.pages[0].components.find((item) => item.id === third.id)?.parentId).toBeUndefined()
+  })
 })

@@ -1076,11 +1076,13 @@ label {
 }
 .design-canvas.drop-target,
 .canvas-component.drop-target > .component-children,
-.layers button.drop-target {
+.layers button.drop-inside {
   outline: 3px solid var(--accent);
   outline-offset: -3px;
   background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
 }
+.layers button.drop-before { box-shadow: inset 0 3px var(--accent); }
+.layers button.drop-after { box-shadow: inset 0 -3px var(--accent); }
 .canvas-component input,
 .canvas-component button {
   width: 100%;

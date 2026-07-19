@@ -1922,6 +1922,25 @@ function Editor({
     setSelected([componentId]);
     setFeedback(parentId ? "Elemento spostato nel contenitore" : "Elemento riportato sulla pagina");
   };
+  const moveRelative = (componentId: string, targetId: string, after: boolean) => {
+    if (!currentPage || componentId === targetId) return;
+    const source = currentPage.components.find((item) => item.id === componentId);
+    const target = currentPage.components.find((item) => item.id === targetId);
+    if (!source || !target) return;
+    const parentId = target.parentId;
+    if (parentId && (parentId === componentId || descendantIds(currentPage.components, componentId).has(parentId))) {
+      setFeedback("Questo spostamento creerebbe un ciclo");
+      return;
+    }
+    const siblings = currentPage.components.filter((item) => item.parentId === parentId && item.id !== componentId);
+    const targetIndex = siblings.findIndex((item) => item.id === targetId);
+    change((value) => applyEditorOperation(value, pageId, {
+      type: "move_component",
+      args: { componentId, parentId: parentId || null, index: targetIndex + (after ? 1 : 0) },
+    }));
+    setSelected([componentId]);
+    setFeedback(after ? "Elemento spostato dopo" : "Elemento spostato prima");
+  };
   const wrap = (componentId: string) =>
     change((value) =>
       applyEditorOperation(value, pageId, {
@@ -2587,6 +2606,7 @@ function Editor({
                   selected={selected}
                   onSelect={(id) => setSelected([id])}
                   onReparent={reparent}
+                  onMoveRelative={moveRelative}
                 />
               ))}
             </ol>
@@ -3631,14 +3651,16 @@ function LayerBranch({
   selected,
   onSelect,
   onReparent,
+  onMoveRelative,
 }: {
   branch: ComponentBranch;
   level: number;
   selected: string[];
   onSelect: (id: string) => void;
   onReparent: (componentId: string, parentId?: string) => void;
+  onMoveRelative: (componentId: string, targetId: string, after: boolean) => void;
 }) {
-  const [dropActive, setDropActive] = useState(false);
+  const [dropMode, setDropMode] = useState<"before" | "inside" | "after">();
   const acceptsChildren = canContain(branch.component);
   return (
     <li
@@ -3649,21 +3671,29 @@ function LayerBranch({
       <button
         draggable
         style={{ paddingLeft: `${8 + (level - 1) * 16}px` }}
-        className={`${selected.includes(branch.component.id) ? "active" : ""} ${dropActive ? "drop-target" : ""}`}
+        className={`${selected.includes(branch.component.id) ? "active" : ""} ${dropMode ? `drop-${dropMode}` : ""}`}
         onClick={() => onSelect(branch.component.id)}
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = "move";
           event.dataTransfer.setData("application/frontend-existing", branch.component.id);
         }}
-        onDragOver={acceptsChildren ? (event) => { event.preventDefault(); event.stopPropagation(); setDropActive(true); } : undefined}
-        onDragLeave={() => setDropActive(false)}
-        onDrop={acceptsChildren ? (event) => {
+        onDragOver={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          setDropActive(false);
+          const ratio = (event.clientY - event.currentTarget.getBoundingClientRect().top) / event.currentTarget.getBoundingClientRect().height;
+          setDropMode(ratio < 0.28 ? "before" : ratio > 0.72 || !acceptsChildren ? "after" : "inside");
+        }}
+        onDragLeave={() => setDropMode(undefined)}
+        onDrop={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const mode = dropMode ?? (acceptsChildren ? "inside" : "after");
+          setDropMode(undefined);
           const existingId = event.dataTransfer.getData("application/frontend-existing");
-          if (existingId) onReparent(existingId, branch.component.id);
-        } : undefined}
+          if (!existingId) return;
+          if (mode === "inside") onReparent(existingId, branch.component.id);
+          else onMoveRelative(existingId, branch.component.id, mode === "after");
+        }}
       >
         <span>{icon(branch.component.type)}</span>
         {branch.component.name}
@@ -3678,6 +3708,7 @@ function LayerBranch({
               selected={selected}
               onSelect={onSelect}
               onReparent={onReparent}
+              onMoveRelative={onMoveRelative}
             />
           ))}
         </ol>

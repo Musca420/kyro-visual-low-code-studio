@@ -1,6 +1,6 @@
 # Review finale verificata
 
-Data: 18 luglio 2026. Questa review confronta il repository con `PROJECT_SPEC.md`, `aggiunta.md` e `DESKTOP_PRODUCT_ROADMAP.md`. Le prove automatiche usano esclusivamente i controlli disponibili nell'interfaccia per creare componenti e record; non scrivono direttamente nel database del progetto.
+Data: 19 luglio 2026. Questa review confronta il repository con `PROJECT_SPEC.md`, `aggiunta.md` e `DESKTOP_PRODUCT_ROADMAP.md`. Le prove automatiche usano esclusivamente i controlli disponibili nell'interfaccia per creare componenti e record; non scrivono direttamente nel database del progetto.
 
 ## Esito
 
@@ -14,7 +14,7 @@ La Definition of Done MVP e il verticale obbligatorio sono verificati. Frontend 
 | Landing rifinita, responsive, due interazioni e ZIP | `e2e/scenarios.spec.ts` | Superato |
 | Dashboard con cinque record inseriti dalla preview, CRUD, ricerca, filtro, ordinamento, KPI, validazione e toast | `e2e/scenarios.spec.ts` | Superato |
 | Sito multipagina con form, dati, modal, ricerca e navigazione mobile | `e2e/rich-website.spec.ts` | Superato |
-| Canvas Canva-like, preview ed export indipendente | `e2e/canva-canvas.spec.ts`, `e2e/canva-column-resize.spec.ts` | 4 percorsi superati |
+| Canvas Canva-like, gerarchia, preview ed export indipendente | `e2e/canva-canvas.spec.ts`, `e2e/canva-column-resize.spec.ts`, `e2e/canva-nesting.spec.ts`, `e2e/canva-layer-reorder.spec.ts` | Spostamento, resize, colonne, nesting e ordine verificati |
 | App generata autonoma con flow derivato dal grafo, modulo tipizzato e proprio IndexedDB | `npm run test:generated` | Superato |
 | Backend esportato persistente con CRUD reale | `tests/generatedBackend.test.ts` | Superato |
 | Android guidato, APK e dispositivo | `e2e/android-build.spec.ts` e screenshot in `artifacts/` | Eseguito nel collaudo dedicato |
@@ -23,12 +23,14 @@ Screenshot principali: `artifacts/frontend-editor-canva-columns.png`, `artifacts
 
 Prova aggiuntiva delle colonne proporzionali: `artifacts/frontend-editor-canva-flexible-columns.png`.
 Prova aggiuntiva del nesting visuale: `artifacts/frontend-editor-canva-nesting.png`.
+Prova aggiuntiva del riordino livelli: `artifacts/frontend-editor-canva-layer-reorder.png`.
 
 ## Controlli finali riproducibili
 
-- `npm run check`: typecheck e lint senza errori, 13 file Vitest e 70 test superati, build Vite riuscita.
+- `npm run check`: typecheck e lint senza errori, 13 file Vitest e 71 test superati, build Vite riuscita.
 - `npx playwright test e2e/canva-column-resize.spec.ts --workers=1`: cinque card trascinate, 1–12 colonne, proporzioni via mouse e tastiera, limiti anti-collasso, undo/redo, desktop/mobile, preview e riapertura.
 - `npx playwright test e2e/canva-nesting.spec.ts --workers=1`: livello trascinato dentro/fuori da un container, gerarchia, normalizzazione del posizionamento, undo/redo e DOM preview verificati.
+- `npx playwright test e2e/canva-layer-reorder.spec.ts --workers=1`: tre livelli riordinati prima/dopo con drag-and-drop, undo/redo e ordine del DOM preview verificati.
 - `npx playwright test e2e/capability-resolver-plan.spec.ts --workers=1`: prerequisiti, alternative, costi e conferma mostrati da un intento pagamento senza configurare servizi.
 - `npx playwright test e2e/flow-profile.spec.ts --workers=1`: tempi per nodo visibili, run persistita e replay riaperto dopo il riavvio del progetto.
 - `npx playwright test e2e/get-record-flow.spec.ts --workers=1`: caricamento singolo per ID configurato e ritrovato alla riapertura; runtime ed export coperti dai test unitari.
@@ -41,7 +43,7 @@ Prova aggiuntiva del nesting visuale: `artifacts/frontend-editor-canva-nesting.p
 - `npx playwright test e2e/runtime-observability.spec.ts --workers=1`: 1 test browser superato; errore e oggetto runtime trasferiti dall'iframe isolato alla console visuale.
 - `npm run export:sample` e `npm run build` in `generated-app`: export materializzato e compilato indipendentemente, incluso il runtime autenticazione del grafo.
 - `npm run export:specialized`, install/build in `out/experience-landing` e `out/experience-dashboard`, quindi `npm run test:specialized`: 2 export indipendenti compilati e 2 test browser superati sul flow aggiunto al grafo.
-- `npx playwright test`: 45 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
+- `npx playwright test`: 46 test browser superati; 3 test dedicati saltati per variabili d'ambiente intenzionali.
 - `RUN_ANDROID_E2E=1`: 1 test dedicato superato in 75 secondi; struttura Capacitor/Gradle, permessi, versione, splash e nuovo APK verificati. Il successivo tentativo di installazione ADB sul dispositivo collegato è stato annullato due volte dal telefono con `INSTALL_FAILED_USER_RESTRICTED` perché la conferma USB non è stata accettata.
 - `RUN_PACKAGED_DESKTOP=1`: 1 smoke test dedicato superato; eseguibile Windows avviato indipendentemente e cartella progetto aperta.
 - `npx playwright test e2e/design-system.spec.ts --workers=1 --repeat-each=5`: 5/5 superati dopo la correzione del contrasto transitorio.
@@ -59,7 +61,7 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - **Error handling:** flow con rami success/error, diagnostica preview, stati loading/empty/error e messaggi guidati del Capability Resolver.
 - **Accessibilità e responsive:** contrasto minimo 4,5:1 nei percorsi coperti, focus visibile, nomi accessibili, tastiera e assenza di overflow mobile. Non equivale a una certificazione WCAG esterna.
 - **Export:** JSON/ZIP aperti, TypeScript leggibile, Web/PWA/Capacitor, backend opzionale, file importati preservati e app avviabile fuori dall'editor.
-- **Prestazioni:** manipolazione diretta evita transizioni di layout durante drag/resize; generatori e pannelli pesanti sono caricati separatamente. Il bundle principale resta circa 464 kB non compresso ed è un rischio di ottimizzazione, non un blocco funzionale osservato.
+- **Prestazioni:** manipolazione diretta evita transizioni di layout durante drag/resize; generatori e pannelli pesanti sono caricati separatamente. Il bundle principale resta circa 510 kB non compresso ed è un rischio di ottimizzazione, non un blocco funzionale osservato.
 - **Dipendenze:** runtime senza advisory. `npm audit` completo segnala advisory `tar` e `tmp` nella toolchain di sviluppo Electron Forge, senza fix disponibile al momento; non sono dipendenze caricate dal renderer/runtime esportato.
 
 ## Difetti trovati e corretti durante il collaudo
@@ -79,6 +81,7 @@ I tre skip della suite generale sono espliciti: build Android completa (`RUN_AND
 - Le colonne visuali potevano essere solo preset 1–3 e una proporzione estrema schiacciava il contenuto: ora arrivano a dodici, hanno separatori mouse/tastiera per breakpoint e una larghezza minima; cinque card, undo/redo, preview e riapertura sono verificati.
 - React Flow poteva adattare soltanto il nodo appena montato, produrre una viewport vuota dopo una cancellazione o confondere click e drag; ora non sposta automaticamente il grafo durante la configurazione, “Mostra tutto” usa i bounds del modello, “Nodi nel flow” seleziona e centra sempre ogni passo, il corpo seleziona senza intercettare le porte e le handle hanno un target più grande. I percorsi flow critici sono stati ripetuti in parallelo e la suite completa è verde.
 - Cambiare contenitore richiedeva il selettore “Dentro” e conservava coordinate assolute potenzialmente invisibili: livelli e canvas accettano ora il drag di elementi esistenti, evidenziano il target, rifiutano cicli e normalizzano la posizione su tutti i breakpoint; nesting, uscita e undo/redo sono riprodotti dal browser.
+- Riordinare elementi annidati richiedeva i piccoli pulsanti su/gi e non indicava chiaramente la destinazione: il pannello Livelli ora distingue rilascio prima, dentro e dopo, applica lo spostamento come singola operazione annullabile e conserva lo stesso ordine in preview.
 
 ## Limiti esterni e rischi residui
 

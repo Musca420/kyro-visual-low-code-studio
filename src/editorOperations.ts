@@ -71,6 +71,16 @@ export function applyEditorOperation(project: Project, pageId: string, operation
       tablet: resetPlacement({ ...component.styles.desktop, ...component.styles.tablet }),
       mobile: resetPlacement({ ...component.styles.desktop, ...component.styles.mobile }),
     } : { ...component.styles, desktop: { ...component.styles.desktop, marginLeft: String(args.x ?? component.styles.desktop.marginLeft), marginTop: String(args.y ?? component.styles.desktop.marginTop) } } }
+    if ('index' in args) {
+      const page = project.pages.find((item) => item.id === pageId)!
+      const without = page.components.filter((item) => item.id !== component.id)
+      const siblings = without.filter((item) => item.parentId === parentId)
+      const index = Number(args.index)
+      if (!Number.isInteger(index) || index < 0 || index > siblings.length) throw new Error('Indice non valido')
+      const insertion = index < siblings.length ? without.findIndex((item) => item.id === siblings[index].id) : siblings.length ? without.findIndex((item) => item.id === siblings.at(-1)!.id) + 1 : without.length
+      without.splice(insertion, 0, nextComponent)
+      return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components: without } : item) })
+    }
   } else if (operation.type === 'resize_component') {
     nextComponent = { ...component, styles: { ...component.styles, desktop: { ...component.styles.desktop, width: String(args.width ?? component.styles.desktop.width), minHeight: String(args.height ?? component.styles.desktop.minHeight) } } }
   } else if (operation.type === 'bind_component_data') {
