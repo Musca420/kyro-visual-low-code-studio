@@ -58,4 +58,37 @@ describe('structured editor operations', () => {
     expect(siblings[1].styles.desktop).toMatchObject({ position: 'relative', left: '0px', top: '0px' })
     expect(project.pages[0].components.find((item) => item.id === third.id)?.parentId).toBeUndefined()
   })
+
+  it('crea una schermata completa con componente, dati, flow e configurazione app', () => {
+    const project = createProject('DailyFlow')
+    project.pages.push({ id: 'home', name: 'Oggi', path: '/', components: [] })
+    const next = applyEditorOperation(project, 'home', { type: 'apply_editor_transaction', args: { operations: [
+      { type: 'add_page', args: { pageId: 'tasks', name: 'Attivita', path: '/attivita' } },
+      { type: 'add_component', pageId: 'tasks', args: { componentId: 'task-title', componentType: 'title', name: 'Titolo attivita', props: { label: 'Attivita' }, styles: { mobile: { fontSize: '28px' } } } },
+      { type: 'set_component_state_style', pageId: 'tasks', args: { componentId: 'task-title', state: 'focus', property: 'outline', value: '3px solid #22d3ee' } },
+      { type: 'create_data_source', args: { sourceId: 'tasks-db', name: 'Attivita', provider: 'indexeddb', collection: 'tasks', schema: { id: 'string', title: 'string', completed: 'boolean' } } },
+      { type: 'add_flow', args: { flowId: 'load-tasks', name: 'Carica attivita' } },
+      { type: 'add_flow_node', args: { flowId: 'load-tasks', node: { id: 'load-event', type: 'event', label: 'Apertura pagina', position: { x: 0, y: 0 }, config: { trigger: 'pageLoad' } } } },
+      { type: 'set_app_config', args: { patch: { offline: true } } },
+      { type: 'set_export_config', args: { patch: { target: 'android', capacitor: true, android: { packageId: 'com.dailyflow.app', appName: 'DailyFlow', orientation: 'any', themeColor: '#123b5d', versionName: '1.0.0', versionCode: 1, permissions: ['notifications'], statusBarStyle: 'dark', keyboardResize: true, backButton: true } } } },
+    ] } })
+
+    expect(next.pages.find((page) => page.id === 'tasks')?.components[0]).toMatchObject({ id: 'task-title', props: { label: 'Attivita' } })
+    expect(next.pages.find((page) => page.id === 'tasks')?.components[0].styles.mobile.fontSize).toBe('28px')
+    expect(next.dataSources[0]).toMatchObject({ id: 'tasks-db', provider: 'indexeddb' })
+    expect(next.flows[0].nodes[0].config.trigger).toBe('pageLoad')
+    expect(next.appConfig.offline).toBe(true)
+    expect(next.exportConfig.target).toBe('android')
+  })
+
+  it('rinomina un livello tramite la proprieta name', () => {
+    const project = createProject('DailyFlow')
+    const component = makeComponent('title')
+    project.pages.push({ id: 'home', name: 'Oggi', path: '/', components: [component] })
+    const renamed = applyEditorOperation(project, 'home', {
+      type: 'set_component_property',
+      args: { componentId: component.id, property: 'name', value: 'Saluto e data' },
+    })
+    expect(renamed.pages[0].components[0].name).toBe('Saluto e data')
+  })
 })

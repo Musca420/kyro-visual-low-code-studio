@@ -4,9 +4,10 @@ import {
   spawn,
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   changedPaths,
@@ -14,11 +15,23 @@ import {
   snapshotWorkspace,
   type WorkspaceSnapshot,
 } from "./server/workspaceTransactions";
+import { approvedOperations, quickDashboardPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
 
 const workspaceRoot = resolve(process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
+const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
+const workspaceSkillsRoot = resolve(workspaceRoot, ".agents/skills");
+const skillsReady = bundledSkillsRoot === workspaceSkillsRoot
+  ? Promise.resolve()
+  : mkdir(workspaceSkillsRoot, { recursive: true }).then(() =>
+      cp(bundledSkillsRoot, workspaceSkillsRoot, { recursive: true, force: true }),
+    );
 
 const run = promisify(execFile);
-const codexCommand = process.platform === "win32" ? process.execPath : "codex";
+const nodeCommand =
+  process.platform === "win32" && process.versions.electron
+    ? resolve(process.env.ProgramFiles ?? "C:/Program Files", "nodejs/node.exe")
+    : process.execPath;
+const codexCommand = process.platform === "win32" ? nodeCommand : "codex";
 const codexPrefix =
   process.platform === "win32"
     ? [
@@ -28,15 +41,15 @@ const codexPrefix =
         ),
       ]
     : [];
-const npmCommand = process.platform === "win32" ? process.execPath : "npm";
+const npmCommand = process.platform === "win32" ? nodeCommand : "npm";
 const npmPrefix =
   process.platform === "win32"
-    ? [resolve(process.execPath, "../node_modules/npm/bin/npm-cli.js")]
+    ? [resolve(nodeCommand, "../node_modules/npm/bin/npm-cli.js")]
     : [];
-const npxCommand = process.platform === "win32" ? process.execPath : "npx";
+const npxCommand = process.platform === "win32" ? nodeCommand : "npx";
 const npxPrefix =
   process.platform === "win32"
-    ? [resolve(process.execPath, "../node_modules/npm/bin/npx-cli.js")]
+    ? [resolve(nodeCommand, "../node_modules/npm/bin/npx-cli.js")]
     : [];
 const exists = (path: string) =>
   access(path)
@@ -232,6 +245,7 @@ function liveBridge() {
             const tree = Array.isArray(state.componentTree)
                 ? (state.componentTree as Record<string, unknown>[])
                 : [],
+              toolArgs = (input.args ?? {}) as Record<string, unknown>,
               flatTree = flattenComponentTree(tree),
               flows = Array.isArray(state.flows)
                 ? (state.flows as Record<string, unknown>[])
@@ -253,14 +267,14 @@ function liveBridge() {
                   (state.selectedComponentIds as unknown[]).includes(item.id),
                 ),
               get_component: () =>
-                flatTree.find((item) => item.id === input.componentId),
+                flatTree.find((item) => item.id === toolArgs.componentId),
               get_component_tree: () => tree,
               get_component_layout: () =>
                 (state.layouts as Record<string, unknown> | undefined)?.[
-                  String(input.componentId)
+                  String(toolArgs.componentId)
                 ],
               get_computed_styles: () =>
-                flatTree.find((item) => item.id === input.componentId)?.styles,
+                flatTree.find((item) => item.id === toolArgs.componentId)?.styles,
               get_page_flows: () => flows,
               get_component_flows: () =>
                 flows.filter(
@@ -269,7 +283,7 @@ function liveBridge() {
                     (flow.nodes as Record<string, unknown>[]).some(
                       (node) =>
                         (node.config as Record<string, unknown> | undefined)
-                          ?.componentId === input.componentId,
+                          ?.componentId === toolArgs.componentId,
                     ),
                 ),
               get_data_sources: () => state.dataSources,
@@ -291,14 +305,33 @@ function liveBridge() {
               "set_component_property",
               "set_component_style",
               "set_responsive_style",
+              "set_component_state_style",
+              "set_component_accessibility",
+              "set_component_intent",
+              "set_theme_token",
               "add_component",
               "remove_component",
               "reorder_component",
               "wrap_component",
               "create_flow",
+              "add_flow",
+              "update_flow",
+              "remove_flow",
+              "add_flow_node",
+              "update_flow_node",
+              "remove_flow_node",
               "connect_nodes",
+              "remove_flow_edge",
               "bind_component_data",
               "create_data_source",
+              "update_data_source",
+              "remove_data_source",
+              "add_page",
+              "update_page",
+              "remove_page",
+              "set_project_property",
+              "set_app_config",
+              "set_export_config",
               "apply_editor_transaction",
               "undo_last_transaction",
               "open_preview",
@@ -826,7 +859,7 @@ function liveBridge() {
             );
           }
           if (url.pathname === "/api/codex/jobs" && request.method === "POST") {
-            if (agent)
+            if (agent || agentJobId)
               return reply(response, 409, { error: "Codex sta già lavorando" });
             const input = await body(request),
               prompt = String(input.prompt ?? ""),
@@ -860,7 +893,65 @@ function liveBridge() {
               };
             jobs.set(id, job);
             agentJobId = id;
-            const instruction = `${mode === "plan" ? "Analizza e proponi un piano. Non modificare file." : "Applica la modifica richiesta e verifica il risultato. Limita ogni scrittura alla cartella di lavoro."}\n\n${prompt}\n\nContesto Frontend Editor:\n${JSON.stringify(input.context)}`;
+            const quickPlan = mode === "plan"
+              ? quickVisualPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickStructurePlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickDashboardPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+              : undefined;
+            if (quickPlan) {
+              job.status = "completed";
+              job.finishedAt = new Date().toISOString();
+              job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: quickPlan } }) + "\n";
+              agentJobId = undefined;
+              return reply(response, 202, { jobId: id, status: job.status });
+            }
+            await skillsReady;
+            const bridgeBase = `${url.protocol}//${request.headers.host ?? "127.0.0.1:4173"}`;
+            const approvedPlan = String(input.approvedPlan ?? "").trim();
+            const liveBridgeContract = mode === "plan" ? `
+Usa soltanto il context pack Frontend Editor fornito qui sotto. Non eseguire comandi, non leggere file, non interrogare il bridge e non acquisire screenshot.
+Produci un piano breve basato su ID stabili, operazioni tipizzate e criteri osservabili. Il progetto visuale e il suo grafo sono la source of truth.
+Operazioni disponibili: add_page, update_page, remove_page, add_component, move_component, resize_component, reorder_component, wrap_component, remove_component, set_component_property, set_responsive_style, set_component_state_style, set_component_accessibility, set_component_intent, set_theme_token, add_flow, update_flow, remove_flow, add_flow_node, update_flow_node, remove_flow_node, connect_nodes, remove_flow_edge, create_data_source, update_data_source, remove_data_source, bind_component_data, set_project_property, set_app_config, set_export_config. Ogni operazione usa {"type":"...","pageId":"... opzionale","args":{...}}.
+Firme essenziali: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; set_component_property args={componentId,property,value}, dove property="name" rinomina il livello; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; remove_component args={componentId,confirmed:true}; add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config e set_export_config args={patch:{...}}. Usa componentType tra quelli gia presenti nel context o: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
+Termina sempre con una sola riga FRONTEND_EDITOR_OPERATIONS=<json> contenente da 1 a 50 operazioni valide. Usa pageId al livello dell'operazione quando il target non e la pagina attiva. Per stili multipli o breakpoint crea piu operazioni set_responsive_style.
+` : `
+Il progetto visuale aperto e il suo grafo sono la source of truth. Non modificare codice generato per una modifica rappresentabile nell'editor.
+Usa $frontend-editor-live e la skill di dominio pertinente installata in .agents/skills. Non usare la skill Browser per modificare Frontend Editor.
+Il Live Bridge e disponibile nella variabile FRONTEND_EDITOR_LIVE_URL. Invoca gli strumenti tramite node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs; non stampare il payload completo di /api/live/status.
+Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi e senza acquisire screenshot tramite il bridge. Per modifiche correlate usa una sola apply_editor_transaction. Lo script attende il transactionId. Non chiamare /api/live/state.
+`;
+            const instruction = `${
+              mode === "plan"
+                ? "Proponi il piano minimo. Non modificare file o progetto."
+                : "Applica subito il piano approvato al grafo visuale tramite Live Bridge."
+            }\n${liveBridgeContract}${approvedPlan ? `\nPiano approvato:\n${approvedPlan}\n` : ""}\nRichiesta originale:\n${prompt}\n\nContext pack indicizzato:\n${JSON.stringify(input.context)}`;
+            const operations = mode === "apply" ? approvedOperations(input.approvedPlan) : undefined;
+            if (operations) {
+              const context = (input.context ?? {}) as Record<string, unknown>;
+              const command = {
+                id: crypto.randomUUID(),
+                projectId,
+                pageId: String(context.pageId ?? current.pageId),
+                revision: Number(input.revision),
+                tool: "apply_editor_transaction",
+                args: { operations },
+                status: "pending" as "pending" | "applied" | "error",
+                error: undefined as string | undefined,
+                result: undefined as unknown,
+              };
+              commands.push(command);
+              void (async () => {
+                for (let attempt = 0; attempt < 300 && command.status === "pending" && job.status === "running"; attempt += 1)
+                  await new Promise((done) => setTimeout(done, 100));
+                if (job.status === "cancelled") return;
+                job.finishedAt = new Date().toISOString();
+                job.status = command.status === "applied" ? "completed" : "error";
+                job.errors = command.error ?? (command.status === "pending" ? "La transazione visuale non ha risposto" : "");
+                job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: command.status === "applied" ? `Modifica applicata al grafo. Transazione ${command.id}.` : job.errors } }) + "\n";
+                agentJobId = undefined;
+              })();
+              return reply(response, 202, { jobId: id, status: job.status });
+            }
             agent = spawn(
               codexCommand,
               [
@@ -870,13 +961,18 @@ function liveBridge() {
                 "exec",
                 "--json",
                 "--ephemeral",
+                "--skip-git-repo-check",
                 "-C",
                 workspaceRoot,
                 "-s",
                 mode === "plan" ? "read-only" : "workspace-write",
                 "-",
               ],
-              { cwd: workspaceRoot, stdio: "pipe" },
+              {
+                cwd: workspaceRoot,
+                stdio: "pipe",
+                env: { ...process.env, FRONTEND_EDITOR_LIVE_URL: bridgeBase },
+              },
             );
             agent.stdout.on("data", (chunk) => {
               job.output += chunk;
@@ -1112,6 +1208,7 @@ function liveBridge() {
                 "exec",
                 "--json",
                 "--ephemeral",
+                "--skip-git-repo-check",
                 "-C",
                 workspaceRoot,
                 "-s",

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor Flow"
+  short_description: "Interazioni e logica visuale a nodi"
+  default_prompt: "Use $frontend-editor-flow to build and verify the requested visual behavior."

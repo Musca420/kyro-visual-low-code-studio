@@ -50,6 +50,7 @@ async function readWorkspace(root) {
 
 let mainWindow;
 let currentProject = projectArgument();
+let agentWorkspace;
 let localServer;
 let updateStatus = { state: "disabled", message: "Canale aggiornamenti non configurato" };
 
@@ -100,16 +101,25 @@ app.on("second-instance", (_event, argv) => {
 });
 
 app.whenReady().then(async () => {
-  if (!currentProject) {
-    currentProject = join(app.getPath("userData"), "workspace");
-    await mkdir(currentProject, { recursive: true });
-  }
+  agentWorkspace = currentProject || join(app.getPath("userData"), "workspace");
+  await mkdir(agentWorkspace, { recursive: true });
   ipcMain.handle("desktop:workspace", () => currentProject ? readWorkspace(currentProject) : null);
   ipcMain.handle("desktop:update-status", () => updateStatus);
+  ipcMain.handle("desktop:capture-region", async (_event, value) => {
+    if (!mainWindow || mainWindow.isDestroyed()) throw new Error("Finestra non disponibile");
+    const bounds = mainWindow.getContentBounds();
+    const x = Math.max(0, Math.floor(Number(value?.x) || 0));
+    const y = Math.max(0, Math.floor(Number(value?.y) || 0));
+    const width = Math.min(bounds.width - x, Math.max(1, Math.ceil(Number(value?.width) || 1)));
+    const height = Math.min(bounds.height - y, Math.max(1, Math.ceil(Number(value?.height) || 1)));
+    if (width <= 0 || height <= 0) throw new Error("Area di cattura non valida");
+    const image = await mainWindow.webContents.capturePage({ x, y, width, height });
+    return { dataUrl: image.toDataURL(), width, height };
+  });
   ipcMain.handle("desktop:reveal", async (_event, path) => {
-    if (!currentProject || typeof path !== "string") return false;
+    if (!agentWorkspace || typeof path !== "string") return false;
     const target = resolve(path);
-    if (target !== currentProject && !target.startsWith(`${currentProject}\\`) && !target.startsWith(`${currentProject}/`)) return false;
+    if (target !== agentWorkspace && !target.startsWith(`${agentWorkspace}\\`) && !target.startsWith(`${agentWorkspace}/`)) return false;
     shell.showItemInFolder(target);
     return true;
   });
@@ -132,7 +142,7 @@ app.whenReady().then(async () => {
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
-  const editorUrl = process.env.FRONTEND_EDITOR_DEV_URL || await startLocalServer(currentProject);
+  const editorUrl = process.env.FRONTEND_EDITOR_DEV_URL || await startLocalServer(agentWorkspace);
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const allowed = url.startsWith(editorUrl);
     if (!allowed) event.preventDefault();

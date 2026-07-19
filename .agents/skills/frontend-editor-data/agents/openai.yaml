@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor Data"
+  short_description: "Dati locali, API, CRUD e binding"
+  default_prompt: "Use $frontend-editor-data to create the required data model, bindings, and CRUD flows."

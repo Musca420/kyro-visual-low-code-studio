@@ -3,7 +3,7 @@
   "description": "Editor visuale local-first per siti e applicazioni con Codex integrato.",
   "author": "Frontend Editor contributors",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.11",
   "main": "electron/main.cjs",
   "bin": {
     "frontend-editor": "bin/frontend-editor.mjs"

@@ -13,9 +13,9 @@ Invocare con `POST /api/live/tools/<nome>` e JSON `{projectId,pageId,revision,ar
 
 Letture: `get_editor_status`, `get_active_project`, `get_active_page`, `get_current_selection`, `get_component`, `get_component_tree`, `get_component_layout`, `get_computed_styles`, `get_page_flows`, `get_component_flows`, `get_data_sources`, `get_runtime_state`, `get_validation_errors`, `get_console_errors`, `validate_project`.
 
-Operazioni asincrone: `move_component`, `resize_component`, `set_component_property`, `set_component_style`, `set_responsive_style`, `add_component`, `remove_component`, `reorder_component`, `create_flow`, `connect_nodes`, `bind_component_data`, `create_data_source`, `apply_editor_transaction`, `undo_last_transaction`, `open_preview`, `capture_canvas`, `capture_preview`. Le catture restituiscono `{dataUrl,width,height}` nel campo `result` della transazione e non cambiano la revisione.
+Operazioni asincrone: `move_component`, `resize_component`, `set_component_property`, `set_component_style`, `set_responsive_style`, `set_component_state_style`, `set_component_accessibility`, `set_component_intent`, `set_theme_token`, `add_component`, `remove_component`, `reorder_component`, `wrap_component`, `add_page`, `update_page`, `remove_page`, `create_flow`, `add_flow`, `update_flow`, `remove_flow`, `add_flow_node`, `update_flow_node`, `remove_flow_node`, `connect_nodes`, `remove_flow_edge`, `bind_component_data`, `create_data_source`, `update_data_source`, `remove_data_source`, `set_project_property`, `set_app_config`, `set_export_config`, `apply_editor_transaction`, `undo_last_transaction`, `open_preview`, `capture_canvas`, `capture_preview`. Le catture restituiscono `{dataUrl,width,height}` nel campo `result` della transazione e non cambiano la revisione.
 
-Dal root del repository usare `node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs <tool> '<args-json>'`. Lo script legge automaticamente progetto, pagina e revisione correnti. `remove_component` richiede `confirmed:true`.
+Usare `node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs <tool> '<args-json>'`. Lo script legge automaticamente URL, progetto, pagina e revisione correnti e attende la transazione. Le rimozioni richiedono `confirmed:true`.
 
 ## Sessione Codex
 

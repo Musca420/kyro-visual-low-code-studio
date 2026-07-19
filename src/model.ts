@@ -441,6 +441,13 @@ export const projectSchema = z.object({
         url: z.string().url().optional(),
       }),
       offline: z.boolean(),
+      themeMode: z.enum(["light", "dark", "system"]).optional(),
+      supportedThemes: z.array(z.enum(["light", "dark"])).optional(),
+      safeArea: z.boolean().optional(),
+      mobileBottomNavigation: z.object({
+        enabled: z.boolean(),
+        items: z.array(z.object({ label: z.string(), path: z.string().startsWith("/") })),
+      }).optional(),
       environmentVariables: z.array(
         z.object({
           name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),

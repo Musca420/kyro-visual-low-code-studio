@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor App"
+  short_description: "Pagine, navigazione e struttura applicativa"
+  default_prompt: "Use $frontend-editor-app to structure pages, navigation, and application settings."

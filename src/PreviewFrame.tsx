@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useMemo, useRef } from "react";
 import type { Breakpoint, EditorComponent, Project } from "./model";
 import type { LocalRecord } from "./db";
@@ -75,7 +76,7 @@ async function rasterizePreview(html: string, width: number, height: number) {
   }
 }
 
-function renderComponent(component: EditorComponent, children = "") {
+export function renderComponent(component: EditorComponent, children = "") {
   const text = label(component);
   const fieldName = escapeHtml(component.props.fieldName || component.id);
   const common = `data-component="${component.id}" id="preview-${component.id}"${component.props.tooltip ? ` title="${escapeHtml(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
@@ -99,7 +100,7 @@ function renderComponent(component: EditorComponent, children = "") {
   if (component.type === "upload")
     return `<label>${text}<input ${common} type="file"></label>`;
   if (component.type === "progress")
-    return `<label>${text}<progress ${common} max="100" value="${escapeHtml(component.props.value || 60)}">${escapeHtml(component.props.value || 60)}%</progress></label>`;
+    return `<label>${text}<progress ${common} max="${escapeHtml(component.props.max || 100)}" value="${escapeHtml(component.props.value || 60)}">${escapeHtml(component.props.value || 60)}</progress></label>`;
   if (component.type === "table")
     return `<div ${common} class="table-scroll"><table><caption>${text}</caption><thead><tr><th>Nome</th><th>Stato</th><th>Data</th></tr></thead><tbody><tr><td>Elemento di esempio</td><td><span class="chip">Attivo</span></td><td>Oggi</td></tr></tbody></table></div>`;
   if (component.type === "chart")
@@ -119,9 +120,8 @@ function renderComponent(component: EditorComponent, children = "") {
   if (component.type === "accordion")
     return `<details ${common}><summary>${text}</summary>${children || `<p>${escapeHtml(component.props.description || "Contenuto espandibile")}</p>`}</details>`;
   if (canContain(component)) {
-    const content =
-      children ||
-      `<strong>${text}</strong>${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
+    const ownContent = `<strong>${text}</strong>${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
+    const content = `${ownContent}${children}`;
     const tag =
       component.type === "header" ||
       component.type === "footer" ||

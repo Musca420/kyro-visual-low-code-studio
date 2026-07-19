@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor Test"
+  short_description: "Preview, runtime, accessibilita e prove"
+  default_prompt: "Use $frontend-editor-test to verify the live project and collect reproducible evidence."

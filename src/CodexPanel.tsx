@@ -7,8 +7,11 @@ import {
 
 export type CodexContext = {
   projectId: string;
+  projectName: string;
+  projectBrief: unknown;
   pageId: string;
   revision: number;
+  viewport: "desktop" | "tablet" | "mobile";
   componentId: string;
   componentName: string;
   componentType: string;
@@ -22,6 +25,12 @@ export type CodexContext = {
   dataSources: unknown[];
   flows: unknown[];
   nearbyComponents: { id: string; name: string; type: string }[];
+  pageComponents: { id: string; name: string; type: string; parentId?: string; events: string[]; bound: boolean }[];
+  pages: { id: string; name: string; path: string }[];
+  flowIndex: { id: string; name: string; nodeCount: number }[];
+  appConfig: unknown;
+  exportTarget: string;
+  themeTokens: Record<string, string>;
   generatedFiles: string[];
   errors: string[];
   capabilities: unknown[];
@@ -203,7 +212,9 @@ export function CodexPanel({
     if (mode === "apply") setPlan("");
     setBusy(true);
     const startedAt = new Date().toISOString();
-    const beforeScreenshot = await captureEvidence?.().then((value) => value.dataUrl).catch(() => undefined);
+    const beforeScreenshot = mode === "apply"
+      ? await captureEvidence?.().then((value) => value.dataUrl).catch(() => undefined)
+      : undefined;
     let timelineId: string = crypto.randomUUID();
     setLiveText(mode === "plan" ? "Analisi in corso…" : "Applicazione in corso…");
     if (mode === "plan")
@@ -220,6 +231,7 @@ export function CodexPanel({
           mode,
           prompt,
           context,
+          approvedPlan: mode === "apply" ? plan : undefined,
           projectId: context.projectId,
           revision: context.revision,
         }),
@@ -263,7 +275,9 @@ export function CodexPanel({
       value = current;
       const parsed = readOutput(value.output, value.git);
       const text = parsed.text;
-      const afterScreenshot = await captureEvidence?.().then((result) => result.dataUrl).catch(() => undefined);
+      const afterScreenshot = mode === "apply"
+        ? await captureEvidence?.().then((result) => result.dataUrl).catch(() => undefined)
+        : undefined;
       const completedEntry: CodexTimelineEntry = {
         ...runningEntry,
         status: "completed",

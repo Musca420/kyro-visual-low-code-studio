@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor Design"
+  short_description: "Design visuale, responsive e accessibile"
+  default_prompt: "Use $frontend-editor-design to create and refine the selected visual interface."

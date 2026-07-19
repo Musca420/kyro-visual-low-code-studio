@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Editor Publish"
+  short_description: "Import, export web, PWA e Android"
+  default_prompt: "Use $frontend-editor-publish to import, export, build, and verify the project."

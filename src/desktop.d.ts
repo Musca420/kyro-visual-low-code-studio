@@ -16,6 +16,7 @@ interface Window {
     platform: string;
     readWorkspace: () => Promise<DesktopWorkspace | null>;
     getUpdateStatus: () => Promise<DesktopUpdateStatus>;
+    captureRegion: (bounds: { x: number; y: number; width: number; height: number }) => Promise<{ dataUrl: string; width: number; height: number }>;
     onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void) => () => void;
     onOpenProject: (listener: (path: string) => void) => () => void;
   };

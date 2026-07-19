@@ -145,6 +145,7 @@ function Dashboard({
 }) {
   const desktopImportStarted = useRef(false);
   const [name, setName] = useState("");
+  const [brief, setBrief] = useState("");
   const [error, setError] = useState("");
   const [target, setTarget] = useState<"web" | "pwa" | "android">("web");
   const [themeColor, setThemeColor] = useState("#6d5dfc");
@@ -201,6 +202,14 @@ function Dashboard({
     }`;
     project = {
       ...project,
+      state: {
+        ...project.state,
+        projectBrief: {
+          objective: brief.trim() || `Creare ${name.trim()}`,
+          audience: "Utente finale",
+          platform: target,
+        },
+      },
       theme: { tokens: { ...project.theme.tokens, primary: themeColor } },
       exportConfig:
         target === "android"
@@ -224,6 +233,7 @@ function Dashboard({
     };
     await saveProject(project);
     setName("");
+    setBrief("");
     setError("");
     await onRefresh();
     onOpen(project.id);
@@ -398,13 +408,23 @@ function Dashboard({
             placeholder="La mia applicazione"
           />
         </label>
+        <label>
+          4. Cosa deve permettere di fare?
+          <textarea
+            aria-label="Obiettivo progetto"
+            value={brief}
+            onChange={(event) => setBrief(event.target.value)}
+            placeholder="Esempio: organizzare attivita, appuntamenti e abitudini quotidiane anche offline"
+          />
+          <small>Codex usera questo obiettivo come contesto stabile in ogni pagina.</small>
+        </label>
         {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
         )}
         <div className="template-heading">
-          <p className="template-step">4. Scegli un punto di partenza</p>
+          <p className="template-step">5. Scegli un punto di partenza</p>
           <label className="template-search">
             <span className="visually-hidden">Cerca template</span>
             <input
@@ -810,8 +830,15 @@ function Editor({
     const component = contextMenu.component;
     const context: CodexContext = {
       projectId: project.id,
+      projectName: project.name,
+      projectBrief: project.state.projectBrief ?? {
+        objective: `Creare ${project.name}`,
+        audience: "Utente finale",
+        platform: project.exportConfig.target,
+      },
       pageId: currentPage.id,
       revision: project.revision,
+      viewport: breakpoint,
       componentId: component.id,
       componentName: component.name,
       componentType: component.type,
@@ -835,6 +862,19 @@ function Editor({
         .filter((item) => item.id !== component.id)
         .slice(0, 8)
         .map(({ id, name, type }) => ({ id, name, type })),
+      pageComponents: currentPage.components.map(({ id, name, type, parentId, events, binding }) => ({
+        id,
+        name,
+        type,
+        ...(parentId ? { parentId } : {}),
+        events: Object.keys(events),
+        bound: Boolean(binding),
+      })),
+      pages: project.pages.map(({ id, name, path }) => ({ id, name, path })),
+      flowIndex: project.flows.map(({ id, name, nodes }) => ({ id, name, nodeCount: nodes.length })),
+      appConfig: project.appConfig,
+      exportTarget: project.exportConfig.target,
+      themeTokens: project.theme.tokens,
       generatedFiles: [
         "src/main.ts",
         "src/style.css",
@@ -3188,6 +3228,11 @@ function Editor({
         captureEvidence={async () => {
           const canvas = document.querySelector<HTMLElement>(".design-canvas");
           if (!canvas) throw new Error("Canvas non disponibile per la prova visuale");
+          const nativeCapture = window.frontendEditorDesktop?.captureRegion;
+          if (nativeCapture) {
+            const rect = canvas.getBoundingClientRect();
+            return nativeCapture({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+          }
           return captureElement(canvas);
         }}
         onClose={() => setCodexRequest(undefined)}
@@ -3854,7 +3899,7 @@ function designContent(component: EditorComponent) {
       </figure>
     );
   if (component.type === "progress")
-    return <progress max="100" value={Number(component.props.value || 60)} />;
+    return <progress max={Number(component.props.max || 100)} value={Number(component.props.value || 60)} />;
   if (component.type === "calendar") return <input tabIndex={-1} type="date" />;
   if (component.type === "upload") return <input tabIndex={-1} type="file" />;
   if (component.type === "avatar")
