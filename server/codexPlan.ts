@@ -142,6 +142,52 @@ export function quickLocalNotificationPlan(prompt: string, context: Record<strin
   return `Piano immediato: collega ${String(context.componentName ?? componentId)} a una notifica locale riutilizzabile, verificabile e annullabile.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
+type IndexedSource = { id: string; name?: string; schema?: Record<string, unknown> };
+
+export function quickDataViewsPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/(?:calendario|statistic|grafici?|kpi).{0,60}(?:dati|dinamic|reali|collega)|(?:collega|rendi).{0,60}(?:calendario|statistic|grafici?|kpi)/i.test(prompt)) return undefined;
+  const pageId = String(context.pageId ?? "");
+  const components = Array.isArray(context.pageComponents)
+    ? context.pageComponents.filter((item): item is IndexedComponent => Boolean(item && typeof item.id === "string" && typeof item.type === "string"))
+    : [];
+  const sources = Array.isArray(context.dataSources)
+    ? context.dataSources.filter((item): item is IndexedSource => Boolean(item && typeof item.id === "string"))
+    : [];
+  if (!pageId || !components.length || !sources.length) return undefined;
+  const fieldSource = (fields: string[]) => sources.find((source) => fields.some((field) => source.schema && Object.hasOwn(source.schema, field)));
+  const taskSource = fieldSource(["dueDate", "completed", "status"]) ?? sources[0];
+  const habitSource = fieldSource(["currentStreak", "bestStreak", "completedToday"]) ?? taskSource;
+  const calendars = components.filter((component) => component.type === "calendar");
+  const charts = components.filter((component) => component.type === "chart");
+  const cards = components.filter((component) => component.type === "card");
+  if (!calendars.length && !charts.length) return undefined;
+  const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = [];
+  const bind = (component: IndexedComponent, source: IndexedSource) => operations.push({ type: "bind_component_data", pageId, args: { componentId: component.id, sourceId: source.id, state: "data" } });
+  const property = (component: IndexedComponent, name: string, value: string) => operations.push({ type: "set_component_property", pageId, args: { componentId: component.id, property: name, value } });
+  if (calendars.length) {
+    calendars.forEach((component) => { bind(component, taskSource); property(component, "dateField", "dueDate"); });
+  }
+  if (charts.length) {
+    if (cards[0]) { bind(cards[0], taskSource); property(cards[0], "metric", "completed"); property(cards[0], "metricSuffix", "attività completate"); }
+    if (cards[1]) { bind(cards[1], taskSource); property(cards[1], "metric", "active"); property(cards[1], "metricSuffix", "attività aperte"); }
+    if (cards[2]) { bind(cards[2], habitSource); property(cards[2], "metric", "maxStreak"); property(cards[2], "metricSuffix", "giorni di serie"); }
+    charts.forEach((component, index) => { const source = index === 0 ? taskSource : habitSource; bind(component, source); property(component, "metric", "completed"); });
+  }
+  const targets = [...calendars, ...cards.slice(0, charts.length ? 3 : 0), ...charts];
+  const flowId = `load-views-${slug(pageId)}`.slice(0, 80);
+  const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  if (!exists && targets.length) {
+    operations.push({ type: "add_flow", args: { flowId, name: "Carica viste dati" } });
+    operations.push({ type: "add_flow_node", args: { flowId, node: { id: `${flowId}-event`, type: "event", label: "Apertura pagina", position: { x: 0, y: 0 }, config: { trigger: "pageLoad", pageId } } } });
+    targets.forEach((component, index) => operations.push({ type: "add_flow_node", args: { flowId, node: { id: `${flowId}-refresh-${index}`, type: "refresh", label: `Aggiorna ${component.name}`, position: { x: 240 + index * 180, y: 0 }, config: { componentId: component.id } } } }));
+    targets.forEach((_component, index) => operations.push({ type: "connect_nodes", args: { flowId, source: index ? `${flowId}-refresh-${index - 1}` : `${flowId}-event`, target: `${flowId}-refresh-${index}`, path: "success" } }));
+  } else if (exists) {
+    operations.push({ type: "update_flow_node", args: { flowId, nodeId: `${flowId}-event`, patch: { config: { pageId } } } });
+  }
+  if (!operations.length || operations.length > 50) return undefined;
+  return `Piano immediato: collega ${targets.length} viste visuali alle sorgenti esistenti con metriche, calendario e refresh generici.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
 type IndexedComponent = { id: string; name: string; type: string; parentId?: string };
 
 export function quickDashboardPlan(prompt: string, context: Record<string, unknown>) {

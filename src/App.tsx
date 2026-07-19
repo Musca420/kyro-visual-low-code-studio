@@ -2808,6 +2808,7 @@ function Editor({
           >
             <FlowEditor
               flow={flow}
+              pages={project.pages}
               components={project.pages.flatMap((page) => page.components)}
               sources={project.dataSources}
               modules={project.codeModules}

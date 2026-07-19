@@ -1,7 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
+import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
 
 describe("approved Codex plan", () => {
+  it("collega grafici e KPI alle sorgenti in base allo schema, non al nome del progetto", () => {
+    const operations = approvedOperations(quickDataViewsPlan("Rendi statistiche e grafici dinamici con i dati reali", {
+      pageId: "insights", pageComponents: [
+        { id: "done", name: "Completate", type: "card" }, { id: "open", name: "Aperte", type: "card" }, { id: "streak", name: "Serie", type: "card" },
+        { id: "tasks-chart", name: "Andamento", type: "chart" }, { id: "habits-chart", name: "Costanza", type: "chart" },
+      ], dataSources: [
+        { id: "work", schema: { dueDate: "date", status: "string", completed: "boolean" } },
+        { id: "routines", schema: { completedToday: "boolean", currentStreak: "number", bestStreak: "number" } },
+      ], flowIndex: [],
+    }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "bind_component_data", args: { componentId: "tasks-chart", sourceId: "work", state: "data" } }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "bind_component_data", args: { componentId: "habits-chart", sourceId: "routines", state: "data" } }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "set_component_property", args: { componentId: "streak", property: "metric", value: "maxStreak" } }));
+  });
+  it("usa l'agenda interna del calendario senza duplicare tutti i record in una lista", () => {
+    const operations = approvedOperations(quickDataViewsPlan("Collega il calendario ai dati reali", {
+      pageId: "calendar", pageComponents: [{ id: "calendar-main", name: "Agenda", type: "calendar" }, { id: "all-items", name: "Elenco", type: "list" }],
+      dataSources: [{ id: "events", schema: { dueDate: "datetime", title: "string" } }], flowIndex: [],
+    }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "bind_component_data", args: { componentId: "calendar-main", sourceId: "events", state: "data" } }));
+    expect(operations).not.toContainEqual(expect.objectContaining({ type: "bind_component_data", args: expect.objectContaining({ componentId: "all-items" }) }));
+  });
+  it("limita alla pagina corrente anche un flow automatico già esistente", () => {
+    const operations = approvedOperations(quickDataViewsPlan("Collega il calendario ai dati reali", {
+      pageId: "calendar", pageComponents: [{ id: "calendar-main", name: "Agenda", type: "calendar" }],
+      dataSources: [{ id: "events", schema: { dueDate: "datetime", title: "string" } }],
+      flowIndex: [{ id: "load-views-calendar" }],
+    }));
+    expect(operations).toContainEqual({
+      type: "update_flow_node",
+      args: { flowId: "load-views-calendar", nodeId: "load-views-calendar-event", patch: { config: { pageId: "calendar" } } },
+    });
+  });
   it("crea una notifica locale generica dal componente selezionato", () => {
     const operations = approvedOperations(quickLocalNotificationPlan("Quando lo attivo programma una notifica locale tra 2 secondi con titolo Promemoria e testo La giornata ti aspetta", {
       componentId: "notifications-toggle", componentName: "Promemoria", componentType: "checkbox", pageId: "settings", flowIndex: [],

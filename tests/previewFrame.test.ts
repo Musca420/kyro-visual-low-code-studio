@@ -38,6 +38,16 @@ describe('preview component markup', () => {
     expect(html).toContain('<span>Notifiche locali</span>')
   })
 
+  it('prepara grafici a sette barre e calendario con agenda dinamica', () => {
+    const chart = makeComponent('chart'), calendar = makeComponent('calendar')
+    chart.id = 'trend'; calendar.id = 'agenda'
+    expect(renderComponent(chart).match(/<rect/g)).toHaveLength(7)
+    expect(renderComponent(chart)).toContain('data-kind="chart"')
+    expect(renderComponent(calendar)).toContain('data-kind="calendar"')
+    expect(renderComponent(calendar)).toContain('id="preview-agenda-control"')
+    expect(renderComponent(calendar)).toContain('<ul aria-live="polite"></ul>')
+  })
+
   it('crea una navigazione mobile generica dalla configurazione del progetto', () => {
     const project = createProject('App mobile')
     project.pages.push({ id: 'settings', name: 'Impostazioni', path: '/settings', components: [] })

@@ -4,6 +4,21 @@ import { createProject, makeComponent } from "../src/model";
 import { createTemplateProject } from "../src/templates";
 
 describe("web generator", () => {
+  it("genera calendario, grafici e KPI collegati a sorgenti reali", () => {
+    const project = createProject("Insights");
+    const calendar = makeComponent("calendar"), chart = makeComponent("chart"), kpi = makeComponent("card");
+    calendar.id = "agenda"; chart.id = "trend"; kpi.id = "completed"; kpi.props.metric = "completed"; kpi.props.metricSuffix = "completate";
+    calendar.binding = { sourceId: "tasks", state: "data" }; chart.binding = { sourceId: "tasks", state: "data" }; kpi.binding = { sourceId: "tasks", state: "data" };
+    project.pages.push({ id: "page", name: "Dati", path: "/dati", components: [calendar, chart, kpi] });
+    project.dataSources.push({ id: "tasks", name: "Attività", provider: "indexeddb", collection: "tasks", schema: { id: "string", dueDate: "datetime", completed: "boolean" }, capabilities: ["get", "query", "insert", "update", "delete", "subscribe"], secretStrategy: "none" });
+    const files = generateFiles(project), source = files["src/main.ts"];
+    expect(files["index.html"]).toContain('id="agenda" data-kind="calendar"');
+    expect(files["index.html"].match(/<rect/g)).toHaveLength(7);
+    expect(source).toContain('"kind":"calendar"');
+    expect(source).toContain('"metric":"completed"');
+    expect(source).toContain("const renderBoundData");
+    expect(source).toContain("Nessun elemento in questa data");
+  });
   it("esporta notifiche locali web e Android solo quando il grafo le usa", () => {
     const project = createProject("Reminder app");
     project.exportConfig.target = "android";
@@ -163,7 +178,7 @@ describe("web generator", () => {
     const source = generateFiles(project)["src/main.ts"];
     expect(source).toContain('addEventListener("change"');
     expect(source).toContain('void runGraph("load-flow")');
-    expect(source).toContain('setInterval(() => { void runGraph("timer-flow") }, 1200)');
+    expect(source).toContain('setInterval(() => { if (graphPageMatches(undefined)) void runGraph("timer-flow") }, 1200)');
     expect(source).toContain("current.type === 'updateUI'");
     expect(source).toContain("typeof value === 'object'");
     expect(source).toContain("Object.fromEntries(new FormData");
@@ -223,6 +238,21 @@ describe("web generator", () => {
     const source = generateFiles(project)["src/main.ts"];
     expect(source).toContain("current.config.operation === 'close'");
     expect(source).toContain("setAttribute('hidden', '')");
+  });
+
+  it("esegue i flow automatici solo nella pagina configurata", () => {
+    const project = createProject("Scoped automatic flows");
+    project.pages.push(
+      { id: "home", name: "Home", path: "/", components: [] },
+      { id: "stats", name: "Statistiche", path: "/statistiche", components: [] },
+    );
+    project.flows.push({ id: "stats-load", name: "Carica statistiche", nodes: [
+      { id: "event", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad", pageId: "stats" } },
+    ], edges: [] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain('const graphPageMatches');
+    expect(source).toContain('graphPageMatches("/statistiche")');
+    expect(source).toContain("addEventListener('hashchange', graphRunPageLoads)");
   });
 
   it("esporta il caricamento di un singolo record per ID", () => {
