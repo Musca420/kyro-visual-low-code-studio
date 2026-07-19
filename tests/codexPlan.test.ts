@@ -77,10 +77,10 @@ describe("approved Codex plan", () => {
       { id: "head", name: "Header", type: "header" }, { id: "section", name: "Section", type: "section" }, { id: "grid", name: "Grid", type: "grid" },
       ...[1, 2, 3].map((id) => ({ id: `card-${id}`, name: `Card ${id}`, type: "card" })),
     ];
-    const operations = approvedOperations(quickCrudSurfacePlan("Prepara attività con sorgente locale IndexedDB, form e lista senza flow", { pageComponents, dataSources: [] }));
+    const operations = approvedOperations(quickCrudSurfacePlan("Prepara attività con sorgente locale IndexedDB, form e lista senza flow", { projectName: "Workboard", pageComponents, dataSources: [] }));
     expect(operations).toHaveLength(27);
-    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "dailyflow-tasks" }) }));
-    expect(operations?.at(-1)).toMatchObject({ type: "bind_component_data", args: { componentId: "tasks-list", sourceId: "dailyflow-tasks" } });
+    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "workboard-tasks", name: "Attività" }) }));
+    expect(operations?.at(-1)).toMatchObject({ type: "bind_component_data", args: { componentId: "tasks-list", sourceId: "workboard-tasks" } });
   });
 
   it("compone una schermata DailyFlow dal componente selezionato", () => {
@@ -129,6 +129,7 @@ describe("approved Codex plan", () => {
 
   it("risolve localmente dati e flow delle abitudini", () => {
     const operations = approvedOperations(quickHabitsPlan("Rendi Abitudini funzionante con sorgente IndexedDB e flow visuali", {
+      projectName: "Routine Coach",
       componentId: "habit-add",
       pageComponents: [
         { id: "root", name: "Abitudini", type: "section" },
@@ -139,7 +140,7 @@ describe("approved Codex plan", () => {
       dataSources: [], flowIndex: [],
     }));
     expect(operations?.length).toBeLessThanOrEqual(50);
-    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "dailyflow-habits" }) }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "routine-coach-habits" }) }));
     expect(operations).toContainEqual({ type: "set_component_event", args: { componentId: "habits-form", event: "submit", flowId: "habits-create" } });
     expect(operations?.filter((operation) => operation.type === "add_flow")).toHaveLength(3);
   });

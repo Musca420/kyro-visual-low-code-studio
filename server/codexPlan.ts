@@ -318,10 +318,10 @@ export function quickCrudSurfacePlan(prompt: string, context: Record<string, unk
   if (!header || !section || !grid) return undefined;
   const operations: { type: string; args: Record<string, unknown> }[] = [];
   const op = (type: string, args: Record<string, unknown>) => operations.push({ type, args });
-  const sourceId = "dailyflow-tasks";
   const sources = Array.isArray(context.dataSources) ? context.dataSources as { id?: string; name?: string }[] : [];
-  if (!sources.some((source) => source.id === sourceId || /attivit|task/i.test(String(source.name))))
-    op("create_data_source", { sourceId, name: "Attività DailyFlow", provider: "indexeddb", collection: "tasks", schema: { id: "string", title: "string", description: "string", status: "string", priority: "string", category: "string", dueDate: "datetime", time: "string", notes: "string", recurring: "boolean", completed: "boolean" } });
+  const sourceId = String(sources.find((source) => /attivit|task/i.test(String(source.name)))?.id ?? `${slug(String(context.projectName ?? "project")) || "project"}-tasks`);
+  if (!sources.some((source) => source.id === sourceId))
+    op("create_data_source", { sourceId, name: "Attività", provider: "indexeddb", collection: "tasks", schema: { id: "string", title: "string", description: "string", status: "string", priority: "string", category: "string", dueDate: "datetime", time: "string", notes: "string", recurring: "boolean", completed: "boolean" } });
   items.filter((item) => item.type === "card").slice(0, 3).forEach((item) => op("remove_component", { componentId: item.id, confirmed: true }));
   [[header, "name", "Intestazione attività"], [header, "label", "Le mie attività"], [section, "name", "Gestione attività"], [section, "label", "Organizza la giornata"], [section, "description", "Crea, cerca e completa le attività anche offline."], [grid, "name", "Elenco attività"], [grid, "label", "Attività"]]
     .forEach(([component, property, value]) => op("set_component_property", { componentId: (component as IndexedComponent).id, property, value }));
@@ -352,7 +352,7 @@ export function quickCrudFlowsPlan(prompt: string, context: Record<string, unkno
   const form = components.find((item) => item.id === "tasks-form" || item.type === "form");
   const list = components.find((item) => item.id === "tasks-list" || item.type === "list");
   const sources = Array.isArray(context.dataSources) ? context.dataSources as { id?: string; name?: string }[] : [];
-  const sourceId = String(sources.find((source) => source.id === "dailyflow-tasks" || /attivit|task/i.test(String(source.name)))?.id ?? "");
+  const sourceId = String(sources.find((source) => /attivit|task/i.test(String(source.name)))?.id ?? "");
   if (!form || !list || !sourceId) return undefined;
   const existingFlows = Array.isArray(context.flowIndex) ? context.flowIndex as { id?: string }[] : [];
   const operations: { type: string; args: Record<string, unknown> }[] = [];
@@ -409,9 +409,9 @@ export function quickHabitsPlan(prompt: string, context: Record<string, unknown>
   const op = (type: string, args: Record<string, unknown>) => operations.push({ type, args });
   const node = (flowId: string, id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => op("add_flow_node", { flowId, node: { id, type, label, position: { x, y }, config } });
   const edge = (flowId: string, source: string, target: string, path = "success") => op("connect_nodes", { flowId, source, target, path });
-  const sourceId = "dailyflow-habits";
+  const sourceId = String(sources.find((source) => /abitudin|habit/i.test(String(source.name)))?.id ?? `${slug(String(context.projectName ?? "project")) || "project"}-habits`);
   if (!sources.some((source) => source.id === sourceId))
-    op("create_data_source", { sourceId, name: "Abitudini DailyFlow", provider: "indexeddb", collection: "habits", schema: { id: "string", name: "string", frequency: "string", currentStreak: "number", bestStreak: "number", completedToday: "boolean", lastCompletedAt: "datetime" } });
+    op("create_data_source", { sourceId, name: "Abitudini", provider: "indexeddb", collection: "habits", schema: { id: "string", name: "string", frequency: "string", currentStreak: "number", bestStreak: "number", completedToday: "boolean", lastCompletedAt: "datetime" } });
   components.filter((item) => /^habit-(?:water|read|move)$/.test(item.id)).forEach((item) => op("remove_component", { componentId: item.id, confirmed: true }));
   if (!components.some((item) => item.id === "habits-form")) {
     op("add_component", { componentId: "habits-form", componentType: "form", name: "Nuova abitudine", parentId: root.id, props: { label: "Nuova abitudine" }, accessibility: { label: "Modulo nuova abitudine", role: "form" } });

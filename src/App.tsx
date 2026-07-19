@@ -3166,6 +3166,7 @@ function Editor({
                 const destination = project.pages.find((page) => page.path === path);
                 if (destination) setPageId(destination.id);
               }}
+              onThemeChange={(themeMode) => change((value) => ({ ...value, appConfig: { ...value.appConfig, themeMode } }))}
               captureRequest={
                 captureCommand?.tool === "capture_preview"
                   ? captureCommand.id

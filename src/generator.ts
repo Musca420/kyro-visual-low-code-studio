@@ -18,7 +18,7 @@ function componentHtml(component: EditorComponent, children = "") {
   const fieldName = htmlEscape(component.props.fieldName || component.id);
   const attributes = `${component.props.tooltip ? ` title="${htmlEscape(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
   if (component.type === "input")
-    return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date"].includes(String(component.props.inputType)) ? htmlEscape(component.props.inputType) : "text"}" placeholder="${htmlEscape(component.props.placeholder)}" /></label>`;
+    return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date", "time"].includes(String(component.props.inputType)) ? htmlEscape(component.props.inputType) : "text"}" placeholder="${htmlEscape(component.props.placeholder)}"${component.props.required === true ? " required" : ""} /></label>`;
   if (component.type === "button")
     return `<button id="${component.id}" type="${["button", "submit", "reset"].includes(String(component.props.buttonType)) ? htmlEscape(component.props.buttonType) : "button"}"${attributes}${component.props.disabled === true ? " disabled" : ""}>${label}</button>`;
   if (component.type === "list")
@@ -26,11 +26,13 @@ function componentHtml(component: EditorComponent, children = "") {
   if (component.type === "title")
     return `<h1 id="${component.id}">${label}</h1>`;
   if (component.type === "textarea")
-    return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}" name="${fieldName}"></textarea></label>`;
+    return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}" name="${fieldName}" placeholder="${htmlEscape(component.props.placeholder)}"${component.props.required === true ? " required" : ""}></textarea></label>`;
   if (component.type === "select")
-    return `<label>${htmlEscape(component.accessibility.label)}<select id="${component.id}" name="${fieldName}"><option>${label}</option></select></label>`;
+    return `<label>${htmlEscape(component.accessibility.label)}<select id="${component.id}" name="${fieldName}">${String(component.props.options || component.props.label || component.name).split("|").map((option) => `<option>${htmlEscape(option)}</option>`).join("")}</select></label>`;
   if (component.type === "checkbox")
     return `<label><input id="${component.id}" name="${fieldName}" type="checkbox" /> ${label}</label>`;
+  if (component.type === "toast")
+    return `<div id="${component.id}" role="status" aria-live="polite" hidden>${label}</div>`;
   if (component.type === "image")
     return `<img id="${component.id}" src="${htmlEscape(component.props.src || "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22160%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e8eaf2%22/%3E%3C/svg%3E")}" alt="${htmlEscape(component.accessibility.label)}">`;
   if (component.type === "link")
@@ -58,9 +60,8 @@ function componentHtml(component: EditorComponent, children = "") {
   if (component.type === "accordion")
     return `<details id="${component.id}"><summary>${label}</summary>${children || `<p>${htmlEscape(component.props.description || "Contenuto espandibile")}</p>`}</details>`;
   if (canContain(component)) {
-    const content =
-      children ||
-      `<strong>${label}</strong>${component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
+    const ownContent = `<strong>${label}</strong>${component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
+    const content = `${ownContent}${children}`;
     const tag =
       component.type === "header" ||
       component.type === "footer" ||
@@ -299,7 +300,7 @@ await writeFile('android/app/src/main/res/values/ic_launcher_background.xml', '<
 await writeFile('android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml', '<?xml version="1.0" encoding="utf-8"?><vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#FFFFFF" android:pathData="M30,31h48v10h-48zM30,49h36v10h-36zM30,67h24v10h-24z"/></vector>')
 console.log('Configurazione Android applicata')
 `;
-  const androidRuntime = `\nimport { App as NativeApp } from '@capacitor/app'\nimport { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar'\nvoid StatusBar.setStyle({ style: StatusBarStyle.${android.statusBarStyle === "dark" ? "Light" : "Dark"} })\nvoid StatusBar.setBackgroundColor({ color: ${JSON.stringify(android.themeColor)} })\n${android.backButton ? "void NativeApp.addListener('backButton', ({ canGoBack }) => canGoBack ? history.back() : NativeApp.minimizeApp())" : ""}\n`;
+  const androidRuntime = `\nimport { Capacitor } from '@capacitor/core'\nimport { App as NativeApp } from '@capacitor/app'\nimport { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar'\nif (Capacitor.isNativePlatform()) {\n  void StatusBar.setStyle({ style: StatusBarStyle.${android.statusBarStyle === "dark" ? "Light" : "Dark"} })\n  void StatusBar.setBackgroundColor({ color: ${JSON.stringify(android.themeColor)} })\n  ${android.backButton ? "void NativeApp.addListener('backButton', ({ canGoBack }) => canGoBack ? history.back() : NativeApp.minimizeApp())" : ""}\n}\n`;
   files["src/main.ts"] += androidRuntime;
   files["src/style.css"] +=
     "\nhtml{background:var(--safe-area-color,#fff)}body{padding-top:env(safe-area-inset-top);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left)}";
@@ -556,38 +557,60 @@ export function generateFiles(input: Project): Record<string, string> {
   const mobile = allComponents
     .map((component) => componentCss(component, "mobile"))
     .join("\n");
-  const dataRuntime =
+  const singleSourceRuntime =
     source?.provider === "rest" || source?.provider === "generated"
       ? `const endpoint = ${JSON.stringify(source.endpoint)}
 async function request(path = '', init?: RequestInit) { const response = await fetch(endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
-async function query(): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ ...item, id: String(item.id ?? index), sourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
-async function insert(value: unknown) { const fields = value && typeof value === 'object' && !Array.isArray(value) ? value : { text: String(value) }; await request('', { method: 'POST', body: JSON.stringify(fields) }) }
-async function update(value: unknown) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'PUT', body: JSON.stringify(item) }) }
-async function remove(value: unknown) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'DELETE' }) }`
+async function query(selectedSourceId = sourceId): Promise<Item[]> { const value = await request(); if (!Array.isArray(value)) throw new Error('L’API deve restituire un elenco JSON'); return value.map((item, index) => ({ ...item, id: String(item.id ?? index), sourceId: selectedSourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) }
+async function insert(value: unknown, _selectedSourceId = sourceId) { const fields = value && typeof value === 'object' && !Array.isArray(value) ? value : { text: String(value) }; await request('', { method: 'POST', body: JSON.stringify(fields) }) }
+async function update(value: unknown, _selectedSourceId = sourceId) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'PUT', body: JSON.stringify(item) }) }
+async function remove(value: unknown, _selectedSourceId = sourceId) { const item = value as Record<string, unknown>; return request('/' + encodeURIComponent(String(item.id ?? '')), { method: 'DELETE' }) }`
       : `const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
   const request = indexedDB.open('frontend-editor-export', 1)
   request.onupgradeneeded = () => request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId')
   request.onsuccess = () => resolve(request.result)
   request.onerror = () => reject(request.error)
 })
-async function query(): Promise<Item[]> {
+async function query(selectedSourceId = sourceId): Promise<Item[]> {
   const db = await openDb()
-  return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(sourceId); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+  return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(selectedSourceId); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
 }
-async function insert(value: unknown) {
+async function insert(value: unknown, selectedSourceId = sourceId) {
   const db = await openDb()
   const fields = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : { text: String(value) }
-  const item = { ...fields, id: typeof fields.id === 'string' && fields.id ? fields.id : crypto.randomUUID(), sourceId, text: String(fields.text ?? fields.name ?? fields.title ?? 'Elemento'), date: typeof fields.date === 'string' ? fields.date : new Date().toISOString() }
+  const item = { ...fields, id: typeof fields.id === 'string' && fields.id ? fields.id : crypto.randomUUID(), sourceId: selectedSourceId, text: String(fields.text ?? fields.name ?? fields.title ?? 'Elemento'), date: typeof fields.date === 'string' ? fields.date : new Date().toISOString() }
   return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }
-async function update(value: unknown) {
+async function update(value: unknown, selectedSourceId = sourceId) {
   const db = await openDb(), item = value as Item
-  return new Promise<Item>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put(item); tx.oncomplete = () => resolve(item); tx.onerror = () => reject(tx.error) })
+  return new Promise<Item>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put({ ...item, sourceId: selectedSourceId }); tx.oncomplete = () => resolve(item); tx.onerror = () => reject(tx.error) })
 }
-async function remove(value: unknown) {
+async function remove(value: unknown, _selectedSourceId = sourceId) {
   const db = await openDb(), item = value as Item
   return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(item.id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) })
 }`;
+  const dataRuntime = project.dataSources.length <= 1 ? singleSourceRuntime : `type SourceConfig = { id: string; provider: string; endpoint?: string }
+const graphSources: SourceConfig[] = ${JSON.stringify(project.dataSources.map(({ id, provider, endpoint }) => ({ id, provider, ...(endpoint ? { endpoint } : {}) })))}
+const sourceConfig = (selectedSourceId = sourceId) => { const source = graphSources.find((item) => item.id === selectedSourceId); if (!source) throw new Error('Sorgente dati non trovata: ' + selectedSourceId); return source }
+const openDb = () => new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('frontend-editor-export', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records', { keyPath: 'id' }).createIndex('sourceId', 'sourceId') }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+async function sourceRequest(source: SourceConfig, path = '', init?: RequestInit) { if (!source.endpoint) throw new Error('Endpoint non configurato per ' + source.id); const response = await fetch(source.endpoint + path, { ...init, headers: { 'content-type': 'application/json', ...(authToken ? { authorization: 'Bearer ' + authToken } : {}), ...init?.headers } }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); return response.status === 204 ? undefined : response.json() }
+async function query(selectedSourceId = sourceId): Promise<Item[]> { const source = sourceConfig(selectedSourceId); if (source.provider === 'rest' || source.provider === 'generated') { const value = await sourceRequest(source); if (!Array.isArray(value)) throw new Error('L\u2019API deve restituire un elenco JSON'); return value.map((item, index) => ({ ...item, id: String(item.id ?? index), sourceId: selectedSourceId, text: String(item.text ?? item.name ?? item.title ?? 'Elemento'), date: String(item.date ?? new Date().toISOString()) })) } const db = await openDb(); return new Promise((resolve, reject) => { const request = db.transaction('records').objectStore('records').index('sourceId').getAll(selectedSourceId); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) }) }
+async function insert(value: unknown, selectedSourceId = sourceId) { const source = sourceConfig(selectedSourceId), fields = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : { text: String(value) }; if (source.provider === 'rest' || source.provider === 'generated') return sourceRequest(source, '', { method: 'POST', body: JSON.stringify(fields) }); const db = await openDb(), item = { ...fields, id: typeof fields.id === 'string' && fields.id ? fields.id : crypto.randomUUID(), sourceId: selectedSourceId, text: String(fields.text ?? fields.name ?? fields.title ?? 'Elemento'), date: typeof fields.date === 'string' ? fields.date : new Date().toISOString() }; return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').add(item); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }
+async function update(value: unknown, selectedSourceId = sourceId) { const source = sourceConfig(selectedSourceId), item = value as Item; if (source.provider === 'rest' || source.provider === 'generated') return sourceRequest(source, '/' + encodeURIComponent(String(item.id ?? '')), { method: 'PUT', body: JSON.stringify(item) }); const db = await openDb(); return new Promise<Item>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').put({ ...item, sourceId: selectedSourceId }); tx.oncomplete = () => resolve(item); tx.onerror = () => reject(tx.error) }) }
+async function remove(value: unknown, selectedSourceId = sourceId) { const source = sourceConfig(selectedSourceId), item = value as Item; if (source.provider === 'rest' || source.provider === 'generated') return sourceRequest(source, '/' + encodeURIComponent(String(item.id ?? '')), { method: 'DELETE' }); const db = await openDb(); return new Promise<void>((resolve, reject) => { const tx = db.transaction('records', 'readwrite'); tx.objectStore('records').delete(item.id); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error) }) }
+`;
+  const dataBindings = project.pages.flatMap((item) => item.components
+    .filter((component) => component.type === "list" && component.binding?.sourceId)
+    .map((component) => {
+      const boundSource = project.dataSources.find((source) => source.id === component.binding!.sourceId);
+      return {
+        componentId: component.id,
+        sourceId: component.binding!.sourceId,
+        completion: boundSource && Object.hasOwn(boundSource.schema, "completedToday") && Object.hasOwn(boundSource.schema, "currentStreak") ? "streak" : boundSource && (Object.hasOwn(boundSource.schema, "completed") || Object.hasOwn(boundSource.schema, "status")) ? "status" : "none",
+        editable: Boolean(boundSource && Object.hasOwn(boundSource.schema, "title") && Object.hasOwn(boundSource.schema, "dueDate")),
+        removable: Boolean(boundSource?.capabilities.includes("delete")),
+      };
+    }));
   const main = `import './style.css'
 ${moduleImports(project)}
 
@@ -596,15 +619,28 @@ ${auth.runtime}
 type Item = { id: string; sourceId: string; text: string; date: string }
 const sourceId = ${JSON.stringify(source?.id ?? "local-items")}
 ${dataRuntime}
+type DataBinding = { componentId: string; sourceId: string; completion: 'streak' | 'status' | 'none'; editable: boolean; removable: boolean }
+const dataBindings: DataBinding[] = ${JSON.stringify(dataBindings)}
 const status = document.querySelector<HTMLElement>('.status')
-const list = document.getElementById('${list?.id ?? ""}')?.querySelector('ul')
-async function refresh() {
-  if (!status || !list) return
-  status.textContent = 'Caricamento…'
-  try { const items = await query(); list.replaceChildren(...items.map((item) => { const li = document.createElement('li'); li.textContent = item.text; return li })); status.textContent = items.length ? '' : 'Nessuna attività. Aggiungine una.' }
-  catch (error) { status.textContent = 'Errore: ' + (error instanceof Error ? error.message : String(error)) }
+const normalizeTheme = (value = '') => /scur|dark/i.test(value) ? 'dark' : /chiar|light/i.test(value) ? 'light' : 'system'
+const applyTheme = (mode: string) => { const resolved = mode === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : mode; document.documentElement.dataset.theme = resolved; const control = document.querySelector<HTMLSelectElement>('[name="theme"]'); if (control) control.value = [...control.options].find((option) => normalizeTheme(option.value) === mode)?.value ?? control.value }
+const initialTheme = localStorage.getItem('frontend-editor-theme') || ${JSON.stringify(project.appConfig.themeMode ?? "system")}; applyTheme(initialTheme)
+document.querySelector<HTMLSelectElement>('[name="theme"]')?.addEventListener('change', (event) => { const mode = normalizeTheme((event.currentTarget as HTMLSelectElement).value); localStorage.setItem('frontend-editor-theme', mode); applyTheme(mode) })
+const sortDirection = new Map<string, number>()
+let lastDeleted: { item: Item; sourceId: string; componentId: string } | undefined
+const routeBindings = (element: Element) => { const route = element.closest('[data-route]'); return dataBindings.filter((binding) => route?.contains(document.getElementById(binding.componentId))) }
+const refreshRoute = (element: Element) => Promise.all(routeBindings(element).map((binding) => refresh(binding.componentId)))
+const fillForm = (form: HTMLFormElement, item: Item) => { Object.entries(item as Record<string, unknown>).forEach(([name, value]) => { const field = form.elements.namedItem(name) as HTMLInputElement | null; if (!field) return; if (field.type === 'checkbox') field.checked = Boolean(value); else field.value = String(value ?? '') }); form.dataset.editingId = item.id; form.dataset.sourceId = item.sourceId }
+async function saveEdit(form: HTMLFormElement) { if (!form.checkValidity()) return form.reportValidity(); const id = form.dataset.editingId, selectedSourceId = form.dataset.sourceId; if (!id || !selectedSourceId) return; const previous = (await query(selectedSourceId)).find((item) => item.id === id); if (!previous) throw new Error('Elemento da modificare non trovato'); const fields: Record<string, unknown> = Object.fromEntries(new FormData(form)); form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((field) => fields[field.name] = field.checked); await update({ ...previous, ...fields, id, sourceId: selectedSourceId, text: String(fields.title ?? fields.name ?? previous.text) }, selectedSourceId); delete form.dataset.editingId; delete form.dataset.sourceId; form.reset(); await refreshRoute(form) }
+const makeRow = (item: Item, binding: DataBinding, root: HTMLElement, state: HTMLElement) => { const row = document.createElement('li'), title = document.createElement('strong'), description = document.createElement('p'), actions = document.createElement('div'); row.dataset.id = item.id; title.textContent = item.text; description.textContent = String((item as Record<string, unknown>).description ?? (item as Record<string, unknown>).frequency ?? ''); actions.className = 'record-actions'; if (binding.editable) { const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Modifica'; edit.addEventListener('click', () => { const form = root.closest('[data-route]')?.querySelector<HTMLFormElement>('form'); if (form) { fillForm(form, item); form.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }); actions.append(edit) } if (binding.completion !== 'none') { const record = item as Record<string, unknown>, done = binding.completion === 'streak' ? Boolean(record.completedToday) : Boolean(record.completed) || record.status === 'Completata'; const complete = document.createElement('button'); complete.type = 'button'; complete.textContent = done ? 'Completato' : 'Completa'; complete.disabled = done; complete.addEventListener('click', async () => { const streak = Number(record.currentStreak) || 0, value = binding.completion === 'streak' ? { ...item, completedToday: true, currentStreak: streak + 1, bestStreak: Math.max(Number(record.bestStreak) || 0, streak + 1), lastCompletedAt: new Date().toISOString() } : { ...item, completed: true, status: 'Completata' }; await update(value, binding.sourceId); await refresh(binding.componentId) }); actions.append(complete) } if (binding.removable) { const removeButton = document.createElement('button'); removeButton.type = 'button'; removeButton.textContent = 'Elimina'; removeButton.addEventListener('click', async () => { if (!confirm('Eliminare ' + item.text + '?')) return; lastDeleted = { item, sourceId: binding.sourceId, componentId: binding.componentId }; await remove(item, binding.sourceId); await refresh(binding.componentId); const undo = document.createElement('button'); undo.type = 'button'; undo.textContent = 'Annulla'; undo.addEventListener('click', async () => { if (!lastDeleted) return; await insert(lastDeleted.item, lastDeleted.sourceId); const target = lastDeleted.componentId; lastDeleted = undefined; await refresh(target) }); state.replaceChildren(document.createTextNode('Elemento eliminato. '), undo) }); actions.append(removeButton) } row.append(title, description); if (actions.childElementCount) row.append(actions); return row }
+async function refresh(componentId = '') {
+  const targets: DataBinding[] = componentId ? dataBindings.filter((binding) => binding.componentId === componentId) : dataBindings.length ? dataBindings : [{ componentId: ${JSON.stringify(list?.id ?? "")}, sourceId, completion: 'none', editable: false, removable: false }]
+  await Promise.all(targets.map(async (binding) => { const root = document.getElementById(binding.componentId), state = root?.querySelector<HTMLElement>('.status'), list = root?.querySelector<HTMLUListElement>('ul'); if (!root || !state || !list) return; state.textContent = 'Caricamento…'; try { const route = root.closest('[data-route]'), search = route?.querySelector<HTMLInputElement>('[name="search"]')?.value.trim().toLowerCase() ?? '', filter = route?.querySelector<HTMLSelectElement>('[name="filter"]')?.value ?? '', direction = sortDirection.get(binding.componentId) ?? -1; const items = (await query(binding.sourceId)).filter((item) => !search || Object.values(item).some((value) => String(value ?? '').toLowerCase().includes(search))).filter((item) => !filter || /^(tutti|all)/i.test(filter) || String((item as Record<string, unknown>).status ?? '') === filter).sort((a, b) => String(a.date).localeCompare(String(b.date)) * direction); list.replaceChildren(...items.map((item) => makeRow(item, binding, root, state))); state.textContent = items.length ? '' : 'Nessun elemento. Aggiungine uno.' } catch (error) { state.textContent = 'Errore: ' + (error instanceof Error ? error.message : String(error)) } }))
 }
-function route() { const path = decodeURIComponent(location.hash.slice(1) || '/'); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = section.dataset.route !== path }); document.querySelectorAll<HTMLAnchorElement>('nav a').forEach((link) => link.toggleAttribute('aria-current', link.hash === '#' + path)) }
+document.querySelectorAll<HTMLInputElement>('[name="search"], [name="filter"]').forEach((control) => control.addEventListener(control.name === 'search' ? 'input' : 'change', () => void refreshRoute(control)))
+document.querySelectorAll<HTMLButtonElement>('button').forEach((button) => { if (!/(ordina|sort)/i.test(button.textContent ?? '')) return; button.addEventListener('click', () => { routeBindings(button).forEach((binding) => sortDirection.set(binding.componentId, -(sortDirection.get(binding.componentId) ?? -1))); void refreshRoute(button) }) })
+document.addEventListener('click', (event) => { const button = (event.target as Element).closest<HTMLButtonElement>('button[type="submit"]'), form = button?.form; if (!form?.dataset.editingId) return; event.preventDefault(); event.stopImmediatePropagation(); void saveEdit(form).catch((error) => { const state = form.closest('[data-route]')?.querySelector<HTMLElement>('.status'); if (state) state.textContent = 'Errore: ' + (error instanceof Error ? error.message : String(error)) }) }, true)
+function route() { const path = decodeURIComponent(location.hash.slice(1) || ${JSON.stringify(project.pages[0].path)}); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = section.dataset.route !== path }); document.querySelectorAll<HTMLAnchorElement>('nav a').forEach((link) => link.toggleAttribute('aria-current', link.hash === '#' + path)) }
 addEventListener('hashchange', route); route()
 ${project.flows.length ? generatedFlowRuntime(project) : `document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
   const input = document.getElementById('${inputComponent?.id ?? ""}') as HTMLInputElement | null
@@ -635,7 +671,7 @@ void refresh()
     ),
     "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}<main>${body}</main>${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": main,
-    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}${authenticationCss}main{position:relative;min-height:680px;width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}.app-page-nav{display:flex;gap:12px}.app-page-nav a{color:#5547d9}.app-bottom-nav{position:sticky;z-index:20;bottom:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;order:99;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid #cfd4df;background:#fffffff0;backdrop-filter:blur(16px)}.app-bottom-nav a{display:grid;place-items:center;min-height:44px;padding:8px;border-radius:10px;color:inherit;text-decoration:none;font-size:12px;font-weight:700}.app-bottom-nav a[aria-current]{background:#6d5dfc;color:#fff}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}${pageBackgroundCss(project)}`,
+    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}html[data-theme=dark]{color-scheme:dark;color:#f3f4f6;background:#0f1115}html[data-theme=dark] body{color:#f3f4f6!important;background:#0f1115!important;background-image:none!important}html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark] select,html[data-theme=dark] li{color:#f3f4f6;background:#1d2229;border-color:#4b5563}html[data-theme=dark] .generated-container{color:#f3f4f6!important;background:#171a1f!important;border-color:#374151!important}html[data-theme=dark] .app-bottom-nav{color:#f3f4f6;background:#171a1ff2;border-color:#374151}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}${authenticationCss}main{position:relative;min-height:680px;width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}.app-page-nav{display:flex;gap:12px}.app-page-nav a{color:#5547d9}.app-bottom-nav{position:sticky;z-index:20;bottom:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;order:99;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid #cfd4df;background:#fffffff0;backdrop-filter:blur(16px)}.app-bottom-nav a{display:grid;place-items:center;min-height:44px;padding:8px;border-radius:10px;color:inherit;text-decoration:none;font-size:12px;font-weight:700}.app-bottom-nav a[aria-current]{background:#6d5dfc;color:#fff}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}${pageBackgroundCss(project)}`,
     "tsconfig.json": JSON.stringify(
       {
         compilerOptions: {
@@ -729,15 +765,15 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'file') value = await graphPrepareFile(value, current.config.maxMb, current.config.accept)
       if (current.type === 'requireRole') { const role = graphRole(), allowed = (current.config.roles || 'admin').split(',').map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(current.config.message || 'Non hai il permesso per questa azione'); value = { role, allowed: true } }
       if (current.type === 'signOut') graphSignOut()
-      if (current.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; await insert(next); value = next }
-      if (current.type === 'query') { const previous = value, records = await query(); if (current.config.mode === 'one') { const configured = current.config.id || '{{value}}', id = configured === '{{value}}' ? (previous && typeof previous === 'object' ? graphField(previous, current.config.field || 'id') : previous) : configured; if (id === undefined || id === null || String(id).trim() === '') throw new Error('Indica l’ID del record da caricare'); const record = records.find((item) => String(graphField(item, 'id') ?? '') === String(id)); if (!record) throw new Error('Record ' + String(id) + ' non trovato'); value = record } else value = records }
-      if (current.type === 'update') value = await update(value)
-      if (current.type === 'delete') { await remove(value); value = undefined }
+      if (current.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; await insert(next, current.config.sourceId); value = next }
+      if (current.type === 'query') { const previous = value, records = await query(current.config.sourceId); if (current.config.mode === 'one') { const configured = current.config.id || '{{value}}', id = configured === '{{value}}' ? (previous && typeof previous === 'object' ? graphField(previous, current.config.field || 'id') : previous) : configured; if (id === undefined || id === null || String(id).trim() === '') throw new Error('Indica l’ID del record da caricare'); const record = records.find((item) => String(graphField(item, 'id') ?? '') === String(id)); if (!record) throw new Error('Record ' + String(id) + ' non trovato'); value = record } else value = records }
+      if (current.type === 'update') value = await update(value, current.config.sourceId)
+      if (current.type === 'delete') { await remove(value, current.config.sourceId); value = undefined }
       if (current.type === 'filter') { if (!Array.isArray(value)) throw new Error('Il nodo filtro richiede un elenco'); const needle = (current.config.value || '').toLowerCase(); value = value.filter((item) => String(graphField(item, current.config.field) ?? '').toLowerCase().includes(needle)) }
       if (current.type === 'sort') { if (!Array.isArray(value)) throw new Error('Il nodo ordinamento richiede un elenco'); value = [...value].sort((a, b) => String(graphField(a, current.config.field) ?? '').localeCompare(String(graphField(b, current.config.field) ?? '')) * (current.config.direction === 'desc' ? -1 : 1)) }
       if (current.type === 'kpi') { if (!Array.isArray(value)) throw new Error('Il nodo KPI richiede un elenco'); const values = value.map((item) => Number(graphField(item, current.config.field))).filter(Number.isFinite); value = current.config.operation === 'sum' ? values.reduce((a, b) => a + b, 0) : current.config.operation === 'average' ? (values.reduce((a, b) => a + b, 0) / (values.length || 1)) : value.length }
       if (current.type === 'module') { const runner = extensionRunners[current.config.moduleId]; if (!runner) throw new Error('Modulo non trovato'); value = runner(value as never) }
-      if (current.type === 'refresh') await refresh()
+      if (current.type === 'refresh') await refresh(current.config.componentId)
       if (current.type === 'navigate') graphNavigate(current.config.mode, current.config.path)
       if (current.type === 'openModal') { const element = graphElement(current.config.componentId); if (current.config.operation === 'close') element?.setAttribute('hidden', ''); else element?.removeAttribute('hidden') }
       if (current.type === 'updateUI') { const element = graphElement(current.config.componentId) as (HTMLElement & { value?: string; disabled?: boolean }) | null, operation = current.config.operation || 'show', next = current.config.value || ''; if (!element) throw new Error('Elemento da cambiare non trovato'); if (operation === 'show') element.hidden = false; if (operation === 'hide') element.hidden = true; if (operation === 'enable') element.disabled = false; if (operation === 'disable') element.disabled = true; if (operation === 'text') element.textContent = next; if (operation === 'value') element.value = next; if (['background', 'color', 'opacity'].includes(operation)) element.style[operation as 'background' | 'color' | 'opacity'] = next }

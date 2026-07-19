@@ -20,12 +20,60 @@ describe("web generator", () => {
     expect(files["src/style.css"]).toContain("safe-area-inset-bottom");
   });
 
+  it("mantiene tipi, vincoli e opzioni dei form visuali", () => {
+    const project = createProject("Form parity");
+    const time = makeComponent("input"), description = makeComponent("textarea"), status = makeComponent("select"), toast = makeComponent("toast");
+    time.props.inputType = "time"; time.props.required = true;
+    description.props.required = true; description.props.placeholder = "Dettagli";
+    status.props.options = "Nuovo|Attivo|Concluso";
+    project.pages.push({ id: "form", name: "Form", path: "/", components: [time, description, status, toast] });
+    const html = generateFiles(project)["index.html"];
+    expect(html).toContain('type="time"');
+    expect(html).toContain('required');
+    expect(html).toContain('placeholder="Dettagli"');
+    expect(html).toContain('<option>Concluso</option>');
+    expect(html).toContain('aria-live="polite" hidden');
+  });
+
+  it("isola più sorgenti e binding nel runtime esportato", () => {
+    const project = createProject("Multi data");
+    const tasks = makeComponent("list"), habits = makeComponent("list");
+    tasks.id = "tasks-list";
+    habits.id = "habits-list";
+    tasks.binding = { sourceId: "tasks", state: "data" };
+    habits.binding = { sourceId: "habits", state: "data" };
+    project.pages.push(
+      { id: "tasks-page", name: "Attività", path: "/tasks", components: [tasks] },
+      { id: "habits-page", name: "Abitudini", path: "/habits", components: [habits] },
+    );
+    project.dataSources.push(
+      { id: "tasks", name: "Attività", provider: "indexeddb", collection: "tasks", schema: { id: "string", title: "string" }, capabilities: ["get", "query", "insert", "update", "delete", "subscribe"], secretStrategy: "none" },
+      { id: "habits", name: "Abitudini", provider: "indexeddb", collection: "habits", schema: { id: "string", name: "string" }, capabilities: ["get", "query", "insert", "update", "delete", "subscribe"], secretStrategy: "none" },
+    );
+    project.flows.push({ id: "load-habits", name: "Carica abitudini", nodes: [
+      { id: "event", type: "event", label: "Apertura", position: { x: 0, y: 0 }, config: { trigger: "pageLoad" } },
+      { id: "query", type: "query", label: "Leggi", position: { x: 1, y: 0 }, config: { sourceId: "habits" } },
+      { id: "refresh", type: "refresh", label: "Aggiorna", position: { x: 2, y: 0 }, config: { componentId: "habits-list" } },
+    ], edges: [
+      { id: "e1", source: "event", target: "query", path: "success" },
+      { id: "e2", source: "query", target: "refresh", path: "success" },
+    ] });
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain('"componentId":"tasks-list","sourceId":"tasks"');
+    expect(source).toContain('"componentId":"habits-list","sourceId":"habits"');
+    expect(source).toContain("query(current.config.sourceId)");
+    expect(source).toContain("refresh(current.config.componentId)");
+    expect(source).toContain("getAll(selectedSourceId)");
+    expect(source).toContain("const fields: Record<string, unknown>");
+    expect(source).toContain("frontend-editor-theme");
+  });
+
   it("emits a typed, runnable and secret-free project", () => {
     const project = createProject("Export Test");
     project.pages.push({
       id: "page",
       name: "Home",
-      path: "/",
+      path: "/home",
       components: [
         makeComponent("input"),
         makeComponent("button"),
@@ -170,6 +218,7 @@ describe("web generator", () => {
     const stack = makeComponent("stack"),
       button = makeComponent("button");
     stack.id = "stack";
+    stack.props.label = "Titolo contenitore";
     button.id = "nested-button";
     button.parentId = stack.id;
     project.pages.push({
@@ -179,6 +228,7 @@ describe("web generator", () => {
       components: [stack, button],
     });
     const html = generateFiles(project)["index.html"];
+    expect(html).toContain("Titolo contenitore");
     expect(html).toContain(
       '<div id="stack" class="generated-container generated-stack"',
     );
@@ -283,7 +333,7 @@ describe("web generator", () => {
     project.pages.push({
       id: "page",
       name: "Home",
-      path: "/",
+      path: "/home",
       components: [makeComponent("title")],
     });
     const files = generateFiles(project),
@@ -312,6 +362,8 @@ describe("web generator", () => {
     );
     expect(files["src/main.ts"]).toContain("NativeApp.addListener");
     expect(files["src/main.ts"]).toContain("StatusBar.setStyle");
+    expect(files["src/main.ts"]).toContain("Capacitor.isNativePlatform()");
+    expect(files["src/main.ts"]).toContain("location.hash.slice(1) || \"/home\"");
     expect(files["src/main.ts"]).toContain("StatusBarStyle.Light");
     expect(files["src/style.css"]).toContain("safe-area-inset-top");
     expect(files["index.html"]).toContain("viewport-fit=cover");
