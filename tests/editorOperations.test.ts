@@ -91,4 +91,15 @@ describe('structured editor operations', () => {
     })
     expect(renamed.pages[0].components[0].name).toBe('Saluto e data')
   })
+
+  it('collega e scollega un evento componente a un flow', () => {
+    const project = createProject('DailyFlow')
+    const form = makeComponent('form')
+    project.pages.push({ id: 'tasks', name: 'Attivita', path: '/attivita', components: [form] })
+    project.flows.push({ id: 'create-task', name: 'Crea attivita', nodes: [], edges: [] })
+    const connected = applyEditorOperation(project, 'tasks', { type: 'set_component_event', args: { componentId: form.id, event: 'submit', flowId: 'create-task' } })
+    expect(connected.pages[0].components[0].events.submit).toBe('create-task')
+    const removed = applyEditorOperation(connected, 'tasks', { type: 'remove_component_event', args: { componentId: form.id, event: 'submit' } })
+    expect(removed.pages[0].components[0].events.submit).toBeUndefined()
+  })
 })

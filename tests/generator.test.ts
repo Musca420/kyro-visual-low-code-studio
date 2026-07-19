@@ -4,6 +4,22 @@ import { createProject, makeComponent } from "../src/model";
 import { createTemplateProject } from "../src/templates";
 
 describe("web generator", () => {
+  it("mantiene la navigazione mobile configurata nell'app esportata", () => {
+    const project = createProject("Mobile routes");
+    project.pages.push(
+      { id: "home", name: "Home", path: "/home", components: [] },
+      { id: "data", name: "Dati", path: "/data", components: [] },
+    );
+    project.appConfig.mobileBottomNavigation = {
+      enabled: true,
+      items: [{ label: "Home", path: "/home" }, { label: "Dati", path: "/data" }],
+    };
+    const files = generateFiles(project);
+    expect(files["index.html"]).toContain('class="app-bottom-nav"');
+    expect(files["src/main.ts"]).toContain("aria-current");
+    expect(files["src/style.css"]).toContain("safe-area-inset-bottom");
+  });
+
   it("emits a typed, runnable and secret-free project", () => {
     const project = createProject("Export Test");
     project.pages.push({

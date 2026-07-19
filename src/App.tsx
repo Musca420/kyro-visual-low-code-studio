@@ -9,6 +9,7 @@ import {
 import {
   deleteProject,
   deleteProjectRecord,
+  deleteGenericRecord,
   getProject,
   insertProjectRecord,
   insertGenericRecord,
@@ -21,6 +22,7 @@ import {
   saveProject,
   saveExport,
   updateProjectRecord,
+  updateGenericRecord,
   type LocalRecord,
   type ExportRecord,
   type ProjectVersion,
@@ -882,6 +884,23 @@ function Editor({
       ],
       errors: [],
       capabilities: inspectComponentProgram(project, currentPage.id, component.id).issues,
+      availableActions: [
+        "inspect_project", "inspect_page", "inspect_component", "select_component",
+        "add_page", "update_page", "remove_page", "add_component", "move_component",
+        "resize_component", "reorder_component", "wrap_component", "remove_component",
+        "set_component_property", "set_responsive_style", "set_component_state_style",
+        "set_component_accessibility", "set_component_intent", "set_component_event",
+        "add_flow", "update_flow", "remove_flow", "add_flow_node", "connect_nodes",
+        "create_data_source", "update_data_source", "remove_data_source", "bind_component_data",
+        "set_theme_token", "set_app_config", "set_export_config", "apply_editor_transaction",
+        "undo_transaction", "capture_preview", "read_runtime_logs", "run_preview",
+        "generate_backend", "export_web", "export_android", "build_android",
+      ],
+      installedSkills: [
+        "frontend-editor-live", "frontend-editor-design", "frontend-editor-flow",
+        "frontend-editor-data", "frontend-editor-app", "frontend-editor-test",
+        "frontend-editor-publish",
+      ],
     };
     const prompts: Record<string, string> = {
       "Chiedi a Codex": "",
@@ -1731,8 +1750,8 @@ function Editor({
     setFeedback(`Nodo plugin aggiunto in isolamento: ${contribution.label}`);
   };
 
-  const refreshRecords = useCallback(async (): Promise<LocalRecord[]> => {
-    const source = project.dataSources[0];
+  const refreshRecords = useCallback(async (sourceId?: string): Promise<LocalRecord[]> => {
+    const source = project.dataSources.find((item) => item.id === sourceId) ?? project.dataSources[0];
     if (!source) return [];
     if (source.provider === "indexeddb" || source.provider === "generated")
       return queryRecords(source.id);
@@ -1923,6 +1942,15 @@ function Editor({
     },
     [project.dataSources, refreshRecords],
   );
+
+  const recordAction = useCallback(async (action: "update" | "delete" | "undo", payload?: Record<string, unknown>, sourceId?: string) => {
+    const source = project.dataSources.find((item) => item.id === sourceId) ?? project.dataSources[0];
+    if (!source) throw new Error("Configura prima la sorgente locale");
+    if (action === "update") await updateGenericRecord(source.id, String(payload?.id ?? ""), payload ?? {});
+    if (action === "delete") await deleteGenericRecord(source.id, String(payload?.id ?? ""));
+    if (action === "undo") await insertGenericRecord(source.id, payload ?? {});
+    return queryRecords(source.id);
+  }, [project.dataSources]);
 
   const archiveExport = async (blob: Blob, fileName: string, target: string) => {
     await saveExport({
@@ -3133,6 +3161,11 @@ function Editor({
               onRuntimeLog={(level, message) => setLogs((current) => [...current.slice(-199), { nodeId: "runtime", level, message }])}
               onRefresh={refreshRecords}
               onDashboardAction={dashboardAction}
+              onRecordAction={recordAction}
+              onNavigatePage={(path) => {
+                const destination = project.pages.find((page) => page.path === path);
+                if (destination) setPageId(destination.id);
+              }}
               captureRequest={
                 captureCommand?.tool === "capture_preview"
                   ? captureCommand.id

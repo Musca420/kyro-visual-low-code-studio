@@ -147,6 +147,22 @@ export async function insertGenericRecord(sourceId: string, input: unknown): Pro
   return record
 }
 
+export async function updateGenericRecord(sourceId: string, id: string, input: unknown): Promise<LocalRecord> {
+  const existing = await request<LocalRecord | undefined>('records', 'readonly', (store) => store.get(id))
+  if (!existing || existing.sourceId !== sourceId) throw new Error('Record non trovato')
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('La modifica deve contenere campi validi')
+  const fields = input as Record<string, unknown>
+  const record = { ...existing, ...fields, id: existing.id, sourceId, text: String(fields.text ?? fields.name ?? fields.title ?? existing.text), date: new Date().toISOString() } as LocalRecord
+  await request('records', 'readwrite', (store) => store.put(record))
+  return record
+}
+
+export async function deleteGenericRecord(sourceId: string, id: string) {
+  const existing = await request<LocalRecord | undefined>('records', 'readonly', (store) => store.get(id))
+  if (!existing || existing.sourceId !== sourceId) throw new Error('Record non trovato')
+  await request('records', 'readwrite', (store) => store.delete(id))
+}
+
 export async function insertProjectRecord(sourceId: string, input: unknown): Promise<LocalRecord> {
   const value = projectInputSchema.parse(input)
   const record: LocalRecord = { id: crypto.randomUUID(), sourceId, text: value.name, description: value.description, status: value.status, priority: value.priority, dueDate: value.dueDate, date: new Date().toISOString() }

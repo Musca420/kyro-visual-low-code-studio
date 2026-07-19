@@ -15,7 +15,7 @@ import {
   snapshotWorkspace,
   type WorkspaceSnapshot,
 } from "./server/workspaceTransactions";
-import { approvedOperations, quickDashboardPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
+import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickHabitsPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
 
 const workspaceRoot = resolve(process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
 const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
@@ -149,6 +149,17 @@ function liveBridge() {
       code?: number | null;
     }
   >();
+  const codexAuthStatus = async () => {
+    try {
+      const result = await run(codexCommand, [...codexPrefix, "login", "status"], {
+        cwd: workspaceRoot,
+        timeout: 10_000,
+      });
+      return { authenticated: true, message: result.stdout.trim() || result.stderr.trim() || "Account ChatGPT collegato" };
+    } catch {
+      return { authenticated: false, message: "Collega il tuo account ChatGPT qui per usare Codex oltre alle azioni locali." };
+    }
+  };
   const androidJobs = new Map<
     string,
     {
@@ -308,6 +319,8 @@ function liveBridge() {
               "set_component_state_style",
               "set_component_accessibility",
               "set_component_intent",
+              "set_component_event",
+              "remove_component_event",
               "set_theme_token",
               "add_component",
               "remove_component",
@@ -895,13 +908,27 @@ function liveBridge() {
             agentJobId = id;
             const quickPlan = mode === "plan"
               ? quickVisualPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickNavigationFlowPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickStructurePlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickDashboardPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickDailyFlowScreenPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickHabitsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickCrudSurfacePlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickCrudFlowsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
               : undefined;
             if (quickPlan) {
               job.status = "completed";
               job.finishedAt = new Date().toISOString();
               job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: quickPlan } }) + "\n";
+              agentJobId = undefined;
+              return reply(response, 202, { jobId: id, status: job.status });
+            }
+            const auth = await codexAuthStatus();
+            if (!auth.authenticated && (mode === "plan" || !approvedOperations(input.approvedPlan))) {
+              job.status = "error";
+              job.finishedAt = new Date().toISOString();
+              job.errors = auth.message;
+              job.output = JSON.stringify({ type: "item.completed", item: { type: "error", message: auth.message } }) + "\n";
               agentJobId = undefined;
               return reply(response, 202, { jobId: id, status: job.status });
             }
@@ -911,8 +938,8 @@ function liveBridge() {
             const liveBridgeContract = mode === "plan" ? `
 Usa soltanto il context pack Frontend Editor fornito qui sotto. Non eseguire comandi, non leggere file, non interrogare il bridge e non acquisire screenshot.
 Produci un piano breve basato su ID stabili, operazioni tipizzate e criteri osservabili. Il progetto visuale e il suo grafo sono la source of truth.
-Operazioni disponibili: add_page, update_page, remove_page, add_component, move_component, resize_component, reorder_component, wrap_component, remove_component, set_component_property, set_responsive_style, set_component_state_style, set_component_accessibility, set_component_intent, set_theme_token, add_flow, update_flow, remove_flow, add_flow_node, update_flow_node, remove_flow_node, connect_nodes, remove_flow_edge, create_data_source, update_data_source, remove_data_source, bind_component_data, set_project_property, set_app_config, set_export_config. Ogni operazione usa {"type":"...","pageId":"... opzionale","args":{...}}.
-Firme essenziali: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; set_component_property args={componentId,property,value}, dove property="name" rinomina il livello; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; remove_component args={componentId,confirmed:true}; add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config e set_export_config args={patch:{...}}. Usa componentType tra quelli gia presenti nel context o: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
+Operazioni disponibili: add_page, update_page, remove_page, add_component, move_component, resize_component, reorder_component, wrap_component, remove_component, set_component_property, set_responsive_style, set_component_state_style, set_component_accessibility, set_component_intent, set_component_event, remove_component_event, set_theme_token, add_flow, update_flow, remove_flow, add_flow_node, update_flow_node, remove_flow_node, connect_nodes, remove_flow_edge, create_data_source, update_data_source, remove_data_source, bind_component_data, set_project_property, set_app_config, set_export_config. Ogni operazione usa {"type":"...","pageId":"... opzionale","args":{...}}.
+Firme essenziali: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; set_component_property args={componentId,property,value}, dove property="name" rinomina il livello; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; set_component_event args={componentId,event,flowId}; remove_component_event args={componentId,event}; remove_component args={componentId,confirmed:true}; add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config e set_export_config args={patch:{...}}. Usa componentType tra quelli gia presenti nel context o: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
 Termina sempre con una sola riga FRONTEND_EDITOR_OPERATIONS=<json> contenente da 1 a 50 operazioni valide. Usa pageId al livello dell'operazione quando il target non e la pagina attiva. Per stili multipli o breakpoint crea piu operazioni set_responsive_style.
 ` : `
 Il progetto visuale aperto e il suo grafo sono la source of truth. Non modificare codice generato per una modifica rappresentabile nell'editor.
@@ -1058,24 +1085,7 @@ Il piano e gia stato approvato: eseguilo direttamente, senza ripetere l'analisi 
             return reply(response, 200, { restored, jobId: id });
           }
           if (request.url === "/api/codex/status" && request.method === "GET") {
-            try {
-              const result = await run(
-                codexCommand,
-                [...codexPrefix, "login", "status"],
-                { cwd: workspaceRoot, timeout: 10_000 },
-              );
-              return reply(response, 200, {
-                authenticated: true,
-                message: result.stdout.trim() || result.stderr.trim(),
-                workspace: workspaceRoot,
-              });
-            } catch (error) {
-              return reply(response, 200, {
-                authenticated: false,
-                message: error instanceof Error ? error.message : String(error),
-                workspace: workspaceRoot,
-              });
-            }
+            return reply(response, 200, { ...(await codexAuthStatus()), workspace: workspaceRoot });
           }
           if (
             url.pathname === "/api/codex/login" &&

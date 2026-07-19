@@ -158,6 +158,14 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     nextComponent = { ...component, accessibility: { label, ...(args.role ? { role: String(args.role) } : {}) } }
   } else if (operation.type === 'set_component_intent') {
     nextComponent = { ...component, intent: { ...component.intent, ...object(args.intent) } as EditorComponent['intent'] }
+  } else if (operation.type === 'set_component_event') {
+    const event = String(args.event ?? '').trim(), flowId = String(args.flowId ?? '').trim()
+    if (!event || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Evento o flow non valido')
+    nextComponent = { ...component, events: { ...component.events, [event]: flowId } }
+  } else if (operation.type === 'remove_component_event') {
+    const event = String(args.event ?? '').trim()
+    if (!event) throw new Error('Evento obbligatorio')
+    nextComponent = { ...component, events: Object.fromEntries(Object.entries(component.events).filter(([name]) => name !== event)) }
   } else if (operation.type === 'move_component') {
     let parentId = component.parentId
     let reparenting = false

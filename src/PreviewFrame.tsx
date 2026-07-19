@@ -11,10 +11,15 @@ type Props = {
   interactive: boolean;
   onAdd: (value: string) => Promise<void>;
   onRunFlow?: (flowId: string, input: unknown) => Promise<{ notification?: string; level?: string; navigate?: { path: string; mode: "page" | "back" | "url" }; modal?: { componentId: string; operation: "open" | "close" }; ui?: { componentId: string; operation: string; value: string } }>;
-  onRefresh: () => Promise<LocalRecord[]>;
+  onRefresh: (sourceId?: string) => Promise<LocalRecord[]>;
   onDashboardAction?: (
     action: string,
     payload?: Record<string, string>,
+  ) => Promise<LocalRecord[]>;
+  onRecordAction?: (
+    action: "update" | "delete" | "undo",
+    payload?: Record<string, unknown>,
+    sourceId?: string,
   ) => Promise<LocalRecord[]>;
   error?: string;
   captureRequest?: string;
@@ -25,6 +30,7 @@ type Props = {
   }) => void;
   onCaptureError?: (error: string) => void;
   onRuntimeLog?: (level: "info" | "error", message: string) => void;
+  onNavigatePage?: (path: string) => void;
 };
 
 const escapeHtml = (value: unknown) =>
@@ -39,6 +45,17 @@ const bySlot = (components: EditorComponent[], slot: string) =>
   components.find((component) => component.props.slot === slot);
 const label = (component?: EditorComponent) =>
   escapeHtml(component?.props.label || component?.name || "");
+
+export function buildBottomNavigation(project: Project, activePath?: string) {
+  const navigation = project.appConfig.mobileBottomNavigation;
+  if (!navigation?.enabled) return "";
+  return `<nav class="app-bottom-nav" aria-label="Navigazione principale">${navigation.items
+    .map(
+      (item) =>
+        `<button type="button" data-fe-page="${escapeHtml(item.path)}"${item.path === activePath ? ' aria-current="page"' : ""}>${escapeHtml(item.label)}</button>`,
+    )
+    .join("")}</nav>`;
+}
 
 async function rasterizePreview(html: string, width: number, height: number) {
   const copy = document.createElement("iframe");
@@ -81,16 +98,16 @@ export function renderComponent(component: EditorComponent, children = "") {
   const fieldName = escapeHtml(component.props.fieldName || component.id);
   const common = `data-component="${component.id}" id="preview-${component.id}"${component.props.tooltip ? ` title="${escapeHtml(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
   if (component.type === "input")
-    return `<label>${escapeHtml(component.accessibility.label)}<input ${common} data-kind="input" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date"].includes(String(component.props.inputType)) ? escapeHtml(component.props.inputType) : "text"}" placeholder="${escapeHtml(component.props.placeholder)}"></label>`;
+    return `<label>${escapeHtml(component.accessibility.label)}<input ${common} data-kind="input" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date", "time"].includes(String(component.props.inputType)) ? escapeHtml(component.props.inputType) : "text"}" placeholder="${escapeHtml(component.props.placeholder)}"${component.props.required === true ? " required" : ""}></label>`;
   if (component.type === "button")
     return `<button ${common} data-kind="button" type="${["button", "submit", "reset"].includes(String(component.props.buttonType)) ? escapeHtml(component.props.buttonType) : "button"}"${component.props.disabled === true ? " disabled" : ""}>${text}</button>`;
   if (component.type === "list")
     return `<section ${common} data-kind="list" aria-label="${escapeHtml(component.accessibility.label)}"><div class="loading" role="status">Caricamento…</div><div class="empty" hidden>Nessun elemento. Aggiungine uno.</div><div class="error" role="alert" hidden></div><ul></ul></section>`;
   if (component.type === "title") return `<h1 ${common}>${text}</h1>`;
   if (component.type === "textarea")
-    return `<label>${escapeHtml(component.accessibility.label)}<textarea ${common} name="${fieldName}"></textarea></label>`;
+    return `<label>${escapeHtml(component.accessibility.label)}<textarea ${common} name="${fieldName}"${component.props.required === true ? " required" : ""} placeholder="${escapeHtml(component.props.placeholder)}"></textarea></label>`;
   if (component.type === "select")
-    return `<label>${escapeHtml(component.accessibility.label)}<select ${common} name="${fieldName}"><option>${text}</option></select></label>`;
+    return `<label>${escapeHtml(component.accessibility.label)}<select ${common} name="${fieldName}">${String(component.props.options || component.props.label || component.name).split("|").map((option) => `<option>${escapeHtml(option)}</option>`).join("")}</select></label>`;
   if (component.type === "checkbox" || component.type === "radio")
     return `<label><input ${common} name="${fieldName}" type="${component.type}"> ${text}</label>`;
   if (component.type === "image")
@@ -248,8 +265,37 @@ function dashboardCss() {
   return `body{padding:0;background:#f4f6fa}.dashboard-shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh;width:100%;max-width:none}.dashboard-shell>aside{position:sticky;top:0;height:100vh;padding:24px 16px;display:flex;flex-direction:column}.dash-logo{font-size:20px;font-weight:900;padding:6px 10px 30px}.dashboard-shell aside nav{display:grid;gap:6px}.dashboard-shell aside nav a{padding:12px;color:#9ca6ba;text-decoration:none;border-radius:10px;font-weight:650}.dashboard-shell aside nav a.active,.dashboard-shell aside nav a:hover{background:#ffffff12;color:#fff}.user-card{margin-top:auto;display:flex;gap:10px;align-items:center;padding:12px;background:#ffffff0d;border-radius:12px}.user-card>span,.avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#6d5dfc;color:#fff;font-size:11px}.user-card div{display:grid}.user-card small{color:#8d97aa}.dash-main{min-width:0}.dash-main>header{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 28px}.dash-main>header>div{display:flex;align-items:center;gap:14px}.dash-main>header button{background:transparent;color:#687085}.sidebar-toggle{display:none}.dash-content{padding:32px;max-width:1450px;margin:auto}.dash-heading{display:flex;align-items:center;justify-content:space-between}.dash-heading p,.projects-head p{color:#7c8596;margin-bottom:5px}.dash-heading h1{font-size:30px}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0}.kpis article{width:100%!important;display:grid;grid-template-columns:42px 1fr;align-items:center;padding:20px;border:1px solid #e6e9f0;border-radius:15px;background:#fff}.kpis article>span{grid-row:1/3;display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#eeecff;color:#5c4ee5}.kpis strong{font-size:25px}.kpis small{color:#7a8494}.projects-panel{background:#fff;border:1px solid #e6e9f0;border-radius:17px;padding:22px}.projects-head{display:flex;justify-content:space-between;gap:18px}.projects-head h2{margin-bottom:3px}.project-controls{display:flex;align-items:end;gap:9px}.project-controls label{font-size:10px}.project-controls input,.project-controls select{min-width:170px}.project-controls button{white-space:nowrap;background:#fff;color:#4f596c;border:1px solid #d8dce5}.table-scroll{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:15px;border-bottom:1px solid #eceef3}th{color:#7b8495;font-size:11px;text-transform:uppercase;letter-spacing:.08em}td strong{display:block}td small{color:#7c8596}.chip{display:inline-flex;padding:5px 8px;border-radius:20px;background:#eef0f5;font-size:11px}.chip.completed{background:#e8f7f0;color:#16785b}.chip.in-progress{background:#fff5df;color:#9a6400}.chip.high{background:#ffebe8;color:#b42318}.row-actions{display:flex;justify-content:flex-end;gap:6px}.row-actions button{background:#f4f5f8;color:#4c5668;padding:7px 9px}.row-actions .delete{color:#b42318}.projects-panel>#dash-loading,.projects-panel>#dash-empty,.projects-panel>#dash-error{padding:32px;text-align:center;color:#737d8e}.toast{position:fixed;right:24px;bottom:24px;padding:14px 18px;background:#172033;color:#fff;border-radius:12px;box-shadow:0 16px 40px #11182740}.modal-backdrop{position:fixed;inset:0;background:#1118278c;display:grid;place-items:start center;padding:20px;z-index:4;overflow:auto}.modal-backdrop[hidden]{display:none}.modal-backdrop section{width:min(520px,100%);background:#fff;padding:28px;border-radius:18px;margin:auto}.modal-close{float:right;background:transparent;color:#111827;font-size:22px}.modal-backdrop form{display:grid;gap:13px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.modal-actions{display:flex;justify-content:flex-end;gap:9px}.secondary{background:#fff!important;color:#445!important;border:1px solid #ddd!important}.form-error{color:#b42318;min-height:18px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:900px){.dashboard-shell{grid-template-columns:78px 1fr}.dashboard-shell aside{width:78px}.dash-logo{font-size:0}.dash-logo:first-letter{font-size:22px}.dashboard-shell aside nav a{font-size:0;text-align:center}.dashboard-shell aside nav a:first-letter{font-size:18px}.user-card div{display:none}.kpis{grid-template-columns:1fr 1fr}.projects-head{display:grid}.project-controls{flex-wrap:wrap}}@media(max-width:620px){.dashboard-shell{display:block}.dashboard-shell>aside{position:fixed;z-index:3;translate:-100% 0;width:240px!important;transition:.2s}.dashboard-shell>aside.open{translate:0}.sidebar-toggle{display:block}.dash-content{padding:18px}.dash-main>header{padding:0 18px}.dash-heading{align-items:flex-start}.dash-heading h1{font-size:24px}.kpis{grid-template-columns:1fr}.project-controls{display:grid;grid-template-columns:1fr 1fr}.search-label{grid-column:1/-1}.project-controls input,.project-controls select{min-width:0}.projects-head{gap:12px}th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){display:none}.form-grid{grid-template-columns:1fr}}`;
 }
 
+function todoListRenderer(interactive: boolean) {
+  return `let records=[];const button=document.querySelector('[data-kind="button"]'),input=document.querySelector('[data-kind="input"]'),search=document.querySelector('[name="search"]'),filter=document.querySelector('[name="filter"]'),form=document.querySelector('form');button?.addEventListener('click',()=>{${interactive ? "button.disabled=true;document.querySelector('.loading')?.removeAttribute('hidden');send('ADD',{value:input?.value||''})" : "send('DESIGN_CLICK')"}});const renderRecords=()=>{const root=document.querySelector('[data-kind="list"]');if(!root)return;const empty=root.querySelector('.empty'),list=root.querySelector('ul'),term=(search?.value||'').trim().toLowerCase(),state=filter?.value||'Tutti gli stati',items=records.filter((item)=>(state==='Tutti gli stati'||item.status===state)&&((item.text||'')+' '+(item.description||'')+' '+(item.category||'')).toLowerCase().includes(term));empty.hidden=Boolean(items.length);list.replaceChildren(...items.map((item)=>{const li=document.createElement('li'),title=document.createElement('strong'),description=document.createElement('p'),meta=document.createElement('div'),status=document.createElement('span'),priority=document.createElement('span'),time=document.createElement('time');li.className='record-row';title.textContent=item.text;description.textContent=item.description||'';status.className='chip';status.textContent=item.status||'';priority.className='chip';priority.textContent=item.priority||'';time.dateTime=item.dueDate||item.date;time.textContent=item.dueDate?new Date(item.dueDate+'T00:00:00').toLocaleDateString('it')+(item.time?' · '+item.time:''):new Date(item.date).toLocaleString('it');meta.append(status,priority,time);li.append(title,description,meta);return li}))};search?.addEventListener('input',renderRecords);filter?.addEventListener('change',renderRecords);addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host')return;const root=document.querySelector('[data-kind="list"]');if(!root)return;const loading=root.querySelector('.loading'),problem=root.querySelector('.error');if(button)button.disabled=false;loading.hidden=true;problem.hidden=!message.error;problem.textContent=message.error||'';records=message.records||[];renderRecords();if(message.action==='flow'&&!message.error)form?.reset()});send('READY')`;
+}
+
 function todoScript(interactive: boolean) {
-  return `const button=document.querySelector('[data-kind="button"]'),input=document.querySelector('[data-kind="input"]');button?.addEventListener('click',()=>{${interactive ? "button.disabled=true;document.querySelector('.loading')?.removeAttribute('hidden');send('ADD',{value:input?.value||''})" : "send('DESIGN_CLICK')"}});addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host')return;const root=document.querySelector('[data-kind="list"]');if(!root)return;const loading=root.querySelector('.loading'),empty=root.querySelector('.empty'),problem=root.querySelector('.error'),list=root.querySelector('ul');if(button)button.disabled=false;loading.hidden=true;problem.hidden=!message.error;problem.textContent=message.error||'';if(!message.error&&input)input.value='';const items=message.records||[];empty.hidden=Boolean(items.length)||Boolean(message.error);list.replaceChildren(...items.map((item)=>{const li=document.createElement('li'),text=document.createElement('span'),time=document.createElement('time');text.textContent=item.text;time.dateTime=item.date;time.textContent=new Date(item.date).toLocaleString('it');li.append(text,time);return li}))});send('READY')`;
+  return `${todoListRenderer(interactive)};(()=>{let actionRecords=[],lastDeleted;const root=document.querySelector('[data-kind="list"]'),toast=document.querySelector('[data-component="tasks-toast"]');if(toast)toast.hidden=true;const showAction=(text,undo=false)=>{if(!toast)return;toast.replaceChildren(document.createTextNode(text));if(undo){const action=document.createElement('button');action.type='button';action.textContent='Annulla';action.style.marginLeft='10px';action.addEventListener('click',()=>{if(lastDeleted)send('RECORD_ACTION',{action:'undo',payload:lastDeleted})});toast.append(action)}toast.hidden=false;clearTimeout(window.recordToast);window.recordToast=setTimeout(()=>toast.hidden=true,5000)};const decorate=()=>{root?.querySelectorAll('.record-row').forEach((row)=>{if(row.querySelector('.record-actions'))return;const title=row.querySelector('strong')?.textContent||'',item=actionRecords.find((record)=>record.text===title);if(!item)return;const actions=document.createElement('div'),complete=document.createElement('button'),remove=document.createElement('button');actions.className='record-actions';actions.style.display='flex';actions.style.gap='8px';complete.type='button';complete.textContent=item.completed?'Completata':'Completa';complete.disabled=Boolean(item.completed);complete.addEventListener('click',()=>send('RECORD_ACTION',{action:'update',payload:{...item,status:'Completata',completed:true}}));remove.type='button';remove.textContent='Elimina';remove.style.background='#b42318';remove.addEventListener('click',()=>{if(confirm('Eliminare '+item.text+'?')){lastDeleted=item;send('RECORD_ACTION',{action:'delete',payload:{id:item.id}})}});actions.append(complete,remove);row.append(actions)})};new MutationObserver(decorate).observe(root||document.body,{childList:true,subtree:true});addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host')return;actionRecords=message.records||[];queueMicrotask(decorate);if(message.action==='update')showAction('Attività completata');if(message.action==='delete')showAction('Attività eliminata',true);if(message.action==='undo'){lastDeleted=undefined;showAction('Eliminazione annullata')}})})();`;
+}
+
+function recordConsistencyScript() {
+  return `;(()=>{let currentRecords=[],lastDeleted;const root=document.querySelector('[data-kind="list"]'),toast=document.querySelector('[data-component="tasks-toast"]');const show=(text,undo=false)=>{if(!toast)return;toast.replaceChildren(document.createTextNode(text));if(undo){const button=document.createElement('button');button.type='button';button.textContent='Annulla';button.style.marginLeft='10px';button.addEventListener('click',()=>{if(lastDeleted)send('RECORD_ACTION',{action:'undo',payload:lastDeleted})});toast.append(button)}toast.hidden=false};const decorate=()=>{root?.querySelectorAll('.record-row').forEach((row)=>{const item=currentRecords.find((record)=>record.text===(row.querySelector('strong')?.textContent||''));if(!item)return;row.querySelector('.record-actions')?.remove();const actions=document.createElement('div'),complete=document.createElement('button'),remove=document.createElement('button'),done=Boolean(item.completed)||item.status==='Completata';actions.className='record-actions';actions.style.display='flex';actions.style.gap='8px';complete.type='button';complete.textContent=done?'Completata':'Completa';complete.disabled=done;complete.addEventListener('click',()=>send('RECORD_ACTION',{action:'update',payload:{...item,status:'Completata',completed:true}}));remove.type='button';remove.textContent='Elimina';remove.style.background='#b42318';remove.addEventListener('click',()=>{if(confirm('Eliminare '+item.text+'?')){lastDeleted=item;send('RECORD_ACTION',{action:'delete',payload:{id:item.id}})}});actions.append(complete,remove);row.append(actions)})};addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host')return;currentRecords=message.records||[];queueMicrotask(decorate);if(message.action==='delete')queueMicrotask(()=>show('Attività eliminata',true));if(message.action==='undo'){lastDeleted=undefined;queueMicrotask(()=>show('Eliminazione annullata'))}})})();`;
+}
+
+// Legacy renderers stay available while old saved projects migrate to the unified record renderer.
+void todoScript;
+void recordConsistencyScript;
+
+function recordEditScript() {
+  return `;(()=>{let records=[],editingId,descending=true;const root=document.querySelector('[data-kind="list"]'),form=document.querySelector('form'),submit=form?.querySelector('button[type="submit"]');const decorate=()=>{root?.querySelectorAll('.record-row').forEach((row)=>{if(row.querySelector('.edit-record'))return;const item=records.find((record)=>record.text===(row.querySelector('strong')?.textContent||'')),actions=row.querySelector('.record-actions');if(!item||!actions)return;const edit=document.createElement('button');edit.type='button';edit.className='edit-record';edit.textContent='Modifica';edit.addEventListener('click',()=>{editingId=item.id;Object.entries({title:item.text,description:item.description,status:item.status,priority:item.priority,category:item.category,dueDate:item.dueDate,time:item.time,notes:item.notes}).forEach(([name,value])=>{const field=form?.elements.namedItem(name);if(field&&'value'in field)field.value=value||''});const recurring=form?.elements.namedItem('recurring');if(recurring&&'checked'in recurring)recurring.checked=Boolean(item.recurring);if(submit)submit.textContent='Salva modifiche';form?.scrollIntoView({behavior:'smooth',block:'start'});form?.elements.namedItem('title')?.focus()});actions.prepend(edit)})};new MutationObserver(()=>queueMicrotask(decorate)).observe(root||document.body,{childList:true,subtree:true});form?.addEventListener('submit',(event)=>{if(!editingId)return;event.preventDefault();event.stopImmediatePropagation();if(!form.checkValidity()){form.reportValidity();return}const payload=Object.fromEntries(new FormData(form));payload.id=editingId;payload.text=payload.title;editingId=undefined;if(submit)submit.textContent='Salva attività';send('RECORD_ACTION',{action:'update',payload})},true);document.querySelectorAll('button').forEach((sort)=>{if(!sort.textContent?.toLowerCase().includes('ordina'))return;sort.addEventListener('click',()=>{const list=root?.querySelector('ul');if(!list)return;list.replaceChildren(...[...list.children].reverse());descending=!descending;sort.textContent=descending?'Ordina: recenti':'Ordina: meno recenti'})});addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-host')return;records=event.data.records||[];queueMicrotask(decorate);if(event.data.action==='update'&&form){form.reset();if(submit)submit.textContent='Salva attività'}})})();`;
+}
+
+function stableRecordActionsScript(tracksStreak: boolean) {
+  const habits = tracksStreak;
+  return `;(()=>{let records=[],lastDeleted,lastAction;const habits=${habits},root=document.querySelector('[data-kind="list"]'),toast=document.querySelector('[data-component="tasks-toast"], [data-component="habits-toast"]'),progress=document.querySelector('progress');const text=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value};const show=(message,undo=false)=>{if(!toast)return;toast.replaceChildren(document.createTextNode(message));if(undo){const button=document.createElement('button');button.type='button';button.textContent='Annulla';button.style.marginLeft='10px';button.addEventListener('click',()=>{if(lastDeleted)send('RECORD_ACTION',{action:'undo',payload:lastDeleted})});toast.append(button)}toast.hidden=false};const decorate=()=>{const completed=records.filter((item)=>habits?item.completedToday:(item.completed||item.status==='Completata')).length;if(habits&&progress){progress.max=Math.max(1,records.length);progress.value=completed;progress.textContent='';progress.setAttribute('aria-label',completed+' di '+records.length+' abitudini completate');text(progress.parentElement?.firstChild,completed+' di '+records.length+' completate')}root?.querySelectorAll('.record-row').forEach((row)=>{const item=records.find((record)=>record.text===(row.querySelector('strong')?.textContent||''));if(!item)return;if(habits){text(row.querySelector('p'),item.frequency||'');const chips=row.querySelectorAll('.chip'),streak=Number(item.currentStreak)||0;text(chips[0],item.completedToday?'Completata oggi':'Da completare');text(chips[1],streak+' '+(streak===1?'giorno':'giorni'))}if(row.querySelector('.record-actions'))return;const actions=document.createElement('div'),complete=document.createElement('button'),remove=document.createElement('button'),done=habits?Boolean(item.completedToday):(Boolean(item.completed)||item.status==='Completata');actions.className='record-actions';actions.style.display='flex';actions.style.gap='8px';complete.type='button';complete.textContent=done?(habits?'Completata oggi':'Completata'):(habits?'Completa oggi':'Completa');complete.disabled=done;complete.addEventListener('click',()=>{lastAction='complete';const streak=Number(item.currentStreak)||0;send('RECORD_ACTION',{action:'update',payload:habits?{...item,completedToday:true,currentStreak:streak+1,bestStreak:Math.max(Number(item.bestStreak)||0,streak+1),lastCompletedAt:new Date().toISOString()}:{...item,status:'Completata',completed:true}})});remove.type='button';remove.textContent='Elimina';remove.style.background='#b42318';remove.addEventListener('click',()=>{if(confirm('Eliminare '+item.text+'?')){lastDeleted=item;send('RECORD_ACTION',{action:'delete',payload:{id:item.id}})}});actions.append(complete,remove);row.append(actions)})};new MutationObserver(()=>queueMicrotask(decorate)).observe(root||document.body,{childList:true,subtree:true});addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host')return;records=message.records||[];queueMicrotask(decorate);if(message.action==='update'&&lastAction==='complete'){queueMicrotask(()=>show(habits?'Abitudine completata':'Attività completata'));lastAction=undefined}if(message.action==='delete')queueMicrotask(()=>show(habits?'Abitudine eliminata':'Attività eliminata',true));if(message.action==='undo'){lastDeleted=undefined;queueMicrotask(()=>show('Eliminazione annullata'))}})})();`;
+}
+
+function recordUpdateToastScript() {
+  return `;(()=>{let editing=false;const toast=document.querySelector('[data-component="tasks-toast"]');document.addEventListener('click',(event)=>{if(event.target.closest?.('.edit-record'))editing=true},true);addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host'||message.action!=='update'||!toast)return;toast.replaceChildren(document.createTextNode(editing?'Attività aggiornata':'Attività completata'));toast.hidden=false;editing=false})})();`;
+}
+
+function recordEditClickGuardScript() {
+  return `;(()=>{let records=[];const form=document.querySelector('form'),submit=form?.querySelector('button[type="submit"]');document.addEventListener('click',(event)=>{const edit=event.target.closest?.('.edit-record');if(edit){const title=edit.closest('.record-row')?.querySelector('strong')?.textContent||'',item=records.find((record)=>record.text===title);if(item&&form)form.dataset.editingId=item.id;return}if(event.target!==submit||!form?.dataset.editingId)return;event.preventDefault();event.stopImmediatePropagation();if(!form.checkValidity()){form.reportValidity();return}const payload=Object.fromEntries(new FormData(form));payload.id=form.dataset.editingId;payload.text=payload.title;delete form.dataset.editingId;submit.textContent='Salva attività';send('RECORD_ACTION',{action:'update',payload})},true);addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-host')return;records=event.data.records||[];if(event.data.action==='update'&&form){delete form.dataset.editingId;form.reset();if(submit)submit.textContent='Salva attività'}})})();`;
 }
 
 function landingScript(interactive: boolean) {
@@ -268,7 +314,6 @@ function dashboardValidationScript() {
   return `;document.querySelector('#project-modal button[type="submit"]').addEventListener('click',(event)=>{event.preventDefault();if(!form.checkValidity()){form.querySelector('.form-error').textContent='Complete all required fields with valid values.';form.reportValidity();return}const payload=Object.fromEntries(new FormData(form));send('DASHBOARD_ACTION',{action:payload.id?'update':'create',payload})},true);`;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function buildExperienceAssets(
   experience: "landing" | "dashboard",
   components: EditorComponent[],
@@ -295,17 +340,21 @@ export function PreviewFrame({
   onRunFlow,
   onRefresh,
   onDashboardAction,
+  onRecordAction,
   error,
   captureRequest,
   onCapture,
   onCaptureError,
   onRuntimeLog,
+  onNavigatePage,
 }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const ready = useRef(false);
   const { pages, flows, dataSources, theme } = project;
   const page = pages.find((candidate) => candidate.id === pageId);
-  const sourceId = dataSources[0]?.id;
+  const sourceId = page?.components.find((component) => component.binding?.state === "data")?.binding?.sourceId ?? dataSources[0]?.id;
+  const source = dataSources.find((candidate) => candidate.id === sourceId);
+  const tracksStreak = Boolean(source && Object.hasOwn(source.schema, "completedToday") && Object.hasOwn(source.schema, "currentStreak"));
   const experience = project.state.experience;
   const srcDoc = useMemo(() => {
     const components =
@@ -318,6 +367,7 @@ export function PreviewFrame({
         : experience === "dashboard"
           ? dashboardMarkup(components)
           : `<main>${componentTree(components).map(renderBranch).join("\n")}</main>`;
+    const navigation = buildBottomNavigation(project, page?.path);
     const css =
       experience === "landing"
         ? landingCss()
@@ -330,11 +380,12 @@ export function PreviewFrame({
         ? landingScript(interactive) + landingValidationScript()
         : experience === "dashboard"
           ? dashboardScript(interactive) + dashboardValidationScript()
-          : todoScript(interactive && !hasGraphBindings);
+          : todoListRenderer(interactive && !hasGraphBindings) + stableRecordActionsScript(tracksStreak) + recordUpdateToastScript() + recordEditScript() + recordEditClickGuardScript();
     const capture = `addEventListener('message',(event)=>{if(event.data?.channel!=='frontend-editor-capture')return;try{const width=Math.min(2400,Math.max(1,document.documentElement.scrollWidth)),height=Math.min(2400,Math.max(1,document.documentElement.scrollHeight)),copy=document.documentElement.cloneNode(true);copy.querySelectorAll('script').forEach((node)=>node.remove());send('CAPTURE_HTML',{html:'<!doctype html>'+copy.outerHTML,width,height})}catch(error){send('CAPTURE_ERROR',{error:String(error)})}});`;
+    const navigationBehavior = `document.querySelectorAll('[data-fe-page]').forEach((item)=>item.addEventListener('click',()=>send('NAVIGATE_PAGE',{path:item.dataset.fePage})));`;
     const observability = `;const feLogText=(value)=>{try{return typeof value==='string'?value:JSON.stringify(value)}catch{return String(value)}};['log','info','warn','error'].forEach((level)=>{const original=console[level].bind(console);console[level]=(...values)=>{original(...values);send('RUNTIME_LOG',{level:level==='error'?'error':'info',message:values.map(feLogText).join(' ')})}});addEventListener('error',(event)=>send('RUNTIME_LOG',{level:'error',message:event.message||'Errore runtime'}));addEventListener('unhandledrejection',(event)=>send('RUNTIME_LOG',{level:'error',message:'Promise non gestita: '+feLogText(event.reason)}));`;
-    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join("\n")}body{background:${theme.tokens.pageBackground ?? "#ffffff"};background-image:${theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}</style></head><body>${markup}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${observability}${capture}${behavior}${flowTriggerScript(pages, flows, experience, interactive)}</script></body></html>`;
-  }, [page, pages, flows, theme, breakpoint, interactive, experience]);
+    return `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033;background:#f7f8fc}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 14px;background:#6d5dfc;color:#fff;font-weight:700}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:3px}input,textarea,select{width:100%;border:1px solid #cfd4df;border-radius:9px;padding:10px;background:#fff}label{display:grid;gap:5px;font-size:12px;font-weight:700}ul{list-style:none;padding:0}.record-row{display:grid;gap:6px;padding:14px 0;border-bottom:1px solid #ffffff20}.record-row p{margin:0;opacity:.78}.record-row div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.record-row time{margin-left:auto;font-size:12px;opacity:.72}.chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:#ffffff18;font-size:11px}.preview-container{display:grid;gap:12px}.preview-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.app-bottom-nav{position:sticky;z-index:20;bottom:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid #cfd4df;background:color-mix(in srgb,${theme.tokens.pageBackground ?? "#ffffff"} 92%,transparent);backdrop-filter:blur(16px)}.app-bottom-nav button{min-height:44px;padding:8px;background:transparent;color:inherit;font-size:12px}.app-bottom-nav button[aria-current=page]{background:#6d5dfc;color:#fff}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}.error{color:#b42318}.empty,.loading{color:#697386;padding:12px 0}${css}${components.map((component) => styleFor(component, breakpoint)).join("\n")}body{background:${theme.tokens.pageBackground ?? "#ffffff"};background-image:${theme.tokens.pageBackgroundImage ?? "none"};background-size:cover;background-position:center}</style></head><body>${markup}${navigation}<script>const send=(type,payload={})=>parent.postMessage({channel:'frontend-editor-preview',type,...payload},'*');${observability}${capture}${navigationBehavior}${behavior}${flowTriggerScript(pages, flows, experience, interactive)}</script></body></html>`;
+  }, [project, page, pages, flows, theme, breakpoint, interactive, experience, tracksStreak]);
 
   useEffect(() => {
     const listener = async (event: MessageEvent) => {
@@ -345,7 +396,7 @@ export function PreviewFrame({
         return;
       if (event.data.type === "READY") {
         ready.current = true;
-        const records = sourceId ? await onRefresh() : [];
+        const records = sourceId ? await onRefresh(sourceId) : [];
         frame.current?.contentWindow?.postMessage(
           { channel: "frontend-editor-host", records, error },
           "*",
@@ -375,13 +426,15 @@ export function PreviewFrame({
         onCaptureError?.(String(event.data.error));
       if (event.data.type === "RUNTIME_LOG")
         onRuntimeLog?.(event.data.level === "error" ? "error" : "info", String(event.data.message ?? ""));
+      if (event.data.type === "NAVIGATE_PAGE")
+        onNavigatePage?.(String(event.data.path ?? ""));
       if (event.data.type === "ADD") {
         try {
           await onAdd(String(event.data.value ?? ""));
           frame.current?.contentWindow?.postMessage(
             {
               channel: "frontend-editor-host",
-              records: sourceId ? await onRefresh() : [],
+              records: sourceId ? await onRefresh(sourceId) : [],
               action: "add",
             },
             "*",
@@ -401,10 +454,11 @@ export function PreviewFrame({
       if (event.data.type === "RUN_FLOW" && onRunFlow) {
         try {
           const outcome = await onRunFlow(String(event.data.flowId ?? ""), event.data.input);
-          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", records: sourceId ? await onRefresh() : [], ...outcome }, "*");
+          if (outcome.navigate?.mode === "page") onNavigatePage?.(outcome.navigate.path);
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", records: sourceId ? await onRefresh(sourceId) : [], ...outcome }, "*");
         } catch (problem) {
           const message = problem instanceof Error ? problem.message : String(problem);
-          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", notification: message, error: message, records: sourceId ? await onRefresh() : [], level: "error" }, "*");
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", action: "flow", notification: message, error: message, records: sourceId ? await onRefresh(sourceId) : [], level: "error" }, "*");
         }
       }
       if (event.data.type === "DASHBOARD_ACTION" && onDashboardAction) {
@@ -425,12 +479,22 @@ export function PreviewFrame({
           frame.current?.contentWindow?.postMessage(
             {
               channel: "frontend-editor-host",
-              records: sourceId ? await onRefresh() : [],
+              records: sourceId ? await onRefresh(sourceId) : [],
               error:
                 problem instanceof Error ? problem.message : String(problem),
             },
             "*",
           );
+        }
+      }
+      if (event.data.type === "RECORD_ACTION" && onRecordAction) {
+        try {
+          const action = String(event.data.action) as "update" | "delete" | "undo";
+          const records = await onRecordAction(action, event.data.payload, sourceId);
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", records, action }, "*");
+        } catch (problem) {
+          const message = problem instanceof Error ? problem.message : String(problem);
+          frame.current?.contentWindow?.postMessage({ channel: "frontend-editor-host", records: sourceId ? await onRefresh(sourceId) : [], error: message }, "*");
         }
       }
     };
@@ -440,8 +504,10 @@ export function PreviewFrame({
     onAdd,
     onRunFlow,
     onRuntimeLog,
+    onNavigatePage,
     onRefresh,
     onDashboardAction,
+    onRecordAction,
     sourceId,
     error,
     captureRequest,

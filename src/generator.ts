@@ -540,7 +540,12 @@ export function generateFiles(input: Project): Record<string, string> {
   const list = page.components.find((component) => component.type === "list");
   const source = project.dataSources[0];
   const auth = authenticationAssets(project);
-  const body = `<nav aria-label="Pagine">${project.pages.map((item) => `<a href="#${htmlEscape(item.path)}">${htmlEscape(item.name)}</a>`).join("")}</nav>${project.pages.map((item) => `<section data-route="${htmlEscape(item.path)}">${componentTree(item.components).map(branchHtml).join("\n")}</section>`).join("")}`;
+  const configuredNavigation = project.appConfig.mobileBottomNavigation;
+  const navigationItems = configuredNavigation?.enabled
+    ? configuredNavigation.items
+    : project.pages.map((item) => ({ label: item.name, path: item.path }));
+  const navigationClass = configuredNavigation?.enabled ? "app-bottom-nav" : "app-page-nav";
+  const body = `<nav class="${navigationClass}" aria-label="Pagine">${navigationItems.map((item) => `<a href="#${htmlEscape(item.path)}">${htmlEscape(item.label)}</a>`).join("")}</nav>${project.pages.map((item) => `<section data-route="${htmlEscape(item.path)}">${componentTree(item.components).map(branchHtml).join("\n")}</section>`).join("")}`;
   const allComponents = project.pages.flatMap((item) => item.components);
   const desktop = allComponents
     .map((component) => componentCss(component, "desktop"))
@@ -599,7 +604,7 @@ async function refresh() {
   try { const items = await query(); list.replaceChildren(...items.map((item) => { const li = document.createElement('li'); li.textContent = item.text; return li })); status.textContent = items.length ? '' : 'Nessuna attività. Aggiungine una.' }
   catch (error) { status.textContent = 'Errore: ' + (error instanceof Error ? error.message : String(error)) }
 }
-function route() { const path = decodeURIComponent(location.hash.slice(1) || '/'); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = section.dataset.route !== path }) }
+function route() { const path = decodeURIComponent(location.hash.slice(1) || '/'); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = section.dataset.route !== path }); document.querySelectorAll<HTMLAnchorElement>('nav a').forEach((link) => link.toggleAttribute('aria-current', link.hash === '#' + path)) }
 addEventListener('hashchange', route); route()
 ${project.flows.length ? generatedFlowRuntime(project) : `document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
   const input = document.getElementById('${inputComponent?.id ?? ""}') as HTMLInputElement | null
@@ -630,7 +635,7 @@ void refresh()
     ),
     "index.html": `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(project.name)}</title></head><body>${auth.markup}${auth.open}<main>${body}</main>${auth.close}<script type="module" src="/src/main.ts"></script></body></html>`,
     "src/main.ts": main,
-    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}${authenticationCss}main{position:relative;min-height:680px;width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}nav{display:flex;gap:12px}nav a{color:#5547d9}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}${pageBackgroundCss(project)}`,
+    "src/style.css": `:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}${authenticationCss}main{position:relative;min-height:680px;width:min(680px,calc(100% - 32px));margin:48px auto;display:grid;gap:16px}.app-page-nav{display:flex;gap:12px}.app-page-nav a{color:#5547d9}.app-bottom-nav{position:sticky;z-index:20;bottom:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;order:99;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid #cfd4df;background:#fffffff0;backdrop-filter:blur(16px)}.app-bottom-nav a{display:grid;place-items:center;min-height:44px;padding:8px;border-radius:10px;color:inherit;text-decoration:none;font-size:12px;font-weight:700}.app-bottom-nav a[aria-current]{background:#6d5dfc;color:#fff}[data-route]{display:grid;gap:16px}[data-route][hidden]{display:none}.generated-container{display:grid;gap:12px}.generated-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}@keyframes fe-fade{from{opacity:0}to{opacity:1}}@keyframes fe-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes fe-pulse{50%{transform:scale(1.04)}}@keyframes fe-float{50%{transform:translateY(-8px)}}${desktop}\n@media(max-width:900px){${tablet}}\n@media(max-width:600px){main{margin:20px auto}${mobile}}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #8b7fff;outline-offset:2px}ul{display:grid;gap:8px;padding:0;list-style:none}li{padding:12px;background:white;border-radius:10px}${pageBackgroundCss(project)}`,
     "tsconfig.json": JSON.stringify(
       {
         compilerOptions: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approvedOperations, quickDashboardPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
+import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickHabitsPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
 
 describe("approved Codex plan", () => {
   it("estrae solo una lista compatta di operazioni tipizzate", () => {
@@ -41,6 +41,22 @@ describe("approved Codex plan", () => {
     })).toBeUndefined();
   });
 
+  it("crea un flow di navigazione dal componente e dalle pagine indicizzate", () => {
+    const operations = approvedOperations(quickNavigationFlowPlan("Al click apri la schermata Dettaglio", {
+      componentId: "open-detail",
+      componentName: "Apri dettaglio",
+      pageId: "home",
+      pages: [
+        { id: "home", name: "Home", path: "/" },
+        { id: "detail", name: "Dettaglio", path: "/dettaglio" },
+      ],
+      flowIndex: [],
+    }));
+    expect(operations).toHaveLength(5);
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "navigate", config: { mode: "page", path: "/dettaglio" } }) }) }));
+    expect(operations?.at(-1)).toMatchObject({ type: "set_component_event", pageId: "home", args: { componentId: "open-detail", event: "click" } });
+  });
+
   it("compone una dashboard mobile dall'indice dei componenti", () => {
     const pageComponents = [
       { id: "head", name: "Header", type: "header", events: [], bound: false },
@@ -54,5 +70,77 @@ describe("approved Codex plan", () => {
     expect(operations).toHaveLength(49);
     expect(operations).toContainEqual(expect.objectContaining({ type: "add_component", args: expect.objectContaining({ componentType: "progress" }) }));
     expect(operations?.at(-1)).toMatchObject({ type: "set_component_state_style", args: { componentId: "quick-add-head", state: "focus" } });
+  });
+
+  it("prepara la superficie CRUD locale delle attivita", () => {
+    const pageComponents = [
+      { id: "head", name: "Header", type: "header" }, { id: "section", name: "Section", type: "section" }, { id: "grid", name: "Grid", type: "grid" },
+      ...[1, 2, 3].map((id) => ({ id: `card-${id}`, name: `Card ${id}`, type: "card" })),
+    ];
+    const operations = approvedOperations(quickCrudSurfacePlan("Prepara attività con sorgente locale IndexedDB, form e lista senza flow", { pageComponents, dataSources: [] }));
+    expect(operations).toHaveLength(27);
+    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "dailyflow-tasks" }) }));
+    expect(operations?.at(-1)).toMatchObject({ type: "bind_component_data", args: { componentId: "tasks-list", sourceId: "dailyflow-tasks" } });
+  });
+
+  it("compone una schermata DailyFlow dal componente selezionato", () => {
+    const operations = approvedOperations(quickDailyFlowScreenPlan("Crea la schermata completa e mobile", {
+      pageId: "habits",
+      componentId: "root",
+      componentType: "section",
+      pages: [{ id: "habits", name: "Abitudini", path: "/abitudini" }],
+      pageComponents: [{ id: "root", name: "Sezione", type: "section" }],
+    }));
+    expect(operations?.length).toBeGreaterThan(10);
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_component", args: expect.objectContaining({ componentId: "habit-add", componentType: "button", parentId: "root" }) }));
+    expect(operations?.filter((operation) => operation.type === "set_responsive_style")).toHaveLength(6);
+  });
+
+  it("sostituisce i soli contenitori iniziali senza rimuovere due volte i figli", () => {
+    const operations = approvedOperations(quickDailyFlowScreenPlan("Crea la schermata completa e mobile", {
+      pageId: "settings",
+      componentId: "settings-child",
+      componentType: "checkbox",
+      pages: [{ id: "settings", name: "Impostazioni", path: "/impostazioni" }],
+      pageComponents: [
+        { id: "profile", name: "Profilo", type: "section" },
+        { id: "settings-child", name: "Modalità offline", type: "checkbox", parentId: "profile" },
+        { id: "grid", name: "Profilo grid", type: "grid" },
+        { id: "card", name: "In evidenza", type: "card", parentId: "grid" },
+        { id: "orphan", name: "Profilo card 1", type: "card" },
+      ],
+    }));
+    expect(operations).toContainEqual({ type: "remove_component", args: { componentId: "grid", confirmed: true } });
+    expect(operations).not.toContainEqual({ type: "remove_component", args: { componentId: "card", confirmed: true } });
+    expect(operations).toContainEqual({ type: "remove_component", args: { componentId: "orphan", confirmed: true } });
+    expect(operations).toContainEqual({ type: "set_component_property", args: { componentId: "profile", property: "name", value: "Impostazioni" } });
+  });
+
+  it("collega i flow di caricamento e creazione delle attivita", () => {
+    const operations = approvedOperations(quickCrudFlowsPlan("Collega i flow: carica al pageLoad e crea o salva attività dal form", {
+      pageComponents: [{ id: "tasks-form", type: "form" }, { id: "tasks-list", type: "list" }],
+      dataSources: [{ id: "dailyflow-tasks", name: "Attività DailyFlow" }],
+      flowIndex: [],
+    }));
+    expect(operations).toHaveLength(27);
+    expect(operations).toContainEqual({ type: "set_component_event", args: { componentId: "tasks-form", event: "submit", flowId: "tasks-create" } });
+    expect(operations?.filter((operation) => operation.type === "connect_nodes").some((operation) => operation.args?.path === "error")).toBe(true);
+  });
+
+  it("risolve localmente dati e flow delle abitudini", () => {
+    const operations = approvedOperations(quickHabitsPlan("Rendi Abitudini funzionante con sorgente IndexedDB e flow visuali", {
+      componentId: "habit-add",
+      pageComponents: [
+        { id: "root", name: "Abitudini", type: "section" },
+        { id: "habit-name", name: "Nome", type: "input", parentId: "root" },
+        { id: "habit-add", name: "Aggiungi", type: "button", parentId: "root" },
+        { id: "habit-water", name: "Acqua", type: "card", parentId: "root" },
+      ],
+      dataSources: [], flowIndex: [],
+    }));
+    expect(operations?.length).toBeLessThanOrEqual(50);
+    expect(operations).toContainEqual(expect.objectContaining({ type: "create_data_source", args: expect.objectContaining({ sourceId: "dailyflow-habits" }) }));
+    expect(operations).toContainEqual({ type: "set_component_event", args: { componentId: "habits-form", event: "submit", flowId: "habits-create" } });
+    expect(operations?.filter((operation) => operation.type === "add_flow")).toHaveLength(3);
   });
 });

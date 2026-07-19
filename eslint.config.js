@@ -8,6 +8,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist",
+      "desktop-dist",
       "playwright-report",
       "test-results",
       "generated-app",

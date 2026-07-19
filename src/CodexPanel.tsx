@@ -34,6 +34,8 @@ export type CodexContext = {
   generatedFiles: string[];
   errors: string[];
   capabilities: unknown[];
+  availableActions: string[];
+  installedSkills: string[];
 };
 
 type Trace = {
@@ -172,7 +174,7 @@ export function CodexPanel({
         setStatus(
           value.authenticated
             ? value.message || "Accesso attivo"
-            : "Accesso richiesto: usa “codex login” nel terminale locale",
+            : value.message || "Collega il tuo account ChatGPT qui; non serve aprire il terminale.",
         );
         setWorkspace(value.workspace || "");
       })
@@ -468,6 +470,11 @@ export function CodexPanel({
           <small>Workspace locale</small>
           <code>{workspace || "non disponibile"}</code>
           <div className="codex-auth" aria-label="Accesso Codex">
+            <small>
+              {authenticated
+                ? "Account collegato e riutilizzato ai prossimi avvii tramite l’accesso ufficiale Codex."
+                : "Le azioni locali restano disponibili. Collega ChatGPT qui per richieste nuove e complesse; non serve il terminale."}
+            </small>
             {authenticated ? (
               <button className="secondary" data-help="Disconnette l'account tramite il comando ufficiale codex logout. Frontend Editor non legge le credenziali." onClick={() => void logout()}>Esci da Codex</button>
             ) : (
