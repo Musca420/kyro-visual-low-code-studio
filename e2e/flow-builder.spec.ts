@@ -14,7 +14,8 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: /^Flow/ }).click();
   await page.getByRole("button", { name: "Crea flow dati" }).click();
 
-  await page.locator(".react-flow__node").filter({ hasText: "Click pulsante" }).click();
+  const flowNodes = page.getByRole("navigation", { name: "Nodi del flow" });
+  await flowNodes.getByRole("button", { name: "Click pulsante", exact: true }).click();
   await expect(page.getByLabel("Tipo evento")).toHaveValue("click");
   await page.getByLabel("Elemento collegato").selectOption({ label: "Button · button" });
   await expect(page.getByText("Questo collegamento viene usato uguale in preview ed export.")).toBeVisible();
@@ -30,11 +31,10 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByLabel("Nome nodo").fill("Carica attività recenti");
   await page.getByLabel("Sorgente collegata").selectOption({ label: "Attività locali" });
   const queryNode = page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" });
-  const refreshNode = page.locator(".react-flow__node").filter({ hasText: "Aggiorna lista" });
   await expect(queryNode).toBeVisible();
-  await refreshNode.click();
+  await flowNodes.getByRole("button", { name: "Aggiorna lista", exact: true }).click();
   await page.getByLabel("Passo successivo").selectOption({ label: "Carica attività recenti" });
-  await page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).click();
+  await flowNodes.getByRole("button", { name: "Inserisci record", exact: true }).click();
   await page.getByLabel("Ferma qui durante il debug").check();
 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
@@ -59,12 +59,12 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
   await page.getByRole("button", { name }).click();
   await page.getByRole("button", { name: /^Flow/ }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Carica attività recenti" }).click();
+  await page.getByRole("navigation", { name: "Nodi del flow" }).getByRole("button", { name: "Carica attività recenti", exact: true }).click();
   await expect(page.getByLabel("Sorgente collegata")).toHaveValue(/.+/);
   await addNode("Condizione");
   await page.getByLabel("Operatore condizione").selectOption("contains");
   await page.getByLabel("Valore condizione").fill("flow");
-  await expect(page.locator(".react-flow__node").filter({ hasText: "Condizione" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Nodi del flow" }).getByRole("button", { name: "Condizione", exact: true })).toBeVisible();
 
   await addNode("Funzione avanzata");
   await page.getByRole("button", { name: "Nuovo modulo protetto" }).click();
@@ -81,7 +81,7 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
   await page.getByRole("button", { name }).click();
   await page.getByRole("button", { name: /^Flow/ }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Funzione avanzata" }).click();
+  await page.getByRole("navigation", { name: "Nodi del flow" }).getByRole("button", { name: "Funzione avanzata", exact: true }).click();
   await expect(page.getByLabel("Modulo collegato")).toHaveValue(/.+/);
 
   await page.getByRole("navigation", { name: "Nodi del flow" }).getByRole("button", { name: "Carica attività recenti", exact: true }).click();
@@ -121,7 +121,7 @@ test("un utente costruisce e configura nodi del flow senza codice", async ({ pag
   const loopNode = page.locator(".react-flow__node").filter({ hasText: "Per ogni elemento" });
   await expect(loopNode.locator('[title="Ogni elemento"]')).toBeVisible();
   await expect(loopNode.locator('[title="Completato"]')).toBeVisible();
-  await expect(page.locator(".react-flow__node").filter({ hasText: "Salva stato" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Nodi del flow" }).getByRole("button", { name: "Salva stato", exact: true })).toBeVisible();
   await expect(page.locator(".react-flow__node").filter({ hasText: "Componi testo" })).toContainText("unknown → string");
   await page.screenshot({ path: "artifacts/frontend-editor-flow-state.png", fullPage: true });
 });

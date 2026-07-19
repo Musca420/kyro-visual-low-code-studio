@@ -51,7 +51,7 @@ test("dal nodo del flow risale a dati e componenti", async ({ page }) => {
   await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
   await page.getByRole("button", { name: "Flow", exact: true }).click();
   await page.getByRole("button", { name: "Crea flow dati" }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Inserisci record" }).click();
+  await page.getByRole("navigation", { name: "Nodi del flow" }).getByRole("button", { name: "Inserisci record", exact: true }).click();
 
   const dependencies = page.getByRole("region", { name: "Dipendenze del nodo" });
   await expect(dependencies).toContainText("Inserisci record");

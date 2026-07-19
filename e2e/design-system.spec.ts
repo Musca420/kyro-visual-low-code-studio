@@ -34,8 +34,8 @@ test("design system chiaro/scuro è persistente, leggibile e adattabile", async 
 
   await page.getByLabel("Nome progetto").fill(`Design system ${Date.now()}`);
   await page.getByRole("button", { name: "Landing page Hero, feature, CTA e footer" }).click();
-  await expect(page.locator(".left-panel")).toHaveCSS("resize", "horizontal");
-  await expect(page.locator(".right-panel")).toHaveCSS("resize", "horizontal");
+  await expect(page.getByRole("separator", { name: "Ridimensiona pannello elementi" })).toHaveAttribute("aria-valuenow", "240");
+  await expect(page.getByRole("separator", { name: "Ridimensiona pannello proprietà" })).toHaveAttribute("aria-valuenow", "300");
   await page.getByRole("button", { name: "Usa tema scuro" }).click();
   await page.screenshot({ path: "artifacts/frontend-editor-workspace-dark.png", fullPage: true });
   await page.setViewportSize({ width: 760, height: 900 });

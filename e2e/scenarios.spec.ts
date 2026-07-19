@@ -31,7 +31,7 @@ test('real user scenarios: refined landing and project dashboard CRUD', async ({
   await expect(page.getByText('Due flow collegati: navigazione alle feature e notifica')).toBeVisible()
   await expect(page.getByLabel('Flow attivo').locator('option')).toHaveCount(2)
   await page.getByLabel('Flow attivo').selectOption({ label: 'Demo interattiva' })
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'Mostra notifica' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Nodi del flow' }).getByRole('button', { name: 'Mostra notifica', exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Preview' }).click()
   const landing = page.frameLocator('iframe[title="Preview isolata"]')
@@ -74,7 +74,7 @@ test('real user scenarios: refined landing and project dashboard CRUD', async ({
   await expect(page.getByText('Flow CRUD, caricamento, ricerca, filtro, ordinamento e KPI collegati')).toBeVisible()
   await expect(page.getByLabel('Flow attivo').locator('option')).toHaveCount(7)
   await page.getByLabel('Flow attivo').selectOption({ label: 'Crea progetto' })
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'Valida campi' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Nodi del flow' }).getByRole('button', { name: 'Valida campi', exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Preview' }).click()
   const dashboard = page.frameLocator('iframe[title="Preview isolata"]')

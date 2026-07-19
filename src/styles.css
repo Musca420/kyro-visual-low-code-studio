@@ -793,6 +793,7 @@ label {
 }
 .left-panel,
 .right-panel {
+  position: relative;
   min-height: 0;
   overflow: auto;
   background: var(--surface);
@@ -804,17 +805,50 @@ label {
   width: 240px;
   min-width: 190px;
   max-width: 420px;
-  resize: horizontal;
 }
 .right-panel {
   border-left: 1px solid var(--line);
   width: 300px;
   min-width: 230px;
   max-width: 480px;
-  resize: horizontal;
-  direction: rtl;
 }
-.right-panel > * { direction: ltr; }
+.panel-resizer {
+  position: sticky;
+  float: right;
+  z-index: 5;
+  top: 0;
+  width: 9px;
+  min-width: 9px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+.panel-resizer-left { margin-right: -18px; }
+.panel-resizer-right { float: left; margin-left: -18px; }
+.panel-resizer:hover,
+.panel-resizer:focus-visible { background: transparent; transform: none; }
+.panel-resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 42px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--muted) 36%, transparent);
+  transform: translateY(-50%);
+  transition: background 150ms ease, height 150ms ease;
+}
+.panel-resizer:hover::after,
+.panel-resizer:focus-visible::after {
+  height: 58px;
+  background: var(--cyan);
+}
+.panel-resizer:focus-visible { outline: 0; }
 .panel-title {
   margin: 2px 0 12px;
 }
@@ -1590,8 +1624,8 @@ label {
     width: 76px;
     min-width: 76px;
     padding: 10px;
-    resize: none;
   }
+  .panel-resizer { display: none; }
   .left-panel .panel-title,
   .page-list small,
   .palette button {

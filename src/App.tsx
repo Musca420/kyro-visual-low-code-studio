@@ -593,6 +593,8 @@ function Editor({
   const [breakpoint, setBreakpoint] = useState<Breakpoint>("desktop");
   const [interactive, setInteractive] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() => Math.min(420, Math.max(190, Number(localStorage.getItem("frontend-editor-left-panel")) || 240)));
+  const [rightPanelWidth, setRightPanelWidth] = useState(() => Math.min(480, Math.max(230, Number(localStorage.getItem("frontend-editor-right-panel")) || 300)));
   const [canvasDropActive, setCanvasDropActive] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [reusableName, setReusableName] = useState("");
@@ -660,6 +662,37 @@ function Editor({
   useEffect(() => {
     void refreshPlugins();
   }, [refreshPlugins]);
+  useEffect(() => {
+    localStorage.setItem("frontend-editor-left-panel", String(leftPanelWidth));
+    localStorage.setItem("frontend-editor-right-panel", String(rightPanelWidth));
+  }, [leftPanelWidth, rightPanelWidth]);
+  const setPanelWidth = (side: "left" | "right", value: number) => {
+    const next = Math.round(Math.min(side === "left" ? 420 : 480, Math.max(side === "left" ? 190 : 230, value)));
+    if (side === "left") setLeftPanelWidth(next);
+    else setRightPanelWidth(next);
+  };
+  const startPanelResize = (side: "left" | "right", event: import("react").PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = side === "left" ? leftPanelWidth : rightPanelWidth;
+    const move = (pointer: PointerEvent) => setPanelWidth(side, startWidth + (pointer.clientX - startX) * (side === "left" ? 1 : -1));
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop, { once: true });
+  };
+  const resizePanelWithKeyboard = (side: "left" | "right", event: import("react").KeyboardEvent<HTMLButtonElement>) => {
+    const current = side === "left" ? leftPanelWidth : rightPanelWidth;
+    if (event.key === "Home") setPanelWidth(side, side === "left" ? 190 : 230);
+    else if (event.key === "End") setPanelWidth(side, side === "left" ? 420 : 480);
+    else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      setPanelWidth(side, current + direction * 8 * (side === "left" ? 1 : -1));
+    } else return;
+    event.preventDefault();
+  };
   useEffect(() => {
     void Promise.all([
       listProjectVersions(project.id),
@@ -2200,7 +2233,20 @@ function Editor({
       )}
       {tab === "design" && (
         <div className="editor-grid">
-          <aside className="left-panel">
+          <aside className="left-panel" style={{ width: leftPanelWidth }}>
+            <button
+              type="button"
+              className="panel-resizer panel-resizer-left"
+              role="separator"
+              aria-label="Ridimensiona pannello elementi"
+              aria-orientation="vertical"
+              aria-valuemin={190}
+              aria-valuemax={420}
+              aria-valuenow={leftPanelWidth}
+              onPointerDown={(event) => startPanelResize("left", event)}
+              onKeyDown={(event) => resizePanelWithKeyboard("left", event)}
+              onDoubleClick={() => setPanelWidth("left", 240)}
+            />
             <PanelTitle eyebrow="Struttura" title="Pagine" />
             <div className="page-list">
               {project.pages.map((page) => (
@@ -2515,7 +2561,20 @@ function Editor({
               </div>
             </div>
           </section>
-          <aside className="right-panel">
+          <aside className="right-panel" style={{ width: rightPanelWidth }}>
+            <button
+              type="button"
+              className="panel-resizer panel-resizer-right"
+              role="separator"
+              aria-label="Ridimensiona pannello proprietà"
+              aria-orientation="vertical"
+              aria-valuemin={230}
+              aria-valuemax={480}
+              aria-valuenow={rightPanelWidth}
+              onPointerDown={(event) => startPanelResize("right", event)}
+              onKeyDown={(event) => resizePanelWithKeyboard("right", event)}
+              onDoubleClick={() => setPanelWidth("right", 300)}
+            />
             <PanelTitle
               eyebrow="Ispezione"
               title={

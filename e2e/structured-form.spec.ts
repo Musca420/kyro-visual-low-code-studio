@@ -37,17 +37,17 @@ test("un form visuale salva un record multi-campo reale", async ({ page }) => {
 
   await page.getByRole("button", { name: /^Flow/ }).click();
   await page.getByRole("button", { name: "Crea flow dati" }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Click pulsante" }).click();
+  const flowNodes = page.getByRole("navigation", { name: "Nodi del flow" });
+  await flowNodes.getByRole("button", { name: "Click pulsante", exact: true }).click();
   await page.getByLabel("Tipo evento").selectOption("submit");
   await page.getByLabel("Elemento collegato").selectOption({ label: "Form · form" });
-  await page.locator(".react-flow__node").filter({ hasText: "Leggi input" }).click();
+  await flowNodes.getByRole("button", { name: "Leggi input", exact: true }).click();
   await page.getByRole("button", { name: "Elimina nodo" }).click();
-  await page.locator(".react-flow__node").filter({ hasText: "Non vuoto" }).click();
+  await flowNodes.getByRole("button", { name: "Non vuoto", exact: true }).click();
   await page.getByLabel("Campo validazione").fill("name");
   await page.getByLabel("Regola validazione").selectOption("required");
   await page.getByLabel("Messaggio validazione").fill("Inserisci il nome del prodotto");
-  const eventNode = page.locator(".react-flow__node").filter({ hasText: "Click pulsante" });
-  await eventNode.click();
+  await flowNodes.getByRole("button", { name: "Click pulsante", exact: true }).click();
   await page.getByLabel("Passo successivo").selectOption({ label: "Non vuoto" });
 
   await page.getByRole("button", { name: "Design", exact: true }).click();
