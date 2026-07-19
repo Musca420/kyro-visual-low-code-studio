@@ -449,26 +449,33 @@ export function quickCrudFlowsPlan(prompt: string, context: Record<string, unkno
   const op = (type: string, args: Record<string, unknown>) => operations.push({ type, args });
   const node = (flowId: string, id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => op("add_flow_node", { flowId, node: { id, type, label, position: { x, y }, config } });
   const edge = (flowId: string, source: string, target: string, path = "success") => op("connect_nodes", { flowId, source, target, path });
+  const renameNode = (flowId: string, nodeId: string, label: string, config?: Record<string, string>) => op("update_flow_node", { flowId, nodeId, patch: { label, ...(config ? { config } : {}) } });
   if (!existingFlows.some((flow) => flow.id === "tasks-load")) {
-    op("add_flow", { flowId: "tasks-load", name: "Carica attività" });
-    node("tasks-load", "load-event", "event", "Apertura pagina", 0, 0, { trigger: "pageLoad" });
-    node("tasks-load", "load-query", "query", "Leggi attività locali", 220, 0, { sourceId });
-    node("tasks-load", "load-refresh", "refresh", "Aggiorna lista", 440, 0, { componentId: list.id });
-    node("tasks-load", "load-error", "notify", "Errore caricamento", 440, 140, { message: "Non riesco a caricare le attività", level: "error" });
+    op("add_flow", { flowId: "tasks-load", name: "Load tasks" });
+    node("tasks-load", "load-event", "event", "Page opened", 0, 0, { trigger: "pageLoad" });
+    node("tasks-load", "load-query", "query", "Read local tasks", 220, 0, { sourceId });
+    node("tasks-load", "load-refresh", "refresh", "Refresh list", 440, 0, { componentId: list.id });
+    node("tasks-load", "load-error", "notify", "Load error", 440, 140, { message: "Unable to load tasks", level: "error" });
     edge("tasks-load", "load-event", "load-query");
     edge("tasks-load", "load-query", "load-refresh");
     edge("tasks-load", "load-query", "load-error", "error");
+  } else {
+    op("update_flow", { flowId: "tasks-load", name: "Load tasks" });
+    renameNode("tasks-load", "load-event", "Page opened");
+    renameNode("tasks-load", "load-query", "Read local tasks");
+    renameNode("tasks-load", "load-refresh", "Refresh list");
+    renameNode("tasks-load", "load-error", "Load error", { message: "Unable to load tasks", level: "error" });
   }
   if (!existingFlows.some((flow) => flow.id === "tasks-create")) {
-    op("add_flow", { flowId: "tasks-create", name: "Crea attività" });
-    node("tasks-create", "create-event", "event", "Invio modulo", 0, 0, { trigger: "submit", componentId: form.id });
-    node("tasks-create", "create-read", "readInput", "Leggi campi", 200, 0, { componentId: form.id });
-    node("tasks-create", "validate-title", "validate", "Titolo obbligatorio", 400, 0, { field: "title", rule: "required", message: "Inserisci il nome dell'attività" });
-    node("tasks-create", "validate-date", "validate", "Data obbligatoria", 600, 0, { field: "dueDate", rule: "required", message: "Scegli una data" });
-    node("tasks-create", "create-insert", "insert", "Salva in locale", 800, 0, { sourceId });
-    node("tasks-create", "create-refresh", "refresh", "Aggiorna lista", 1000, 0, { componentId: list.id });
-    node("tasks-create", "create-success", "notify", "Conferma", 1200, 0, { message: "Attività salvata", level: "success" });
-    node("tasks-create", "create-error", "notify", "Errore", 800, 180, { message: "Controlla i campi e riprova", level: "error" });
+    op("add_flow", { flowId: "tasks-create", name: "Create task" });
+    node("tasks-create", "create-event", "event", "Form submitted", 0, 0, { trigger: "submit", componentId: form.id });
+    node("tasks-create", "create-read", "readInput", "Read fields", 200, 0, { componentId: form.id });
+    node("tasks-create", "validate-title", "validate", "Task name required", 400, 0, { field: "title", rule: "required", message: "Enter a task name" });
+    node("tasks-create", "validate-date", "validate", "Date required", 600, 0, { field: "dueDate", rule: "required", message: "Choose a date" });
+    node("tasks-create", "create-insert", "insert", "Save locally", 800, 0, { sourceId });
+    node("tasks-create", "create-refresh", "refresh", "Refresh list", 1000, 0, { componentId: list.id });
+    node("tasks-create", "create-success", "notify", "Confirmation", 1200, 0, { message: "Task saved", level: "success" });
+    node("tasks-create", "create-error", "notify", "Error", 800, 180, { message: "Check the fields and try again", level: "error" });
     edge("tasks-create", "create-event", "create-read");
     edge("tasks-create", "create-read", "validate-title");
     edge("tasks-create", "validate-title", "validate-date");
@@ -478,6 +485,16 @@ export function quickCrudFlowsPlan(prompt: string, context: Record<string, unkno
     edge("tasks-create", "create-insert", "create-refresh");
     edge("tasks-create", "create-insert", "create-error", "error");
     edge("tasks-create", "create-refresh", "create-success");
+  } else {
+    op("update_flow", { flowId: "tasks-create", name: "Create task" });
+    renameNode("tasks-create", "create-event", "Form submitted");
+    renameNode("tasks-create", "create-read", "Read fields");
+    renameNode("tasks-create", "validate-title", "Task name required", { field: "title", rule: "required", message: "Enter a task name" });
+    renameNode("tasks-create", "validate-date", "Date required", { field: "dueDate", rule: "required", message: "Choose a date" });
+    renameNode("tasks-create", "create-insert", "Save locally");
+    renameNode("tasks-create", "create-refresh", "Refresh list");
+    renameNode("tasks-create", "create-success", "Confirmation", { message: "Task saved", level: "success" });
+    renameNode("tasks-create", "create-error", "Error", { message: "Check the fields and try again", level: "error" });
   }
   if (!existingFlows.some((flow) => flow.id === "tasks-update")) {
     op("add_flow", { flowId: "tasks-update", name: "Update task" });

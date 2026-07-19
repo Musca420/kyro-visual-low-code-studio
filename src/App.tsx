@@ -307,7 +307,7 @@ function Dashboard({
       link.download = `frontend-editor-backup-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      setImportResult("Backup completo creato: progetti, dati, plugin, preferenze e conversazioni Codex.");
+      setImportResult("Backup completo creato: progetti, data sources, plugin, preferenze e conversazioni Codex.");
     } catch (problem) {
       setError(`Backup non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`);
     }
@@ -973,7 +973,7 @@ function Editor({
         }
         return value;
       });
-      setSaveState("Modifiche non salvate");
+      setSaveState("Unsaved changes");
     },
     [],
   );
@@ -987,7 +987,7 @@ function Editor({
         })
         .catch((error) =>
           setSaveState(
-            `Errore salvataggio: ${error instanceof Error ? error.message : String(error)}`,
+            `Save error: ${error instanceof Error ? error.message : String(error)}`,
           ),
         );
     }, 450);
@@ -1004,7 +1004,7 @@ function Editor({
       revision: project.revision + 1,
       updatedAt: new Date().toISOString(),
     });
-    setSaveState("Modifiche non salvate");
+    setSaveState("Unsaved changes");
   }, [history, project]);
   const redo = useCallback(() => {
     const next = future[0];
@@ -1016,7 +1016,7 @@ function Editor({
       revision: project.revision + 1,
       updatedAt: new Date().toISOString(),
     });
-    setSaveState("Modifiche non salvate");
+    setSaveState("Unsaved changes");
   }, [future, project]);
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
@@ -1143,7 +1143,7 @@ function Editor({
       ),
     }));
   const addComponent = (type: EditorComponent["type"], parentId?: string) => {
-    if (!currentPage) return setFeedback("Crea prima una pagina");
+    if (!currentPage) return setFeedback("Create a page first");
     const component = makeComponent(type);
     if (parentId) component.parentId = parentId;
     patchPage((components) => [...components, component]);
@@ -1152,7 +1152,7 @@ function Editor({
   const addPluginComponent = (
     contribution: Extract<PluginContribution, { kind: "component" }>,
   ) => {
-    if (!currentPage) return setFeedback("Crea prima una pagina");
+    if (!currentPage) return setFeedback("Create a page first");
     const component = makeComponent(contribution.componentType);
     component.name = contribution.label;
     component.props = { ...component.props, ...contribution.props };
@@ -1167,7 +1167,7 @@ function Editor({
   };
   const saveReusableComponent = () => {
     if (!currentPage || !selected.length)
-      return setFeedback("Seleziona uno o più elementi da salvare come blocco");
+      return setFeedback("Select one or more elements to save as a block");
     const included = new Set<string>();
     selected.forEach((id) => {
       included.add(id);
@@ -1280,7 +1280,7 @@ function Editor({
       );
     if (entries.length < 2) return;
     if (new Set(entries.map(({ component }) => component.parentId ?? "root")).size > 1) {
-      setFeedback("Seleziona elementi dello stesso gruppo per allinearli insieme");
+      setFeedback("Select elements in the same group to align them");
       return;
     }
     const left = Math.min(...entries.map(({ box }) => box.left));
@@ -1580,7 +1580,7 @@ function Editor({
     setSourceDraftFields(normalizedFields.map((field) => ({ ...field, id: crypto.randomUUID() })));
     setFeedback(
       sourceProvider === "indexeddb"
-        ? "Sorgente IndexedDB creata e schema validato"
+        ? "IndexedDB source created and schema validated"
         : sourceProvider === "generated"
           ? "Backend locale configurato: verrà incluso nell’export"
           : "API REST collegata. Il token resta in una variabile d’ambiente, non nel progetto",
@@ -2183,11 +2183,11 @@ function Editor({
 
   const commands = [
     ...([
-      ["Apri Design", "componenti canvas", () => setTab("design")],
-      ["Apri Flow", "interazioni nodi", () => setTab("flow")],
-      ["Apri Dati", "database sorgenti", () => setTab("data")],
-      ["Apri Preview", "prova anteprima", () => setTab("preview")],
-      ["Apri Pubblica", "export web pwa android", () => setTab("settings")],
+      ["Open Design", "componenti canvas", () => setTab("design")],
+      ["Open Flow", "interazioni nodi", () => setTab("flow")],
+      ["Open Dati", "database sorgenti", () => setTab("data")],
+      ["Open Preview", "prova anteprima", () => setTab("preview")],
+      ["Open Pubblica", "export web pwa android", () => setTab("settings")],
       ["Aggiungi pagina", "nuova schermata", addPage],
       ["Annulla ultima modifica", "undo cronologia", undo],
       ["Ripristina modifica", "redo cronologia", redo],
@@ -2503,7 +2503,7 @@ function Editor({
                     onClick={() => addReusableComponent(definition.id)}
                   >
                     <span>◇</span>{definition.name}
-                    <small>{definition.components.length} elementi</small>
+                    <small>{definition.components.length} elements</small>
                   </button>
                   <button
                     type="button"
@@ -2573,8 +2573,8 @@ function Editor({
                 ))}
               </div>
               {activeComponent && canContain(activeComponent) && (
-                <div className="canvas-layout-tools" aria-label="Colonne del contenitore">
-                  <span>Colonne</span>
+                <div className="canvas-layout-tools" aria-label="Container columns">
+                  <span>Columns</span>
                   {[1, 2, 3, 4].map((count) => (
                     <button
                       key={count}
@@ -2643,7 +2643,7 @@ function Editor({
               {selected.length > 1 && (
                 <div
                   className="canvas-arrange-tools"
-                  aria-label={`Disponi ${selected.length} elementi selezionati`}
+                  aria-label={`Disponi ${selected.length} elements selezionati`}
                 >
                   <span>{selected.length} selezionati</span>
                   <button aria-label="Allinea a sinistra" onClick={() => arrangeSelection("left")}>&#8676;</button>
@@ -3035,7 +3035,7 @@ function Editor({
             >
               <h2>Nuova sorgente</h2>
               <fieldset className="provider-choice">
-                <legend>Dove vuoi salvare i dati?</legend>
+                <legend>Dove vuoi salvare i data sources?</legend>
                 {(
                   [
                     [
@@ -3133,7 +3133,7 @@ function Editor({
                     <select aria-label={`Tipo campo ${field.name || "senza nome"}`} value={field.type} onChange={(event) => setSchemaFields((fields) => fields.map((item) => item.id === field.id ? { ...item, type: event.target.value as typeof field.type } : item))}>
                       <option value="string">Testo</option><option value="number">Numero</option><option value="boolean">Sì / no</option><option value="datetime">Data e ora</option>
                     </select>
-                    <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Elimina campo ${field.name}`} onClick={() => setSchemaFields((fields) => fields.filter((item) => item.id !== field.id))}>Elimina</button>
+                    <button type="button" className="secondary" disabled={field.name === "id"} aria-label={`Delete campo ${field.name}`} onClick={() => setSchemaFields((fields) => fields.filter((item) => item.id !== field.id))}>Delete</button>
                   </div>
                 ))}
                 <button type="button" className="secondary" onClick={() => setSchemaFields((fields) => [...fields, { id: crypto.randomUUID(), name: `campo${fields.length}`, type: "string" }])}>+ Aggiungi campo</button>
@@ -3150,7 +3150,7 @@ function Editor({
               <h2>Sorgenti configurate</h2>
               {project.dataSources.length === 0 ? (
                 <div className="empty-panel">
-                  <strong>Nessuna sorgente</strong>
+                  <strong>None sorgente</strong>
                   <span>Crea il database locale per collegare la lista.</span>
                 </div>
               ) : (
@@ -3185,7 +3185,7 @@ function Editor({
                 ))
               )}
               {selectedSourceDefinition && (
-                <section className="source-schema-editor" aria-label="Evoluzione sorgente dati">
+                <section className="source-schema-editor" aria-label="Evoluzione sorgente data sources">
                   <div className="section-heading"><div><p className="eyebrow">Evoluzione sicura</p><h3>Schema v{selectedSourceDefinition.schemaVersion ?? 1}</h3></div><span>{selectedSourceDefinition.migrations?.length ?? 0} migrazioni</span></div>
                   <p className="property-help">Aggiungi o cambia campi senza cancellare i record già salvati. Ogni aggiornamento crea una versione riproducibile.</p>
                   <fieldset>
@@ -3203,7 +3203,7 @@ function Editor({
                       <label>Campo locale<select aria-label="Campo locale relazione" value={relationField} onChange={(event) => setRelationField(event.target.value)}><option value="">Scegli campo…</option>{Object.keys(selectedSourceDefinition.schema).map((field) => <option key={field}>{field}</option>)}</select></label>
                       <label>Sorgente collegata<select aria-label="Sorgente relazione" value={relationTarget} onChange={(event) => { setRelationTarget(event.target.value); setRelationTargetField("id"); }}><option value="">Scegli sorgente…</option>{project.dataSources.filter((source) => source.id !== selectedSourceDefinition.id).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
                       <label>Campo collegato<select aria-label="Campo destinazione relazione" value={relationTargetField} onChange={(event) => setRelationTargetField(event.target.value)}>{Object.keys(project.dataSources.find((source) => source.id === relationTarget)?.schema ?? { id: "string" }).map((field) => <option key={field}>{field}</option>)}</select></label>
-                      <label>Cardinalità<select aria-label="Cardinalità relazione" value={relationKind} onChange={(event) => setRelationKind(event.target.value as "one" | "many")}><option value="one">Un elemento</option><option value="many">Più elementi</option></select></label>
+                      <label>Cardinalità<select aria-label="Cardinalità relazione" value={relationKind} onChange={(event) => setRelationKind(event.target.value as "one" | "many")}><option value="one">Un elemento</option><option value="many">Più elements</option></select></label>
                       <button type="button" onClick={addRelation}>Crea relazione</button>
                     </>}
                     {(selectedSourceDefinition.relations ?? []).map((relation) => { const target = project.dataSources.find((source) => source.id === relation.targetSourceId); return <div className="relation-row" key={relation.id}><span><strong>{relation.field}</strong> → {target?.name ?? "Sorgente mancante"}.{relation.targetField} · {relation.kind === "one" ? "uno" : "molti"}</span><button type="button" className="secondary" onClick={() => removeRelation(relation.id)}>Rimuovi</button></div>; })}
@@ -3262,7 +3262,7 @@ function Editor({
                         <span title={asset.name}>{asset.name}</span>
                         <button
                           type="button"
-                          aria-label={`Elimina ${asset.name}`}
+                          aria-label={`Delete ${asset.name}`}
                           onClick={() =>
                             change({
                               ...project,
@@ -3339,7 +3339,7 @@ function Editor({
             />
           ) : (
             <div className="empty-panel">
-              <strong>Nessuna pagina</strong>
+              <strong>None pagina</strong>
               <span>Crea una pagina per aprire la preview.</span>
             </div>
           )}
@@ -3426,7 +3426,7 @@ function Editor({
       {generatedFile && (
         <div className="generated-file-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setGeneratedFile(undefined)}>
           <section role="dialog" aria-modal="true" aria-labelledby="generated-file-title">
-            <header><div><p className="eyebrow">Derivato dal grafo</p><h2 id="generated-file-title">{generatedFile.path}</h2></div><button type="button" className="secondary" aria-label="Chiudi file generato" onClick={() => setGeneratedFile(undefined)}>×</button></header>
+            <header><div><p className="eyebrow">Derived from the graph</p><h2 id="generated-file-title">{generatedFile.path}</h2></div><button type="button" className="secondary" aria-label="Close generated file" onClick={() => setGeneratedFile(undefined)}>×</button></header>
             <pre><code>{generatedFile.content}</code></pre>
           </section>
         </div>
@@ -3511,7 +3511,7 @@ function PageAppearance({
         <label>
           Immagine pagina
           <select value={image.startsWith("url(") ? image : "none"} onChange={(event) => onChange({ pageBackgroundImage: event.target.value })}>
-            <option value="none">Nessuna</option>
+            <option value="none">None</option>
             {assets.map((asset) => <option key={asset.id} value={`url(${JSON.stringify(asset.url)})`}>{asset.name}</option>)}
           </select>
         </label>
@@ -3532,11 +3532,11 @@ function ProgramConnections({
 }) {
   return (
     <details className="program-connections" open>
-      <summary>Programma collegato</summary>
+      <summary>Connected program</summary>
       <div className="connection-summary">
-        <span><strong>{view.events.length}</strong> eventi</span>
+        <span><strong>{view.events.length}</strong> events</span>
         <span><strong>{view.dependentFlows.length}</strong> flow</span>
-        <span><strong>{view.dataSources.length}</strong> dati</span>
+        <span><strong>{view.dataSources.length}</strong> data sources</span>
       </div>
       {view.events.map((event) => (
         <p key={`${event.event}-${event.flowId}`}>
@@ -3549,41 +3549,41 @@ function ProgramConnections({
         </p>
       ))}
       {view.issues.length ? (
-        <div className="capability-issues" aria-label="Capacità mancanti">
+        <div className="capability-issues" aria-label="Missing capabilities">
           {view.issues.map((issue) => (
             <article key={issue.id}>
               <strong>{issue.title}</strong>
               <span>{issue.explanation}</span>
               {issue.plan && (
                 <details className="capability-plan">
-                  <summary>Confronta le soluzioni</summary>
+                  <summary>Compare solutions</summary>
                   <div>
-                    <strong>Cosa serve</strong>
+                    <strong>What is required</strong>
                     <ul>{issue.plan.requirements.map((item) => <li key={item}>{item}</li>)}</ul>
-                    <strong>Alternative</strong>
+                    <strong>Alternatives</strong>
                     <ul>{issue.plan.alternatives.map((item) => <li key={item}>{item}</li>)}</ul>
                     <p>{issue.plan.costNote}</p>
-                    {issue.plan.confirmationRequired && <em>Nessun account, costo o segreto verrà configurato senza la tua conferma.</em>}
+                    {issue.plan.confirmationRequired && <em>No account, cost, or secret will be configured without your confirmation.</em>}
                   </div>
                 </details>
               )}
               <button className="secondary" onClick={() => onResolve(issue)}>
                 {issue.target === "data"
-                  ? "Configura archivio"
+                  ? "Configure storage"
                   : issue.target === "flow"
-                    ? "Configura interazione"
+                    ? "Configure interaction"
                     : issue.target === "settings"
-                      ? "Configura pubblicazione"
+                      ? "Configure publishing"
                       : "Ask Codex"}
               </button>
             </article>
           ))}
         </div>
       ) : (
-        <span className="capability-ready">Capacità collegate</span>
+        <span className="capability-ready">Capabilities connected</span>
       )}
       <details>
-        <summary>File generati</summary>
+        <summary>Generated files</summary>
         {view.generatedFiles.map((file) => <button type="button" className="generated-file-link" key={file} onClick={() => onOpenFile(file)}>{file}</button>)}
       </details>
     </details>
@@ -3607,18 +3607,18 @@ function FlowNodeConnections({
         <p className="eyebrow">Grafo unificato</p>
         <h2>{view.nodeLabel}</h2>
         <span>
-          {view.incoming.length} ingressi · {view.outgoing.length} uscite · {view.components.length} elementi · {view.dataSources.length} dati
+          {view.incoming.length} inputs · {view.outgoing.length} outputs · {view.components.length} elements · {view.dataSources.length} data sources
         </span>
       </div>
       <div className="flow-dependency-list">
         {view.components.map((component) => (
           <button className="secondary" key={component.id} onClick={() => onOpenComponent(component.id)}>
-            Apri {component.name} <small>{component.type}</small>
+            Open {component.name} <small>{component.type}</small>
           </button>
         ))}
         {view.dataSources.map((source) => (
           <button className="secondary" key={source.id} onClick={onOpenData}>
-            Apri {source.name} <small>{source.provider}</small>
+            Open {source.name} <small>{source.provider}</small>
           </button>
         ))}
         {view.errors.map((error) => <span className="requirement-warning" key={error}>{error}</span>)}
@@ -3652,14 +3652,14 @@ function DataSourceConnections({
     subscribe: "aggiorna in tempo reale",
   };
   return (
-    <section className="data-source-connections" aria-label="Impatto sorgente dati">
+    <section className="data-source-connections" aria-label="Impatto sorgente data sources">
       <div>
         <p className="eyebrow">Grafo unificato</p>
         <h3>{view.name}</h3>
         <span>{provider} · archivio {view.collection}</span>
       </div>
       <div className="data-impact-counts">
-        <span><strong>{view.components.length}</strong> elementi</span>
+        <span><strong>{view.components.length}</strong> elements</span>
         <span><strong>{view.flows.length}</strong> flow</span>
         <span><strong>{view.fields.length}</strong> campi</span>
       </div>
@@ -3668,15 +3668,15 @@ function DataSourceConnections({
       </div>
       {view.components.map((component) => (
         <button className="secondary" key={component.id} onClick={() => onOpenComponent(component.pageId, component.id)}>
-          Apri {component.name} <small>{component.pageName}</small>
+          Open {component.name} <small>{component.pageName}</small>
         </button>
       ))}
       {view.flows.map((flow) => (
         <button className="secondary" key={flow.id} onClick={() => onOpenFlow(flow.id)}>
-          Apri flow {flow.name} <small>{flow.nodes.join(" · ")}</small>
+          Open flow {flow.name} <small>{flow.nodes.join(" · ")}</small>
         </button>
       ))}
-      {!view.components.length && !view.flows.length && <p className="property-help">Questa sorgente è pronta ma non è ancora collegata a elementi o flow.</p>}
+      {!view.components.length && !view.flows.length && <p className="property-help">Questa sorgente è pronta ma non è ancora collegata a elements o flow.</p>}
       {view.warnings.map((warning) => <span className="requirement-warning" key={warning}>{warning}</span>)}
       <details>
         <summary>Campi e file generati</summary>
@@ -3697,7 +3697,7 @@ const componentAliases: Partial<Record<EditorComponent["type"], string>> = {
   grid: "colonne griglia layout",
   stack: "fila colonna gruppo layout",
   container: "sezione contenitore gruppo",
-  chart: "grafico statistiche dati",
+  chart: "grafico statistiche data sources",
   sidebar: "barra laterale menu laterale",
   navbar: "navigazione intestazione",
   form: "modulo campi inserimento",
@@ -3709,15 +3709,15 @@ const componentAliases: Partial<Record<EditorComponent["type"], string>> = {
   progress: "avanzamento progresso",
   toast: "notifica messaggio",
   modal: "finestra dialogo",
-  table: "tabella elenco dati",
+  table: "tabella elenco data sources",
   card: "scheda riquadro",
   carousel: "carosello scorrimento",
   accordion: "fisarmonica domande",
 };
 const componentNames: Partial<Record<EditorComponent["type"], string>> = {
-  container: "Sezione",
-  stack: "Fila / colonna",
-  grid: "Colonne",
+  container: "Section",
+  stack: "Row / column",
+  grid: "Columns",
 };
 
 function GuideBar({
@@ -4679,7 +4679,7 @@ function Properties({
           />
         </label>
         <label>
-          Sfondo
+          Background
           <input
             type="color"
             value={style.background}
@@ -4707,7 +4707,7 @@ function Properties({
       <div className="button-row">
         <button
           className="secondary"
-          data-help="Crea un gruppo verticale attorno a questo elemento, utile per organizzare più elementi insieme."
+          data-help="Crea un gruppo verticale attorno a questo elemento, utile per organizzare più elements insieme."
           onClick={onWrap}
         >
           Raggruppa
@@ -4716,7 +4716,7 @@ function Properties({
           Duplica
         </button>
         <button className="danger" onClick={onDelete}>
-          Elimina
+          Delete
         </button>
       </div>
     </div>
@@ -4772,7 +4772,7 @@ function FlowRunHistory({ runs, flows, onOpen }: { runs: Project["flowRuns"]; fl
     <details className="flow-run-history">
       <summary>Cronologia esecuzioni <span>{runs.length}</span></summary>
       <div>
-        {runs.length === 0 ? <p>Nessuna esecuzione registrata.</p> : [...runs].reverse().map((run) => (
+        {runs.length === 0 ? <p>None esecuzione registrata.</p> : [...runs].reverse().map((run) => (
           <button key={run.id} type="button" className="secondary" onClick={() => onOpen(run.logs)}>
             <strong>{flows.find((flow) => flow.id === run.flowId)?.name ?? "Flow rimosso"}</strong>
             <span>{run.logs.length} passi · {run.durationMs.toFixed(1)} ms</span>
@@ -4854,7 +4854,7 @@ function landingFlows(project: Project): {
         {
           id: target,
           type: action,
-          label: action === "navigate" ? "Vai alle feature" : "Mostra notifica",
+          label: action === "navigate" ? "Go to features" : "Show notification",
           position: { x: 330, y: 100 },
           config,
         },
@@ -5123,7 +5123,7 @@ function dashboardFlows(project: Project): {
     make("Carica progetti", bySlot("projects-table"), "query"),
     make("Crea progetto", bySlot("create"), "insert", true),
     make("Aggiorna progetto", bySlot("project-form"), "update", true),
-    make("Elimina progetto", bySlot("detail-modal"), "delete"),
+    make("Delete progetto", bySlot("detail-modal"), "delete"),
     make("Cerca progetti", bySlot("search"), "filter"),
     make("Filtra stato", bySlot("filter"), "filter"),
     make("Ordina progetti", bySlot("sort"), "sort"),

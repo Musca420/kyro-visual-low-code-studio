@@ -17,7 +17,7 @@ describe("web generator", () => {
     expect(source).toContain('"kind":"calendar"');
     expect(source).toContain('"metric":"completed"');
     expect(source).toContain("const renderBoundData");
-    expect(source).toContain("Nessun elemento in questa data");
+    expect(source).toContain("No items on this date");
   });
   it("esporta notifiche locali web e Android solo quando il grafo le usa", () => {
     const project = createProject("Reminder app");

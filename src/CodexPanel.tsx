@@ -174,7 +174,7 @@ export function CodexPanel({
         setStatus(
           value.authenticated
             ? value.message || "Accesso attivo"
-            : value.message || "Collega il tuo account ChatGPT qui; non serve aprire il terminale.",
+            : value.message || "Connect your ChatGPT account here; no terminal is required.",
         );
         setWorkspace(value.workspace || "");
       })
@@ -218,12 +218,12 @@ export function CodexPanel({
       ? await captureEvidence?.().then((value) => value.dataUrl).catch(() => undefined)
       : undefined;
     let timelineId: string = crypto.randomUUID();
-    setLiveText(mode === "plan" ? "Analisi in corso…" : "Applicazione in corso…");
+    setLiveText(mode === "plan" ? "Analysis in corso…" : "Applicazione in corso…");
     if (mode === "plan")
       setHistory((items) => [
         ...items,
         { role: "user", text: prompt },
-        { role: "system", text: "Analisi in sola lettura avviata…" },
+        { role: "system", text: "Analysis in sola lettura avviata…" },
       ]);
     try {
       const response = await fetch("/api/codex/jobs", {
@@ -241,7 +241,7 @@ export function CodexPanel({
       let value = await response.json();
       if (!response.ok)
         throw new Error(
-          value.error || value.errors || "Operazione non riuscita",
+          value.error || value.errors || "Operation failed",
         );
       timelineId = String(value.jobId ?? timelineId);
       const runningEntry: CodexTimelineEntry = {
@@ -344,7 +344,7 @@ export function CodexPanel({
       await saveCodexTimelineEntry(restoredEntry);
       setTimeline((items) => items.map((item) => item.id === job.id ? restoredEntry : item));
     }
-    setHistory((items) => [...items, { role: "system", text: `Operazione ripristinata: ${value.restored.length} file riportati allo stato precedente.` }]);
+    setHistory((items) => [...items, { role: "system", text: `Operation restored: ${value.restored.length} file riportati allo stato precedente.` }]);
   };
   if (!open) return null;
   return (
@@ -480,10 +480,10 @@ export function CodexPanel({
             ) : (
               <>
                 <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corso…" : "Accedi con ChatGPT"}</button>
-                <button className="secondary" disabled={authBusy} data-help="Mostra il flusso con codice dispositivo quando il browser non può tornare automaticamente all'app." onClick={() => void login(true)}>Usa codice dispositivo</button>
+                <button className="secondary" disabled={authBusy} data-help="Mostra il flusso con codice dispositivo quando il browser non può tornare automaticamente all'app." onClick={() => void login(true)}>Use device code</button>
               </>
             )}
-            {authBusy && loginSession && <button className="danger" onClick={() => void fetch(`/api/codex/login/${loginSession}/cancel`, { method: "POST" })}>Annulla accesso</button>}
+            {authBusy && loginSession && <button className="danger" onClick={() => void fetch(`/api/codex/login/${loginSession}/cancel`, { method: "POST" })}>Cancel sign-in</button>}
           </div>
         </aside>
         <main>
@@ -519,9 +519,9 @@ export function CodexPanel({
             )}
             {view === "operations" && (
               <TraceList
-                empty="Nessun comando eseguito."
+                empty="No commands executed."
                 items={trace.commands.map((item) => ({
-                  title: item.exitCode === 0 ? "Completato" : "Errore",
+                  title: item.exitCode === 0 ? "Completed" : "Error",
                   body: `${item.command}\n${item.output}`,
                 }))}
               />
@@ -532,7 +532,7 @@ export function CodexPanel({
                   {timeline.map((entry) => (
                     <article key={entry.id}>
                       <header>
-                        <strong>{entry.mode === "apply" ? "Modifica" : "Analisi"} · {entry.componentName}</strong>
+                        <strong>{entry.mode === "apply" ? "Change" : "Analysis"} · {entry.componentName}</strong>
                         <span className={`timeline-status ${entry.status}`}>{entry.status}</span>
                       </header>
                       <p>{entry.prompt}</p>
@@ -547,12 +547,12 @@ export function CodexPanel({
                     </article>
                   ))}
                 </div>
-              ) : <div className="codex-welcome"><strong>Nessuna operazione registrata.</strong><p>Ogni richiesta verrà salvata qui con prove e revisione.</p></div>
+              ) : <div className="codex-welcome"><strong>No operations recorded.</strong><p>Every request is saved here with evidence and revision.</p></div>
             )}
             {view === "files" && (
               <>
                 <TraceList
-                  empty="Nessun file modificato."
+                  empty="No files changed."
                   items={trace.files.map((item) => ({
                     title: item.slice(0, 2).trim() || "File",
                     body: item.slice(3),
@@ -613,7 +613,7 @@ export function CodexPanel({
                       ...items,
                       {
                         role: "system",
-                        text: "Piano rifiutato. Nessuna modifica applicata.",
+                        text: "Plan rejected. No changes were applied.",
                       },
                     ]);
                   }}
