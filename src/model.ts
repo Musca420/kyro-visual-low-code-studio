@@ -255,6 +255,7 @@ export const flowNodeTypes = [
   "requestPermission",
   "nativeAction",
   "platformCondition",
+  "runFlow",
   "module",
   "log",
 ] as const;

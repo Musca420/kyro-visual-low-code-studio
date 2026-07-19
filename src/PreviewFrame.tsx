@@ -45,7 +45,7 @@ const attr = (component?: EditorComponent) =>
 const bySlot = (components: EditorComponent[], slot: string) =>
   components.find((component) => component.props.slot === slot);
 const label = (component?: EditorComponent) =>
-  escapeHtml(component?.props.label || component?.name || "");
+  escapeHtml(component?.props.label ?? component?.name ?? "");
 
 export function buildBottomNavigation(project: Project, activePath?: string) {
   const navigation = project.appConfig.mobileBottomNavigation;
@@ -150,7 +150,7 @@ export function renderComponent(component: EditorComponent, children = "") {
   if (component.type === "accordion")
     return `<details ${common}><summary>${text}</summary>${children || `<p>${escapeHtml(component.props.description || "Contenuto espandibile")}</p>`}</details>`;
   if (canContain(component)) {
-    const ownContent = `<strong>${text}</strong>${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
+    const ownContent = `${text ? `<strong>${text}</strong>` : ""}${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
     const content = `${ownContent}${children}`;
     const tag =
       component.type === "header" ||

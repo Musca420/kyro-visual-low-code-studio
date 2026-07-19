@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { runFlow, safeHttpUrl } from '../src/flow'
+import { runFlow, runProjectFlow, safeHttpUrl } from '../src/flow'
 import type { Flow } from '../src/model'
 
 const flow: Flow = {
@@ -322,5 +322,21 @@ describe('flow runtime', () => {
     expect(success.at(-1)?.value).toEqual({ path: 'photo.jpg' })
     await runFlow(native, { input: '', insert: async () => undefined, refresh: async () => undefined, requestPermission: () => false, platformInfo: () => ({ platform: 'android', version: '15' }), nativeAction, notify })
     expect(notify).toHaveBeenCalledWith('Permission denied', 'error')
+  })
+
+  it('riusa un flow e blocca le chiamate ricorsive', async () => {
+    const child: Flow = { id: 'child', name: 'Format once', nodes: [
+      { id: 'start-child', type: 'event', label: 'Input', position: { x: 0, y: 0 }, config: {} },
+      { id: 'format-child', type: 'format', label: 'Format', position: { x: 1, y: 0 }, config: { template: 'Hello {{value}}' } },
+    ], edges: [{ id: 'child-edge', source: 'start-child', target: 'format-child', path: 'success' }] }
+    const parent: Flow = { id: 'parent', name: 'Parent', nodes: [
+      { id: 'start-parent', type: 'event', label: 'Click', position: { x: 0, y: 0 }, config: {} },
+      { id: 'reuse', type: 'runFlow', label: 'Reuse', position: { x: 1, y: 0 }, config: { flowId: 'child' } },
+    ], edges: [{ id: 'parent-edge', source: 'start-parent', target: 'reuse', path: 'success' }] }
+    const logs = await runProjectFlow('parent', [parent, child], { input: 'Kyro', insert: async () => undefined, refresh: async () => undefined })
+    expect(logs.at(-1)?.value).toBe('Hello Kyro')
+    child.nodes[1] = { ...child.nodes[1], type: 'runFlow', config: { flowId: 'parent' } }
+    const recursive = await runProjectFlow('parent', [parent, child], { input: 'Kyro', insert: async () => undefined, refresh: async () => undefined })
+    expect(recursive.at(-1)?.message).toContain('Reusable flow cycle')
   })
 })

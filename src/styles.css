@@ -1340,16 +1340,18 @@ label {
   border: 2px solid;
   border-radius: 10px;
   background: #fff;
+  color: #172033;
   box-shadow: 0 8px 18px #26314c18;
 }
 .flow-node small {
-  color: #7b8495;
+  color: #465166;
   text-transform: uppercase;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.12em;
 }
 .flow-node strong {
-  font-size: 12px;
+  color: #172033;
+  font-size: 13px;
 }
 .react-flow__handle {
   width: 13px;
@@ -1413,7 +1415,7 @@ label {
 .flow-groups details > div { display: grid; gap: 6px; padding-bottom: 8px; }
 .flow-palette button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left; }
 .flow-palette i { width: 9px; height: 9px; border-radius: 50%; }
-.flow-node .port-types { display: block; margin-top: 4px; color: #7b8495; font-size: 8px; }
+.flow-node .port-types { display: block; margin-top: 4px; color: #465166; font-size: 10px; }
 .flow-connection-error { color: var(--danger) !important; }
 .generated-file-link { display: block; width: 100%; margin-top: 5px; padding: 7px 9px; background: var(--surface); color: var(--ink); text-align: left; font-family: ui-monospace, monospace; font-size: 11px; }
 .generated-file-backdrop { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: #05090cb8; }

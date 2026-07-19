@@ -16,6 +16,7 @@ export type FlowContext = {
   requestPermission?: (permission: string, rationale: string) => Promise<boolean> | boolean
   nativeAction?: (capability: string, action: string, value: unknown, config: Record<string, string>) => Promise<unknown> | unknown
   platformInfo?: () => Promise<{ platform: string; version: string }> | { platform: string; version: string }
+  runSubflow?: (flowId: string, value: unknown) => Promise<unknown>
   runModule?: (moduleId: string, value: unknown) => Promise<unknown> | unknown
   getState?: (key: string) => unknown
   setState?: (key: string, value: unknown) => void
@@ -100,6 +101,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'localNotification') await required(context.localNotification, 'Notifiche locali non disponibili')(node.config.title || 'Promemoria', node.config.body || String(value ?? ''), Math.min(604800000, Math.max(0, Number(node.config.delayMs) || 0)))
       if (node.type === 'nativeAction') value = await guarded(Promise.resolve(required(context.nativeAction, 'Device actions are not available')(node.config.capability || '', node.config.action || '', value, node.config)), context)
+      if (node.type === 'runFlow') value = await guarded(required(context.runSubflow, 'Reusable flows are not available')(node.config.flowId || '', value), context)
       if (node.type === 'module') value = await guarded(Promise.resolve(required(context.runModule, 'Esecuzione modulo non disponibile')(node.config.moduleId || '', value)), context)
       path = loopPath ?? switchPath ?? (conditionResult === false ? 'error' : 'success')
       push({ nodeId: node.id, level: 'info', message: conditionResult === false ? `${node.label}: condizione non verificata` : `${node.label}: completato`, value, durationMs: Math.max(0, clock() - nodeStarted) })
@@ -117,6 +119,22 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
     node = next
   }
   return logs
+}
+
+export async function runProjectFlow(flowId: string, flows: Flow[], context: FlowContext, ancestry: string[] = []): Promise<FlowLog[]> {
+  if (ancestry.includes(flowId)) throw new Error(`Reusable flow cycle: ${[...ancestry, flowId].join(' → ')}`)
+  if (ancestry.length >= 20) throw new Error('Reusable flows exceeded the maximum depth of 20')
+  const flow = flows.find((item) => item.id === flowId)
+  if (!flow) throw new Error(`Reusable flow not found: ${flowId}`)
+  return runFlow(flow, {
+    ...context,
+    runSubflow: async (targetId, value) => {
+      const logs = await runProjectFlow(targetId, flows, { ...context, input: value }, [...ancestry, flowId])
+      const last = logs.at(-1)
+      if (last?.level === 'error') throw new Error(last.message)
+      return last?.value ?? value
+    },
+  })
 }
 
 export function safeHttpUrl(value = '') {

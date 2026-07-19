@@ -124,7 +124,10 @@ function componentFromElement(
   parentId?: string,
 ): EditorComponent {
   const component = makeComponent(typeFor(element));
-  const text = (element.textContent ?? "").replace(/\s+/g, " ").trim();
+  const canContain = (containerTypes as readonly string[]).includes(component.type);
+  const text = (canContain
+    ? [...element.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent ?? "").join(" ")
+    : element.textContent ?? "").replace(/\s+/g, " ").trim();
   component.name =
     element.getAttribute("aria-label") ||
     element.id ||
@@ -133,7 +136,7 @@ function componentFromElement(
   component.parentId = parentId;
   component.props = {
     ...component.props,
-    label: text.slice(0, 240) || component.name,
+    label: text.slice(0, 240) || (canContain ? "" : component.name),
     ...(element.getAttribute("href")
       ? { href: element.getAttribute("href")! }
       : {}),

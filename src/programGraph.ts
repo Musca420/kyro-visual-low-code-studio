@@ -245,6 +245,8 @@ export function inspectFlowNodeProgram(
     errors.push("Scrivi il messaggio mostrato quando la validazione fallisce.");
   if (node.type === "module" && !node.config.moduleId)
     errors.push("Scegli o crea il modulo protetto eseguito da questo nodo.");
+  if (node.type === "runFlow" && (!node.config.flowId || node.config.flowId === flow.id || !project.flows.some((item) => item.id === node.config.flowId)))
+    errors.push("Choose another existing flow to reuse.");
   if (node.type === "http" && !node.config.url)
     errors.push("Inserisci l'indirizzo HTTP o HTTPS del servizio.");
   const nativeIssue = nativeNodeIssue(node);

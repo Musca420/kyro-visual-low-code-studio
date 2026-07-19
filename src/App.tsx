@@ -27,7 +27,7 @@ import {
   type ExportRecord,
   type ProjectVersion,
 } from "./db";
-import { runFlow, type FlowLog } from "./flow";
+import { runProjectFlow, type FlowLog } from "./flow";
 import { runCodeModule } from "./codeModules";
 import {
   BREAKPOINTS,
@@ -169,9 +169,15 @@ function Dashboard({
   }, []);
   useEffect(() => {
     const desktop = window.frontendEditorDesktop;
-    if (!desktop || loading || desktopImportStarted.current) return;
+    if (loading || desktopImportStarted.current) return;
     desktopImportStarted.current = true;
-    void desktop.readWorkspace().then(async (workspace) => {
+    const readWorkspace = desktop
+      ? desktop.readWorkspace()
+      : fetch("/api/workspace").then((response) => {
+          if (!response.ok) throw new Error(`Workspace unavailable (${response.status})`);
+          return response.json() as Promise<DesktopWorkspace | null>;
+        });
+    void readWorkspace.then(async (workspace) => {
       if (!workspace) return;
       const storageKey = `frontend-editor-desktop:${workspace.root}`;
       const existingId = localStorage.getItem(storageKey);
@@ -1769,6 +1775,19 @@ function Editor({
     setFlowId(newFlow.id);
     setFeedback("Flow collegato al click e lista collegata alla sorgente");
   };
+  const createReusableFlow = () => {
+    const id = crypto.randomUUID(), startId = crypto.randomUUID();
+    const reusable: Flow = {
+      id,
+      name: `Reusable flow ${project.flows.length + 1}`,
+      nodes: [{ id: startId, type: "event", label: "Input", position: { x: 80, y: 100 }, config: { trigger: "manual" } }],
+      edges: [],
+    };
+    change({ ...project, flows: [...project.flows, reusable] });
+    setFlowId(id);
+    setSelectedFlowNodeId(startId);
+    setFeedback("Reusable flow created. Add steps, then call it from any other flow.");
+  };
   const addPluginNode = (
     contribution: Extract<PluginContribution, { kind: "node" }>,
   ) => {
@@ -1871,7 +1890,7 @@ function Editor({
       }
       setLogs([]);
       const startedAt = new Date().toISOString();
-      const result = await runFlow(activeFlow, {
+      const result = await runProjectFlow(activeFlow.id, project.flows, {
         input,
         insert: (value, sourceId) => insertRecord(sourceId || source.id, String(value)),
         query: (sourceId) => queryRecords(sourceId || source.id),
@@ -1912,7 +1931,7 @@ function Editor({
     let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modal: { componentId: string; operation: "open" | "close" } | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
     setLogs([]);
     const startedAt = new Date().toISOString();
-    const result = await runFlow(activeFlow, {
+    const result = await runProjectFlow(activeFlow.id, project.flows, {
       input,
       insert: (value, sourceId) => insertGenericRecord(sourceId || source?.id || "", value),
       query: (sourceId) => queryRecords(sourceId || source?.id || ""),
@@ -2862,13 +2881,16 @@ function Editor({
                 </label>
               )}
             </div>
-            <button onClick={createFlow}>
-              {project.state.experience === "landing"
-                ? "Create landing interactions"
-                : project.state.experience === "dashboard"
-                  ? "Create dashboard flow"
-                  : "Create data flow"}
-            </button>
+            <div className="button-row">
+              <button className="secondary" onClick={createReusableFlow}>New reusable flow</button>
+              <button onClick={createFlow}>
+                {project.state.experience === "landing"
+                  ? "Create landing interactions"
+                  : project.state.experience === "dashboard"
+                    ? "Create dashboard flow"
+                    : "Create data flow"}
+              </button>
+            </div>
           </div>
           {pluginNodes.length > 0 && (
             <div className="plugin-contribution-bar" aria-label="Nodes provided by extensions">
@@ -2891,6 +2913,7 @@ function Editor({
           >
             <FlowEditor
               flow={flow}
+              flows={project.flows}
               pages={project.pages}
               components={project.pages.flatMap((page) => page.components)}
               sources={project.dataSources}
@@ -3971,7 +3994,7 @@ function LayerBranch({
 }
 
 function designContent(component: EditorComponent) {
-  const label = String(component.props.label || component.name);
+  const label = String(component.props.label ?? component.name);
   if (component.type === "input")
     return (
       <input tabIndex={-1} placeholder={String(component.props.placeholder)} />
@@ -4037,7 +4060,7 @@ function designContent(component: EditorComponent) {
   if (canContain(component))
     return (
       <>
-        <strong>{label}</strong>
+        {label && <strong>{label}</strong>}
         {component.props.description && (
           <p>{String(component.props.description)}</p>
         )}

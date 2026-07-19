@@ -1,4 +1,6 @@
-# Frontend Editor
+# Kyro — Visual Low-Code Studio
+
+**Run reusable flow** passes the current value into another visual flow and returns its final value to the calling graph. The guided target list excludes the current flow; preview and generated code share cycle detection and a maximum nesting depth. This keeps recurring behavior as readable Node-RED-style building blocks instead of duplicated chains.
 
 Editor visuale low-code locale per creare UI responsive, collegare flow deterministici, usare IndexedDB e generare un'app TypeScript/Vite indipendente.
 
@@ -48,33 +50,21 @@ La dashboard può anche importare una cartella Web, PWA o Capacitor esistente. S
 
 La sezione **Progetti recenti** offre ricerca, duplicazione, eliminazione e backup/ripristino. Il backup aperto e validato include progetti, record IndexedDB, plugin, tema, associazioni delle cartelle desktop e conversazioni Codex; il ripristino è additivo, quindi non cancella progetti già presenti.
 
-## Avvio
+## Start from the repository
 
 Richiede Node.js 20 o successivo.
 
 ```bash
 npm install
-npm run dev
-```
-
-Aprire `http://127.0.0.1:5173`. I progetti e i record sono salvati nell'IndexedDB del browser; non vengono inviati a servizi esterni.
-
-### Desktop e CLI
-
-```bash
-# shell desktop in sviluppo, aprendo una cartella esistente
-npm run desktop:dev -- --project "C:\percorso\progetto"
-
-# registra il comando globale dal checkout locale
 npm link
-frontend-editor "C:\percorso\progetto"
-
-# pacchetto nativo e installer della piattaforma corrente
-npm run desktop:package
-npm run desktop:make
+kyro
 ```
 
-La shell usa isolamento del contesto, sandbox e renderer senza Node. La CLI autorizza una sola cartella, ignora dipendenze/build/link simbolici e importa soltanto file sorgente testuali entro limiti espliciti. Su Windows l'installer Squirrel crea collegamenti Desktop e Start Menu; le configurazioni Forge includono maker per ZIP macOS, DEB e RPM Linux da produrre sui rispettivi sistemi.
+Run `kyro` inside an existing project folder to import it directly. Run it from any other folder to open Home and choose or create a project visually. `kyro "path/to/project"` always opens the explicit folder. Kyro starts a local server and opens the trusted system browser, avoiding unsigned desktop binaries. Project data stays in browser IndexedDB and is not sent to an external service.
+
+Use `kyro --home` when you explicitly want Home even if the current folder contains a project.
+
+The CLI reads only the selected workspace, ignores dependencies, builds and symbolic links, and enforces explicit source-file and size limits. Press `Ctrl+C` in the launching terminal to stop Kyro. Electron packaging remains available for signed release builds only; it is not the repository workflow.
 
 ## Verifica
 

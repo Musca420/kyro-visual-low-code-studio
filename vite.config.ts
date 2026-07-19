@@ -4,9 +4,9 @@ import {
   spawn,
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
-import { access, cp, mkdir, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { resolve } from "node:path";
+import { basename, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
@@ -25,6 +25,30 @@ const skillsReady = bundledSkillsRoot === workspaceSkillsRoot
   : mkdir(workspaceSkillsRoot, { recursive: true }).then(() =>
       cp(bundledSkillsRoot, workspaceSkillsRoot, { recursive: true, force: true }),
     );
+
+const sourceExtensions = new Set([".css", ".html", ".htm", ".js", ".json", ".jsx", ".md", ".mjs", ".svelte", ".ts", ".tsx", ".txt", ".vue", ".yaml", ".yml"]);
+const ignoredSourceDirectories = new Set([".git", ".next", ".output", ".turbo", "android", "build", "coverage", "dist", "ios", "node_modules", "out", "target"]);
+async function readWorkspace() {
+  if (process.env.KYRO_PROJECT_MODE !== "project") return null;
+  if (!(await stat(workspaceRoot).catch(() => undefined))?.isDirectory()) throw new Error("The project folder is not accessible.");
+  const files: { path: string; content: string }[] = [];
+  let bytes = 0;
+  async function visit(directory: string) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (files.length >= 500) throw new Error("The project exceeds the 500 source file safety limit.");
+      if (entry.isSymbolicLink() || ignoredSourceDirectories.has(entry.name)) continue;
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) { await visit(absolute); continue; }
+      if (!entry.isFile() || !sourceExtensions.has(extname(entry.name).toLowerCase())) continue;
+      const content = await readFile(absolute, "utf8");
+      bytes += Buffer.byteLength(content);
+      if (bytes > 4_000_000) throw new Error("The project exceeds the 4 MB source text safety limit.");
+      files.push({ path: relative(workspaceRoot, absolute).replaceAll("\\", "/"), content });
+    }
+  }
+  await visit(workspaceRoot);
+  return { root: workspaceRoot, name: basename(workspaceRoot), files };
+}
 
 const run = promisify(execFile);
 const nodeCommand =
@@ -215,6 +239,8 @@ function liveBridge() {
       server.middlewares.use(async (request, response, next) => {
         try {
           const url = new URL(request.url ?? "/", "http://127.0.0.1");
+          if (url.pathname === "/api/workspace" && request.method === "GET")
+            return reply(response, 200, await readWorkspace());
           if (url.pathname === "/api/live/status" && request.method === "GET") {
             const state = url.searchParams.get("projectId")
               ? projects.get(url.searchParams.get("projectId")!)

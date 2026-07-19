@@ -6,12 +6,12 @@
   "version": "0.1.13",
   "main": "electron/main.cjs",
   "bin": {
-    "kyro": "bin/frontend-editor.mjs",
-    "frontend-editor": "bin/frontend-editor.mjs"
+    "kyro": "bin/frontend-editor.mjs"
   },
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "start": "node bin/frontend-editor.mjs",
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "desktop:package": "npm run build && electron-forge package",
     "desktop:make": "npm run build && electron-forge make",

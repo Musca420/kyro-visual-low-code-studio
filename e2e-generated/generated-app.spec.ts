@@ -7,7 +7,7 @@ test('l’app esportata si avvia e usa il proprio IndexedDB', async ({ page }) =
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Titolo')
   await page.getByLabel('Nuova attività').fill('Record nell’app esportata')
   await page.getByRole('button', { name: 'Aggiungi' }).click()
-  await expect(page.getByText('✓ RECORD NELL’APP ESPORTATA')).toBeVisible()
+  await expect(page.getByText('✓ DONE: RECORD NELL’APP ESPORTATA')).toBeVisible()
   await page.screenshot({ path: 'artifacts/generated-app-flow-module.png', fullPage: true })
   expect(errors).toEqual([])
 })

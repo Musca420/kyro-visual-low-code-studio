@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -13,12 +13,17 @@ if (!info?.isDirectory()) {
   console.error(`Kyro: the folder does not exist: ${candidate}`);
   process.exit(2);
 }
+const markers = ["project.kyro.json", "project.frontend-editor.json", "package.json", "index.html"];
+const isProject = !process.argv.includes("--home") && (Boolean(folderArgument) || (await Promise.all(markers.map((name) => access(resolve(candidate, name)).then(() => true).catch(() => false)))).some(Boolean));
 if (process.argv.includes("--check")) {
-  console.log(`Kyro will open: ${candidate}`);
+  console.log(isProject ? `Kyro will open project: ${candidate}` : "Kyro will open Home");
   process.exit(0);
 }
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const child = spawn(npm, ["run", "desktop:dev", "--", "--project", candidate], {
+const child = spawn(process.execPath, [
+  resolve(packageRoot, "scripts", "kyro-start.mjs"),
+  ...(isProject ? ["--project", candidate] : []),
+  ...(process.argv.includes("--no-open") ? ["--no-open"] : []),
+], {
   cwd: packageRoot,
   stdio: "inherit",
 });

@@ -15,7 +15,7 @@ const htmlEscape = (value: unknown) =>
 const cssEscape = (value: unknown) => String(value ?? "").replace(/[{};]/g, "");
 
 function componentHtml(component: EditorComponent, children = "") {
-  const label = htmlEscape(component.props.label || component.name);
+  const label = htmlEscape(component.props.label ?? component.name);
   const fieldName = htmlEscape(component.props.fieldName || component.id);
   const attributes = `${component.props.tooltip ? ` title="${htmlEscape(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
   if (component.type === "input")
@@ -61,7 +61,7 @@ function componentHtml(component: EditorComponent, children = "") {
   if (component.type === "accordion")
     return `<details id="${component.id}"><summary>${label}</summary>${children || `<p>${htmlEscape(component.props.description || "Contenuto espandibile")}</p>`}</details>`;
   if (canContain(component)) {
-    const ownContent = `<strong>${label}</strong>${component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
+    const ownContent = `${label ? `<strong>${label}</strong>` : ""}${component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
     const content = `${ownContent}${children}`;
     const tag =
       component.type === "header" ||
@@ -838,7 +838,8 @@ const graphSignOut = () => { authToken = ''; sessionStorage.removeItem('frontend
 const graphNotify = (message: string, error = false) => { let toast = document.querySelector<HTMLElement>('[data-flow-status]'); if (!toast) { toast = document.createElement('div'); toast.dataset.flowStatus = ''; const bottom = document.querySelector('.app-bottom-nav') ? 'calc(76px + env(safe-area-inset-bottom))' : '16px'; toast.style.cssText = 'position:fixed;right:16px;bottom:' + bottom + ';z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white;box-shadow:0 12px 30px #0004'; document.body.append(toast) } toast.setAttribute('role', error ? 'alert' : 'status'); toast.style.background = error ? '#b42318' : '#172033'; toast.textContent = message; toast.hidden = false; window.setTimeout(() => { if (toast) toast.hidden = true }, 2600) }
 const graphScheduleLocalNotification = async (title = 'Promemoria', body = '', delayMs = '0') => { const delay = Math.min(604800000, Math.max(0, Number(delayMs) || 0)), native = (window as typeof window & { frontendEditorLocalNotification?: (title: string, body: string, delayMs: number) => Promise<void> }).frontendEditorLocalNotification; if (native) return native(title, body, delay); if (!('Notification' in window)) throw new Error('Le notifiche non sono disponibili su questo dispositivo'); const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission; if (permission !== 'granted') throw new Error('Permesso notifiche non concesso'); window.setTimeout(() => new Notification(title, { body }), delay) }
 const graphPrepareFile = (value: unknown, maxMb = '2', accept = '') => new Promise<{ name: string; type: string; size: number; dataUrl: string }>((resolve, reject) => { if (!(value instanceof File)) return reject(new Error('Scegli un file')); const limit = Math.min(10, Math.max(1, Number(maxMb) || 2)) * 1024 * 1024; if (value.size > limit) return reject(new Error('Il file supera il limite di ' + Math.round(limit / 1024 / 1024) + ' MB')); const allowed = accept.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean); const extension = '.' + (value.name.split('.').pop() || '').toLowerCase(), mime = value.type.toLowerCase(); if (allowed.length && !allowed.some((item) => item === extension || item === mime || (item.endsWith('/*') && mime.startsWith(item.slice(0, -1))))) return reject(new Error('Questo tipo di file non è consentito')); const reader = new FileReader(); reader.onerror = () => reject(new Error('Non riesco a leggere il file')); reader.onload = () => resolve({ name: value.name, type: value.type, size: value.size, dataUrl: String(reader.result || '') }); reader.readAsDataURL(value) })
-async function runGraph(flowId: string, input: unknown = '') {
+async function runGraph(flowId: string, input: unknown = '', ancestry: string[] = []): Promise<unknown> {
+  if (ancestry.includes(flowId)) throw new Error('Reusable flow cycle: ' + [...ancestry, flowId].join(' → ')); if (ancestry.length >= 20) throw new Error('Reusable flows exceeded the maximum depth of 20')
   const flow = graphFlows.find((item) => item.id === flowId); if (!flow) throw new Error('Flow non trovato')
   const nodes = new Map(flow.nodes.map((node) => [node.id, node])); let node: GraphNode | undefined = flow.nodes.find((item) => item.type === 'event'), value = input, path = 'success', steps = 0; const visited = new Map<string, number>(), loops = new Map<string, { items: unknown[]; index: number }>()
   while (node) { if (++steps > 1000) throw new Error('Il flow ha superato il limite di 1000 passaggi'); const current: GraphNode = node, count = (visited.get(current.id) ?? 0) + 1; visited.set(current.id, count); if (count > 1 && loops.size === 0) throw new Error('Loop non controllato al nodo ' + current.label)
@@ -877,11 +878,13 @@ async function runGraph(flowId: string, input: unknown = '') {
       if (current.type === 'notify') graphNotify(current.config.message || String(value))
       if (current.type === 'localNotification') await graphScheduleLocalNotification(current.config.title, current.config.body || String(value ?? ''), current.config.delayMs)
       if (current.type === 'nativeAction') value = await runNativeAction(current.config.capability, current.config.action, value, current.config)
+      if (current.type === 'runFlow') value = await runGraph(current.config.flowId, value, [...ancestry, flowId])
       if (current.type === 'log') console.debug(current.config.message || current.label, value)
       path = loopPath ?? (current.type === 'switch' ? (switchMatch ? 'case:' + switchMatch : 'error') : condition ? 'success' : 'error')
-    } catch (error) { path = 'error'; graphNotify('Errore: ' + (error instanceof Error ? error.message : String(error)), true) }
+    } catch (error) { path = 'error'; graphNotify('Errore: ' + (error instanceof Error ? error.message : String(error)), true); if (ancestry.length) throw error }
     const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
   }
+  return value
 }
 ${bindings.map((binding) => `{ const element = graphElement(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement, gesture = (event as CustomEvent).detail?.kyroGesture ? (event as CustomEvent).detail : undefined; const input = gesture ?? (event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.type === 'file' ? target.files?.[0] : target?.value ?? ''); void runGraph(${JSON.stringify(binding.flowId)}, input) }; graphListen(element, ${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
 const graphPath = () => decodeURIComponent(location.hash.slice(1) || ${JSON.stringify(project.pages[0]?.path ?? "/")})

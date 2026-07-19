@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { importExistingFolder } from "../src/folderImport";
 import { generateFiles } from "../src/generator";
 import { createProject, makeComponent, serializeProject } from "../src/model";
+import { renderComponent } from "../src/PreviewFrame";
 
 describe("import cartella esistente", () => {
   it("ripristina integralmente un export Frontend Editor e preserva la sorgente", () => {
@@ -85,6 +86,9 @@ describe("import cartella esistente", () => {
       imported.pages[0].components.find((item) => item.type === "title")?.styles
         .desktop.color,
     ).toBe("rgb(18, 52, 86)");
+    const main = imported.pages[0].components.find((item) => item.name === "main")!;
+    expect(main.props.label).toBe("");
+    expect(renderComponent(main, "<h1>Portfolio</h1>")).not.toContain("<strong>main</strong>");
     expect(imported.importedSource).toMatchObject({
       exactModel: false,
       detected: "HTML/CSS",
