@@ -30,7 +30,7 @@ The entrant retains product and engineering decisions: frontend-first visual pro
 ```bash
 git clone https://github.com/Musca420/kyro-visual-low-code-studio.git
 cd kyro-visual-low-code-studio
-npm ci
+npm ci --omit=dev
 npm link
 kyro
 ```
