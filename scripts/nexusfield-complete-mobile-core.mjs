@@ -70,6 +70,8 @@ try {
   await openProject();
 
   await selectPage("Home");
+  const composedHome = await page.locator(".layers button").filter({ hasText: exactEnd("NexusField customer dashboard") }).count();
+  if (!composedHome) {
   await rename("Header", "NexusField header", "NexusField · Rome");
   await restyle("#0F1115", "#F3F4F6", "0");
   await rename("Home intro", "Customer welcome", "Good morning, Alex", "What can we help you get done today?");
@@ -95,6 +97,8 @@ try {
   await add("loader", "Home loading", "Loading your dashboard…", "Popular services");
   await add("empty", "Home empty", "No bookings yet. Find your first professional.", "Popular services");
   await add("alert", "Home error", "We could not update your dashboard. Try again.", "Popular services");
+
+  }
 
   await selectPage("Tasks");
   await rename("Header", "Jobs header", "Work orders");

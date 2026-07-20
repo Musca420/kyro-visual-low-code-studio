@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "skill", "operations", "checks", "confirmations", "alreadySatisfied", "capabilityProposal"],
+  "properties": {
+    "summary": { "type": "string" },
+    "skill": { "type": "string" },
+    "operations": {
+      "type": "array", "minItems": 0, "maxItems": 50,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["type", "pageId", "argsJson"],
+        "properties": {
+          "type": { "type": "string", "enum": ["add_page", "update_page", "remove_page", "add_component", "compose_screen", "move_component", "resize_component", "reorder_component", "wrap_component", "remove_component", "set_component_property", "set_component_style", "set_responsive_style", "set_component_state_style", "set_component_accessibility", "set_component_intent", "create_flow", "compose_record_action", "compose_native_action", "add_flow", "update_flow", "remove_flow", "add_flow_node", "update_flow_node", "remove_flow_node", "connect_nodes", "remove_flow_edge", "set_component_event", "remove_component_event", "create_data_source", "update_data_source", "remove_data_source", "bind_component_data", "create_code_module", "update_code_module", "remove_code_module", "set_theme_token", "set_project_property", "set_app_config", "set_export_config", "approve_dependency", "revoke_dependency"] },
+          "pageId": { "type": ["string", "null"] },
+          "argsJson": { "type": "string", "minLength": 2 }
+        }
+      }
+    },
+    "checks": { "type": "array", "items": { "type": "string" } },
+    "confirmations": { "type": "array", "items": { "type": "string" } },
+    "alreadySatisfied": { "type": "boolean" },
+    "capabilityProposal": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["scope", "kind", "name", "generalizedIntent", "inputs", "outputs", "permissions", "dependencies", "validationTests", "activation"],
+          "properties": {
+            "scope": { "type": "string", "const": "global" },
+            "kind": { "type": "string", "enum": ["reusable_flow", "typed_module", "plugin"] },
+            "name": { "type": "string", "minLength": 3, "maxLength": 80 },
+            "generalizedIntent": { "type": "string", "minLength": 8, "maxLength": 1000 },
+            "inputs": { "type": "array", "maxItems": 24, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+            "outputs": { "type": "array", "maxItems": 24, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+            "permissions": { "type": "array", "maxItems": 24, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+            "dependencies": { "type": "array", "maxItems": 24, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+            "validationTests": { "type": "array", "minItems": 1, "maxItems": 24, "items": { "type": "string", "minLength": 1, "maxLength": 240 } },
+            "activation": { "type": "string", "enum": ["passing_tests", "explicit_review"] }
+          }
+        }
+      ]
+    }
+  }
+}

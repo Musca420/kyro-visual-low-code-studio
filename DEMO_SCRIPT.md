@@ -20,25 +20,23 @@ This demo uses only real Kyro headed-browser validation footage, screenshots cap
 
 ## Narration
 
-Kyro is a visual low-code studio for people who think in layouts before code. Today, visual builders become restrictive when behavior gets complex, while coding agents often need to rediscover a whole repository. Kyro connects both worlds through one open program graph.
+Kyro is a visual low-code studio for people who think in layouts before code. Visual builders get restrictive as behavior grows; coding agents often rediscover a repository. Kyro unites both in one open program graph.
 
-Start from a blank project, a guided template, or an existing folder. The editor opens locally in a browser on Windows, macOS, and Linux. On the Design canvas, a non-technical user works as they would in a familiar design tool: add native elements, select and nest layers, resize directly, use alignment guides, choose colors, typography, spacing, states, animation, and responsive rules. Desktop, tablet, and mobile are different views of the same component—not separate mock-ups.
+Start with a blank project, template, or existing folder. On the Design canvas, add real elements, nest layers, resize directly, use alignment guides, and control color, type, spacing, animation, and responsive rules. Desktop, tablet, and mobile remain views of one editable component.
 
-Every visual element also carries semantic intent. Here, the selected component can expose actions, data, dependencies, errors, and generated files. Right-clicking opens Ask Codex directly on that component. This real request asks for a service marketplace with navigation, search, filters, ratings, booking, responsive design, accessibility, and loading, empty, and error states. Kyro sends only the relevant stable graph context, screenshot, flow, data, runtime errors, and revision. Codex returns an inspectable plan. Nothing changes until the user approves, and the complete transaction can be undone.
+Design is not a disposable mock-up. Each element links intent to events, flows, data, dependencies, errors, and generated files. Common actions remain no-code.
 
-Routine work is accelerated by Kyro-specific skills. In the persisted validation project, complete typed plans for validation, saving, refresh, success, and error handling were produced in about three hundred milliseconds, without rescanning the repository.
+For complex work, right-click a component and choose Ask Codex. Kyro gives authenticated Codex its stable selection, compact graph context, screenshot, connected flow and data, errors, and revision. GPT-5.6 returns a typed plan. The user reviews it; Kyro verifies one transaction, with complete undo.
 
-The Flow editor makes behavior visible. A page and component event starts the graph; validation branches into data operations, UI refresh, success feedback, or an error path. Nodes can be configured, connected, traced, paused, reused, and extended by a typed custom module when visual operations are not enough.
+In one same-context check, atomic verification reduced time from 41.7 to 22.6 seconds, and tokens from 152,778 to 77,823. This is one measured scenario, not a universal claim.
 
-The Data workspace creates local IndexedDB or generated REST sources, fields, relationships, bindings, permissions, and CRUD states. The Capability Resolver explains when a request needs storage, a backend, native permission, external provider, credential, package, or cost before anything is installed.
+The Flow editor makes behavior visible. An event starts the graph; validation branches into data operations, refresh, success, or errors. Nodes are traceable and reusable. Data creates IndexedDB or REST sources, schemas, permissions, bindings, and CRUD states. The Capability Resolver advises Codex when a backend, permission, provider, package, or approval is missing.
 
-Preview executes the same graph used by export. This NexusField test product was created through Kyro and verified across desktop, tablet, mobile, loading, empty, error, validation, search, and real data mutations.
+Preview runs the export graph. NexusField Web and Mobile were built through Kyro and verified with authentication, roles, real data mutations, responsive layouts, shared data, and offline replay.
 
-Publish generates readable TypeScript and Vite, an installable offline PWA, or a Capacitor Android project. The exported project remains editable and can run outside Kyro.
+Publish generates readable TypeScript and Vite, an offline PWA, or Capacitor Android. Here the result runs on a physical phone: authentication persists, native permissions work, and offline writes synchronize after reconnection.
 
-Finally, this is the generated Android app on a physical device: authentication persists, camera and notifications use native permission flows, writes queue while offline, then replay and synchronize after reconnection. The final APK was updated with adb install dash r, preserving the installed application data.
-
-Kyro turns visual intent into UI, logic, data, and native capability—local-first, inspectable, undoable, and powered by Codex where it saves the most time.
+Kyro turns visual intent into working software: open, inspectable, undoable, and powered by Codex and GPT-5.6.
 
 ## Recording acceptance
 

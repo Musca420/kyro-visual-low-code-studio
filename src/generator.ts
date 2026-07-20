@@ -46,7 +46,7 @@ function componentHtml(component: EditorComponent, children = "") {
   if (component.type === "image")
     return `<img id="${component.id}" src="${htmlEscape(component.props.src || "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22160%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e8eaf2%22/%3E%3C/svg%3E")}" alt="${htmlEscape(component.accessibility.label)}">`;
   if (component.type === "link")
-    return `<a id="${component.id}" href="${htmlEscape(component.props.href || "#")}">${label}</a>`;
+    return `<a id="${component.id}" href="${htmlEscape(component.props.href || component.props.path || "#")}">${label}</a>`;
   if (component.type === "upload")
     return `<label>${label}<input id="${component.id}" type="file"></label>`;
   if (component.type === "signature")
@@ -72,7 +72,8 @@ function componentHtml(component: EditorComponent, children = "") {
   if (component.type === "accordion")
     return `<details id="${component.id}"><summary>${label}</summary>${children || `<p>${htmlEscape(component.props.description || "Expandable content")}</p>`}</details>`;
   if (canContain(component)) {
-    const ownContent = `${label ? `<strong>${label}</strong>` : ""}${component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
+    const showsDescription = ["card", "hero", "modal"].includes(component.type);
+    const ownContent = `${label ? `<strong>${label}</strong>` : ""}${showsDescription && component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
     const content = `${ownContent}${children}`;
     const tag =
       component.type === "header" ||
@@ -98,7 +99,7 @@ function componentHtml(component: EditorComponent, children = "") {
 }
 
 const branchHtml = ({ component, children }: ComponentBranch): string =>
-  componentHtml(component, children.map(branchHtml).join("\n"));
+  component.type === "navbar" ? "" : componentHtml(component, children.map(branchHtml).join("\n"));
 
 function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
   const style = {
@@ -510,6 +511,7 @@ const allowedRoles = ${JSON.stringify(project.appConfig.authentication.roles)}
 const readOnlyRoles = new Set(['viewer'])
 const canWrite = (role) => role === 'admin' || (allowedRoles.includes(role) && !readOnlyRoles.has(role))
 const authSecret = process.env.AUTH_SECRET || ''
+const port = Number(process.env.PORT || 8787)
 const configuredOrigin = process.env.ALLOWED_ORIGIN || ''
 const corsOrigin = (origin) => { try { const value = new URL(origin), local = ['http:', 'https:'].includes(value.protocol) && ['127.0.0.1', 'localhost'].includes(value.hostname); return local || origin === configuredOrigin ? origin : '' } catch { return '' } }
 if (authEnabled && !authSecret) throw new Error('AUTH_SECRET is required: copy .env.example and configure a secure value')
@@ -525,7 +527,7 @@ createServer(async (request, response) => {
     response.setHeader('access-control-allow-headers', 'content-type,authorization')
     response.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS')
     if (request.method === 'OPTIONS') { response.writeHead(origin && !allowedOrigin ? 403 : 204); return response.end() }
-    const url = new URL(request.url, 'http://127.0.0.1:8787')
+    const url = new URL(request.url, 'http://127.0.0.1')
     if (url.pathname === '/events' && request.method === 'GET') { response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' }); response.write('event: ready\\ndata: connected\\n\\n'); clients.add(response); request.on('close', () => clients.delete(response)); return }
     if (url.pathname === '/auth/register' && request.method === 'POST') { const users = await readUsers(); if (users.length) { response.writeHead(409); return response.end(JSON.stringify({ error: 'The first account already exists' })) } const input = await body(request); if (!/^\\S+@\\S+\\.\\S+$/.test(input.email) || String(input.password || '').length < 8) { response.writeHead(400); return response.end(JSON.stringify({ error: 'A valid email and a password of at least 8 characters are required' })) } const salt = randomBytes(16).toString('hex'), hash = scryptSync(input.password, salt, 64).toString('hex'), user = { id: crypto.randomUUID(), email: input.email.toLowerCase(), salt, hash, role: allowedRoles.includes('admin') ? 'admin' : allowedRoles[0] || 'viewer' }; users.push(user); await saveUsers(users); response.writeHead(201); return response.end(JSON.stringify({ id: user.id, email: user.email, role: user.role })) }
     if (url.pathname === '/auth/login' && request.method === 'POST') { const input = await body(request), user = (await readUsers()).find((item) => item.email === String(input.email || '').toLowerCase()); if (!user) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Invalid credentials' })) } const actual = scryptSync(String(input.password || ''), user.salt, 64), expected = Buffer.from(user.hash, 'hex'); if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Invalid credentials' })) } return response.end(JSON.stringify({ token: sign(user), role: user.role })) }
@@ -541,11 +543,11 @@ createServer(async (request, response) => {
     if (request.method === 'DELETE') { if (current.role !== 'admin') { response.writeHead(403); return response.end(JSON.stringify({ error: 'Only an administrator can delete records' })) } records.splice(index, 1); await save(records); broadcast(); response.writeHead(204); return response.end() }
     response.writeHead(404); response.end(JSON.stringify({ error: 'Route not found' }))
   } catch (error) { response.writeHead(500); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })) }
-}).listen(8787, '127.0.0.1', () => console.log('Backend ready at http://127.0.0.1:8787'))
+}).listen(port, '127.0.0.1', () => console.log('Backend ready at http://127.0.0.1:' + port))
 `;
   files[".env.example"] = `${files[".env.example"] ? `${files[".env.example"]}\n\n` : ""}# Optional non-local frontend origin allowed by CORS\nALLOWED_ORIGIN=`;
   files["README-BACKEND.md"] =
-    `# Generated backend\n\nRun \`npm run server\`, then \`npm run dev\` in another process. Records are stored in \`server/data.json\`. The API listens only on 127.0.0.1:8787 and accepts GET/POST/PUT/DELETE on /records. Localhost origins are accepted on any port; set ALLOWED_ORIGIN for one deployed frontend.${project.appConfig.authentication.mode === "generated" ? " Access is protected: configure AUTH_SECRET before starting; the first registration creates the administrator." : " Configure authentication before public deployment."}`;
+    `# Generated backend\n\nRun \`npm run server\`, then \`npm run dev\` in another process. Records are stored in \`server/data.json\`. The API listens only on 127.0.0.1:8787 by default and accepts GET/POST/PUT/DELETE on /records; set PORT to use another local port. Localhost origins are accepted on any port; set ALLOWED_ORIGIN for one deployed frontend.${project.appConfig.authentication.mode === "generated" ? " Access is protected: configure AUTH_SECRET before starting; the first registration creates the administrator." : " Configure authentication before public deployment."}`;
   return files;
 }
 
@@ -591,10 +593,7 @@ export function generateFiles(input: Project): Record<string, string> {
     ? configuredNavigation.items
     : project.pages.map((item) => ({ label: item.name, path: item.path }));
   const navigationClass = useBottomNavigation ? "app-bottom-nav" : "app-page-nav";
-  const navigationPaths = new Set(navigationItems.map((item) => item.path));
-  const remainingNavigation = configuredNavigation?.enabled
-    ? project.pages.filter((page) => !page.path.includes(":") && !navigationPaths.has(page.path)).map((page) => ({ label: page.name, path: page.path }))
-    : [];
+  const remainingNavigation: { label: string; path: string }[] = [];
   const navigationOverflow = useBottomNavigation && navigationItems.length > 5
     ? [...navigationItems.slice(4), ...remainingNavigation]
     : remainingNavigation;
@@ -932,7 +931,7 @@ async function runGraph(flowId: string, input: unknown = '', ancestry: string[] 
       if (current.type === 'map') { if (!Array.isArray(value)) throw new Error('Il nodo trasformazione richiede un elenco'); value = value.map((item) => (current.config.template || '{{value}}').replaceAll('{{value}}', String(current.config.field ? graphField(item, current.config.field) ?? '' : item ?? ''))) }
       if (current.type === 'http') { const url = new URL(current.config.url); if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo API HTTP o HTTPS'); const method = current.config.method || 'GET', body = ['GET', 'DELETE'].includes(method) ? undefined : (current.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value)); const response = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : undefined, body }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); value = response.status === 204 ? undefined : response.headers.get('content-type')?.includes('json') ? await response.json() : await response.text() }
       if (current.type === 'file') value = await graphPrepareFile(value, current.config.maxMb, current.config.accept)
-      if (current.type === 'requireRole') { const role = graphRole(), allowed = (current.config.roles || 'admin').split(',').map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(current.config.message || 'You do not have permission for this action'); value = { role, allowed: true } }
+      if (current.type === 'requireRole') { const role = graphRole(); let allowed; try { const parsed = JSON.parse(current.config.roles || 'admin'); allowed = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)] } catch { allowed = (current.config.roles || 'admin').split(',') } allowed = allowed.map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(current.config.message || 'You do not have permission for this action'); value = { role, allowed: true } }
       if (current.type === 'signOut') graphSignOut()
       if (current.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; await insert(next, current.config.sourceId); value = next }
       if (current.type === 'query') { const previous = value, records = await query(current.config.sourceId); if (current.config.mode === 'one') { const configured = current.config.id || '{{value}}', id = configured === '{{value}}' ? (previous && typeof previous === 'object' ? graphField(previous, current.config.field || 'id') : previous) : configured; if (id === undefined || id === null || String(id).trim() === '') throw new Error('Indica l’ID del record da caricare'); const record = records.find((item) => String(graphField(item, 'id') ?? '') === String(id)); if (!record) throw new Error('Record ' + String(id) + ' non trovato'); value = record } else value = records }

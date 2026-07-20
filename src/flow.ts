@@ -32,6 +32,14 @@ export type FlowContext = {
 
 const debounceVersions = new Map<string, number>()
 
+function roleList(value: string) {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (Array.isArray(parsed)) return parsed.map(String).map((item) => item.trim()).filter(Boolean)
+  } catch { /* CSV is the visual editor's compact manual format. */ }
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
+}
+
 export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog[]> {
   const logs: FlowLog[] = []
   const nodes = new Map(flow.nodes.map((node) => [node.id, node]))
@@ -81,7 +89,7 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       if (node.type === 'map') value = mapItems(value, node.config.field, node.config.template)
       if (node.type === 'http') value = await guarded(required(context.request, 'API requests are unavailable')(safeHttpUrl(node.config.url), node.config.method || 'GET', ['GET', 'DELETE'].includes(node.config.method || 'GET') ? undefined : (node.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value))), context)
       if (node.type === 'file') value = await guarded(prepareFile(value, Number(node.config.maxMb) || 2, node.config.accept), context)
-      if (node.type === 'requireRole') { const role = context.getRole?.() ?? node.config.previewRole ?? 'viewer'; const allowed = (node.config.roles || 'admin').split(',').map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(node.config.message || `This action requires the ${allowed.join(' or ')} role`); value = { role, allowed: true } }
+      if (node.type === 'requireRole') { const role = context.getRole?.() ?? node.config.previewRole ?? 'viewer'; const allowed = roleList(node.config.roles || 'admin'); if (!allowed.includes(role)) throw new Error(node.config.message || `This action requires the ${allowed.join(' or ')} role`); value = { role, allowed: true } }
       if (node.type === 'signOut') await context.signOut?.()
       if (node.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; value = await guarded(node.config.sourceId ? context.insert(next, node.config.sourceId) : context.insert(next), context) }
       if (node.type === 'query') {

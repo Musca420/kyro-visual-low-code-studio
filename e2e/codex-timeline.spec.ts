@@ -18,14 +18,14 @@ test("la timeline Codex conserva revisione, prove, test e ripristino", async ({ 
     const match = url.pathname.match(/^\/api\/codex\/jobs\/([^/]+)$/);
     if (match && request.method() === "GET") {
       const mode = jobs.get(match[1]) ?? "plan";
-      const output = [
-        JSON.stringify({ item: { type: "agent_message", text: mode === "apply" ? "Modifica applicata e verificata." : "Piano semplice pronto." } }),
-        JSON.stringify({ item: { type: "command_execution", status: "completed", command: "npm run test", aggregated_output: "31 test superati", exit_code: 0 } }),
-      ].join("\n");
+      const message = mode === "apply"
+        ? { status: "completed", summary: "Visual change applied", transactionId: "graph-tx-1", validation: [], visualResult: "Preview captured", learningCandidate: null }
+        : { summary: "Clarify the selected button", skill: "kyro-design", operations: [{ type: "set_component_property", pageId: null, argsJson: JSON.stringify({ componentId: "button", property: "label", value: "Continue" }) }], checks: ["Preview the button"], confirmations: [], alreadySatisfied: false, capabilityProposal: null };
+      const output = JSON.stringify({ item: { type: "agent_message", text: JSON.stringify(message) } });
       return route.fulfill({ json: {
         id: match[1], status: "completed", output, errors: "",
-        changedFiles: mode === "apply" ? ["src/App.tsx"] : [],
-        git: { status: mode === "apply" ? " M src/App.tsx\n" : "", diff: mode === "apply" ? "+colore aggiornato" : "" },
+        changedFiles: [], threadId: "thread-1",
+        ...(mode === "apply" ? { transactionId: "graph-tx-1" } : {}),
       } });
     }
     if (url.pathname.endsWith("/restore") && request.method() === "POST") {
@@ -49,7 +49,7 @@ test("la timeline Codex conserva revisione, prove, test e ripristino", async ({ 
   await expect(panel.getByText("Plan to approve")).toBeVisible();
   await panel.getByRole("button", { name: "Approve and apply" }).click();
   await expect(panel.getByText("Plan to approve")).toHaveCount(0);
-  const restore = panel.getByRole("button", { name: "Restore", exact: true });
+  const restore = panel.getByRole("button", { name: "Undo change", exact: true });
   await expect(restore).toBeVisible();
   await restore.click();
 
@@ -57,7 +57,7 @@ test("la timeline Codex conserva revisione, prove, test e ripristino", async ({ 
   await expect(panel.locator(".codex-timeline > article")).toHaveCount(2);
   await expect(panel.locator(".timeline-images img")).toHaveCount(2);
   await expect(panel.getByText("restored", { exact: true })).toBeVisible();
-  await expect(panel.getByText("1/1 tests passed").first()).toBeVisible();
+  await expect(panel.getByText("0/0 checks passed").first()).toBeVisible();
 
   await panel.getByRole("button", { name: "Close Codex panel" }).click();
   await component.click({ button: "right" });

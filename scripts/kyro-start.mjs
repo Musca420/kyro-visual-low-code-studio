@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 const projectFlag = process.argv.indexOf("--project");
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const project = projectFlag >= 0 ? resolve(process.argv[projectFlag + 1]) : undefined;
 const workspace = project ?? resolve(homedir(), ".kyro", "workspace");
 await mkdir(workspace, { recursive: true });
@@ -13,7 +15,8 @@ process.env.KYRO_PROJECT_MODE = project ? "project" : "home";
 
 const { createServer } = await import("vite");
 const server = await createServer({
-  configFile: resolve("vite.config.ts"),
+  root: packageRoot,
+  configFile: resolve(packageRoot, "vite.config.ts"),
   server: { host: "127.0.0.1", port: 43127, strictPort: false },
 });
 await server.listen();

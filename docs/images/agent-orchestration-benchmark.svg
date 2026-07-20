@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="390" viewBox="0 0 960 390" role="img" aria-labelledby="title desc">
+  <title id="title">Kyro atomic agent transaction benchmark</title>
+  <desc id="desc">A single same-context engineering comparison showing elapsed time reduced from 41.729 to 22.642 seconds and tokens reduced from 152778 to 77823.</desc>
+  <rect width="960" height="390" rx="28" fill="#071315"/>
+  <text x="48" y="58" fill="#f8fafc" font-family="Inter,Segoe UI,sans-serif" font-size="28" font-weight="700">One context. One request. Fewer agent round trips.</text>
+  <text x="48" y="90" fill="#94a3b8" font-family="Inter,Segoe UI,sans-serif" font-size="16">Recorded 20 July 2026 · same 5,220-byte indexed graph context · visually verified and undo tested</text>
+  <text x="48" y="142" fill="#e2e8f0" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="600">Elapsed time</text>
+  <rect x="230" y="120" width="520" height="30" rx="8" fill="#334155"/>
+  <rect x="230" y="160" width="282" height="30" rx="8" fill="#22d3ee"/>
+  <text x="765" y="142" fill="#cbd5e1" font-family="Inter,Segoe UI,sans-serif" font-size="17">41.729 s · separate rounds</text>
+  <text x="527" y="182" fill="#67e8f9" font-family="Inter,Segoe UI,sans-serif" font-size="17">22.642 s · atomic</text>
+  <text x="48" y="247" fill="#e2e8f0" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="600">Total tokens</text>
+  <rect x="230" y="225" width="520" height="30" rx="8" fill="#334155"/>
+  <rect x="230" y="265" width="265" height="30" rx="8" fill="#34d399"/>
+  <text x="765" y="247" fill="#cbd5e1" font-family="Inter,Segoe UI,sans-serif" font-size="17">152,778 · separate rounds</text>
+  <text x="510" y="287" fill="#6ee7b7" font-family="Inter,Segoe UI,sans-serif" font-size="17">77,823 · atomic</text>
+  <text x="48" y="345" fill="#fb923c" font-family="Inter,Segoe UI,sans-serif" font-size="17" font-weight="600">45.7% less time · 49.1% fewer tokens</text>
+  <text x="590" y="345" fill="#94a3b8" font-family="Inter,Segoe UI,sans-serif" font-size="14">Single scenario; not a universal performance claim.</text>
+</svg>

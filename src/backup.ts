@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { codexTimelineEntrySchema, listAllCodexTimeline, listAllExports, listAllProjectVersions, listAllRecords, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
+import { codexTimelineEntrySchema, listAllCodexTimeline, listAllExports, listAllProjectVersions, listAllRecords, listGlobalCapabilities, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
 import { pluginManifestSchema, projectSchema } from "./model";
+import { globalCapabilitySchema } from "./globalCapability";
 
 const localRecordSchema = z.object({
   id: z.string().min(1),
@@ -30,6 +31,7 @@ const backupSchema = z.object({
     id: z.string(), projectId: z.string(), fileName: z.string(), target: z.string(),
     createdAt: z.string(), type: z.string(), data: z.string().max(14_000_000),
   })).max(200).default([]),
+  globalCapabilities: z.array(globalCapabilitySchema).max(500).default([]),
 });
 
 export type FrontendEditorBackup = z.infer<typeof backupSchema>;
@@ -54,6 +56,7 @@ export async function createBackup(): Promise<FrontendEditorBackup> {
     projects: await listProjects(),
     records: await listAllRecords(),
     plugins: await listPlugins(),
+    globalCapabilities: await listGlobalCapabilities(),
     preferences,
     codexTimeline: await listAllCodexTimeline(),
     versions: await listAllProjectVersions(),
@@ -80,6 +83,7 @@ export async function restoreBackup(input: unknown) {
       const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
       return { id: record.id, projectId: record.projectId, fileName: record.fileName, target: record.target, createdAt: record.createdAt, blob: new Blob([bytes], { type: record.type }) };
     }),
+    backup.globalCapabilities,
   );
   Object.entries(backup.preferences).forEach(([key, value]) => {
     if (persistedKey(key)) localStorage.setItem(key, value);
@@ -88,6 +92,7 @@ export async function restoreBackup(input: unknown) {
     projects: backup.projects.length,
     records: backup.records.length,
     plugins: backup.plugins.length,
+    globalCapabilities: backup.globalCapabilities.length,
     versions: backup.versions.length,
     exports: backup.exports.length,
   };

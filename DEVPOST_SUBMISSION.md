@@ -60,6 +60,6 @@ Production signing and store distribution, hosted collaboration, additional revi
 ## Links to complete in Devpost
 
 - Source: https://github.com/Musca420/kyro-visual-low-code-studio
-- Public test build: https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.14
-- Public YouTube demo: upload `Kyro-Hackathon-Demo.mp4` and paste the URL
+- Public test build: https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15
+- Public YouTube demo: upload `Kyro-Hackathon-Demo-Final.mp4` and paste the URL
 - Codex feedback session: `019f7465-48aa-78e3-8531-1e4b6342b31e`

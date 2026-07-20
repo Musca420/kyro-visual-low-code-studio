@@ -4,6 +4,9 @@ import {
   saveCodexTimelineEntry,
   type CodexTimelineEntry,
 } from "./db";
+import { parseAgentPlan } from "./agentPlan";
+import type { CapabilityProposal } from "./globalCapability";
+import type { GlobalCapability } from "./globalCapability";
 
 export type CodexContext = {
   projectId: string;
@@ -36,6 +39,7 @@ export type CodexContext = {
   capabilities: unknown[];
   availableActions: string[];
   installedSkills: string[];
+  globalCapabilities: GlobalCapability[];
 };
 
 type Trace = {
@@ -49,7 +53,15 @@ type CodexJob = {
   status: "running" | "completed" | "error" | "cancelled" | "restored";
   output: string;
   errors: string;
+  warnings?: string;
   changedFiles: string[];
+  threadId?: string;
+  transactionId?: string;
+  contextHash?: string;
+  contextBytes?: number;
+  usage?: { inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningOutputTokens: number; totalTokens: number };
+  learningCandidate?: { kind: "reusable_flow" | "typed_module" | "plugin"; name: string; generalizedIntent: string; inputs: string[]; outputs: string[]; activation: "passing_tests" | "explicit_review" } | null;
+  capabilityProposal?: CapabilityProposal | null;
   git?: { status?: string; diff?: string };
 };
 
@@ -88,7 +100,7 @@ function readOutput(raw: string, git?: { status?: string; diff?: string }) {
       output: item.output,
     }));
   return {
-    text: messages.join("\n\n") || raw || "Codex returned no text.",
+    text: messages.at(-1) || raw || "Codex returned no text.",
     trace: {
       commands,
       tests,
@@ -104,12 +116,14 @@ export function CodexPanel({
   open,
   context,
   suggestedPrompt,
+  clientId,
   captureEvidence,
   onClose,
 }: {
   open: boolean;
   context?: CodexContext;
   suggestedPrompt: string;
+  clientId: string;
   captureEvidence?: () => Promise<{ dataUrl: string }>;
   onClose: () => void;
 }) {
@@ -121,6 +135,8 @@ export function CodexPanel({
   const [authBusy, setAuthBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState("");
+  const [planThreadId, setPlanThreadId] = useState("");
+  const parsedPlan = parseAgentPlan(plan);
   const [history, setHistory] = useState<
     { role: "user" | "codex" | "system"; text: string }[]
   >([]);
@@ -233,9 +249,12 @@ export function CodexPanel({
           mode,
           prompt,
           context,
+          focus: { kind: "component", pageId: context.pageId, componentId: context.componentId },
           approvedPlan: mode === "apply" ? plan : undefined,
+          threadId: mode === "apply" ? planThreadId : undefined,
           projectId: context.projectId,
           revision: context.revision,
+          clientId,
         }),
       });
       let value = await response.json();
@@ -277,6 +296,8 @@ export function CodexPanel({
       value = current;
       const parsed = readOutput(value.output, value.git);
       const text = parsed.text;
+      const completedPlan = mode === "plan" ? parseAgentPlan(text) : undefined;
+      const capabilityProposal = completedPlan?.capabilityProposal ?? undefined;
       const afterScreenshot = mode === "apply"
         ? await captureEvidence?.().then((result) => result.dataUrl).catch(() => undefined)
         : undefined;
@@ -286,14 +307,23 @@ export function CodexPanel({
         finishedAt: new Date().toISOString(),
         output: text,
         errors: value.errors ?? "",
+        ...(value.warnings ? { warnings: value.warnings } : {}),
         changedFiles: value.changedFiles ?? [],
         tests: parsed.trace.tests,
+        ...(value.transactionId ? { transactionId: value.transactionId } : {}),
+        ...(value.contextHash ? { contextHash: value.contextHash, contextBytes: value.contextBytes } : {}),
+        ...(value.usage ? { usage: value.usage } : {}),
+        ...(value.learningCandidate ? { learningCandidate: value.learningCandidate } : {}),
+        ...(capabilityProposal ? { capabilityProposal } : {}),
         ...(afterScreenshot ? { afterScreenshot } : {}),
       };
       await saveCodexTimelineEntry(completedEntry);
       setTimeline((items) => [completedEntry, ...items.filter((item) => item.id !== timelineId)]);
       setTrace(parsed.trace);
-      if (mode === "plan") setPlan(text);
+      if (mode === "plan") {
+        setPlan(text);
+        setPlanThreadId(String(value.threadId ?? ""));
+      }
       setHistory((items) => [
         ...items.filter((item) => !item.text.endsWith("avviata…")),
         { role: "codex", text },
@@ -344,7 +374,7 @@ export function CodexPanel({
       await saveCodexTimelineEntry(restoredEntry);
       setTimeline((items) => items.map((item) => item.id === job.id ? restoredEntry : item));
     }
-    setHistory((items) => [...items, { role: "system", text: `Operation restored: ${value.restored.length} files returned to their previous state.` }]);
+    setHistory((items) => [...items, { role: "system", text: "The approved visual transaction was undone." }]);
   };
   if (!open) return null;
   return (
@@ -364,9 +394,9 @@ export function CodexPanel({
           </small>
         </div>
         <div>
-          {job?.status === "completed" && job.changedFiles.length > 0 && (
-            <button className="secondary" data-help="Restore only the files changed by this operation. Kyro stops if it detects later edits." onClick={() => void restore()}>
-              Restore
+          {job?.status === "completed" && job.transactionId && (
+            <button className="secondary" data-help="Undo this visual transaction. Kyro stops if later graph changes exist." onClick={() => void restore()}>
+              Undo change
             </button>
           )}
           <button
@@ -543,7 +573,21 @@ export function CodexPanel({
                           {entry.afterScreenshot && <figure><img src={entry.afterScreenshot} alt="After the Codex request" /><figcaption>After</figcaption></figure>}
                         </div>
                       )}
-                      <span>{entry.changedFiles.length} files · {entry.tests.filter((item) => item.passed).length}/{entry.tests.length} tests passed</span>
+                      <span>{entry.transactionId ? `Transaction ${entry.transactionId.slice(0, 8)} · ` : ""}{entry.contextBytes ? `${entry.contextBytes} B context · ` : ""}{entry.usage ? `${entry.usage.totalTokens} tokens · ` : ""}{entry.tests.filter((item) => item.passed).length}/{entry.tests.length} checks passed</span>
+                      {entry.learningCandidate && (
+                        <details>
+                          <summary>Reusable candidate: {entry.learningCandidate.name}</summary>
+                          <p>{entry.learningCandidate.generalizedIntent}</p>
+                          <small>{entry.learningCandidate.kind.replace("_", " ")} · inactive until {entry.learningCandidate.activation.replace("_", " ")}</small>
+                        </details>
+                      )}
+                      {entry.capabilityProposal && (
+                        <details>
+                          <summary>Global capability draft: {entry.capabilityProposal.name}</summary>
+                          <p>{entry.capabilityProposal.generalizedIntent}</p>
+                          <small>{entry.capabilityProposal.kind.replace("_", " ")} · global scope · inactive pending {entry.capabilityProposal.activation.replace("_", " ")}</small>
+                        </details>
+                      )}
                     </article>
                   ))}
                 </div>
@@ -600,10 +644,13 @@ export function CodexPanel({
           {plan && (
             <section className="approval-card">
               <p className="eyebrow">Plan to approve</p>
-              <p>
-                Codex worked in read-only mode. Approve only when the plan
-                matches what you want.
-              </p>
+              {parsedPlan ? <>
+                <strong>{parsedPlan.summary}</strong>
+                <p>{parsedPlan.alreadySatisfied ? `Already satisfied · verified via ${parsedPlan.skill}.` : `${parsedPlan.operations.length} typed operations via ${parsedPlan.skill}.`}</p>
+                {parsedPlan.capabilityProposal && <p role="status">Global capability proposal: <strong>{parsedPlan.capabilityProposal.name}</strong>. Approving saves an inactive, versioned draft for every Kyro project; activation still requires its tests and review.</p>}
+                {parsedPlan.checks.length > 0 && <ul>{parsedPlan.checks.map((check) => <li key={check}>{check}</li>)}</ul>}
+                {parsedPlan.confirmations.length > 0 && <p role="alert">Confirmation required: {parsedPlan.confirmations.join("; ")}</p>}
+              </> : <p role="alert">Codex did not return a valid Kyro plan. Nothing can be applied.</p>}
               <div>
                 <button
                   className="secondary"
@@ -620,9 +667,13 @@ export function CodexPanel({
                 >
                   Reject
                 </button>
-                <button disabled={busy} onClick={() => void execute("apply")}>
-                  Approve and apply
-                </button>
+                {parsedPlan?.alreadySatisfied ? (
+                  <button onClick={() => setPlan("")}>Done</button>
+                ) : (
+                  <button disabled={busy || !parsedPlan || !planThreadId} onClick={() => void execute("apply")}>
+                    {parsedPlan?.operations.length ? "Approve and apply" : "Approve global draft"}
+                  </button>
+                )}
               </div>
             </section>
           )}

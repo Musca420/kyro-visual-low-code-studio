@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { execFile, spawn } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -11,6 +12,16 @@ import { createProject, makeComponent } from "../src/model";
 let directory = "";
 let server: ReturnType<typeof spawn> | undefined;
 const run = promisify(execFile);
+
+const availablePort = () => new Promise<number>((resolve, reject) => {
+  const listener = createServer();
+  listener.once("error", reject);
+  listener.listen(0, "127.0.0.1", () => {
+    const address = listener.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    listener.close((error) => error ? reject(error) : resolve(port));
+  });
+});
 
 afterEach(async () => {
   if (server && server.exitCode === null) {
@@ -31,6 +42,8 @@ afterEach(async () => {
 
 describe("backend esportato", () => {
   it("esegue CRUD reale e persiste i record nel file generato", async () => {
+    const port = await availablePort();
+    const base = `http://127.0.0.1:${port}`;
     const project = createProject("Backend Integration");
     project.pages.push({
       id: "page",
@@ -101,21 +114,22 @@ describe("backend esportato", () => {
       env: {
         ...process.env,
         AUTH_SECRET: "test-secret-at-least-32-characters",
+        PORT: String(port),
       },
     });
     for (let attempt = 0; attempt < 30; attempt += 1) {
       try {
-        await fetch("http://127.0.0.1:8787/records");
+        await fetch(`${base}/records`);
         break;
       } catch {
         /* avvio in corso */
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    expect((await fetch("http://127.0.0.1:8787/records")).status).toBe(401);
+    expect((await fetch(`${base}/records`)).status).toBe(401);
     expect(
       (
-        await fetch("http://127.0.0.1:8787/auth/register", {
+        await fetch(`${base}/auth/register`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -125,7 +139,7 @@ describe("backend esportato", () => {
         })
       ).status,
     ).toBe(201);
-    const login = await fetch("http://127.0.0.1:8787/auth/login", {
+    const login = await fetch(`${base}/auth/login`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -139,14 +153,14 @@ describe("backend esportato", () => {
       authorization: `Bearer ${login.token}`,
     };
     const controller = new AbortController();
-    const events = await fetch("http://127.0.0.1:8787/events", {
+    const events = await fetch(`${base}/events`, {
       signal: controller.signal,
     });
     const reader = events.body!.getReader();
     expect(new TextDecoder().decode((await reader.read()).value)).toContain(
       "event: ready",
     );
-    const created = await fetch("http://127.0.0.1:8787/records", {
+    const created = await fetch(`${base}/records`, {
       method: "POST",
       headers,
       body: JSON.stringify({ text: "Primo record" }),
@@ -156,26 +170,26 @@ describe("backend esportato", () => {
       "event: records",
     );
     controller.abort();
-    await fetch(`http://127.0.0.1:8787/records/${created.id}`, {
+    await fetch(`${base}/records/${created.id}`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ text: "Record aggiornato" }),
     });
     expect(
-      await fetch("http://127.0.0.1:8787/records", { headers }).then(
+      await fetch(`${base}/records`, { headers }).then(
         (response) => response.json(),
       ),
     ).toEqual([expect.objectContaining({ text: "Record aggiornato" })]);
     expect(
       (
-        await fetch(`http://127.0.0.1:8787/records/${created.id}`, {
+        await fetch(`${base}/records/${created.id}`, {
           method: "DELETE",
           headers,
         })
       ).status,
     ).toBe(204);
     expect(
-      await fetch("http://127.0.0.1:8787/records", { headers }).then(
+      await fetch(`${base}/records`, { headers }).then(
         (response) => response.json(),
       ),
     ).toEqual([]);

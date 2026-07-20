@@ -16,11 +16,38 @@ describe('structured editor operations', () => {
     expect(project.pages[0].components[0].props.label).toBe('Add')
   })
 
+  it('espande una composizione schermo compatta in componenti nativi responsive', () => {
+    const project = createProject('Composer')
+    project.pages.push({ id: 'page', name: 'Home', path: '/', components: [makeComponent('text')] })
+    const next = applyEditorOperation(project, 'page', { type: 'compose_screen', args: {
+      name: 'Customer dashboard', layout: 'mobile-dashboard', replaceExisting: true, confirmed: true, states: true,
+      sections: [{ type: 'title', name: 'Greeting', label: 'Good morning' }, { type: 'grid', name: 'Services', label: 'Services', items: [{ type: 'card', name: 'Repair', label: 'Home repair' }] }],
+      navigation: [{ label: 'Home', path: '/' }, { label: 'Profile', path: '/profile' }],
+    } })
+    const page = next.pages[0]
+    expect(page.components.some((item) => item.name === 'Customer dashboard')).toBe(true)
+    expect(page.components.some((item) => item.name === 'Repair' && item.type === 'card')).toBe(true)
+    expect(page.components.filter((item) => ['skeleton', 'empty', 'alert'].includes(item.type))).toHaveLength(3)
+    expect(page.components.find((item) => item.name === 'Primary navigation')?.styles.mobile.position).toBe('fixed')
+    expect(page.components.find((item) => item.name === 'Greeting')?.styles.desktop.background).toBe('transparent')
+    expect(page.components.find((item) => item.name === 'Customer dashboard')?.styles.mobile.background).toBe('#0f1115')
+    expect(page.components.find((item) => item.name === 'Repair')?.styles.mobile.background).toBe('#171a21')
+    expect(page.components.every((item) => item.id && item.accessibility.label)).toBe(true)
+    expect(next.appConfig.mobileBottomNavigation).toEqual({ enabled: true, items: [{ label: 'Home', path: '/' }, { label: 'Profile', path: '/profile' }] })
+  })
+
   it('rifiuta una rimozione non confermata', () => {
     const project = createProject('Safe')
     const component = makeComponent('button')
     project.pages.push({ id: 'page', name: 'Home', path: '/', components: [component] })
     expect(() => applyEditorOperation(project, 'page', { type: 'remove_component', args: { componentId: component.id } })).toThrow('confirmed=true')
+  })
+
+  it('normalizza la navigazione mobile proposta dall agente senza perdere la safe area', () => {
+    const project = createProject('Navigation')
+    const next = applyEditorOperation(project, 'page', { type: 'set_app_config', args: { patch: { navigation: { mobileBottomNavigation: { enabled: true, safeArea: true, items: [{ label: 'Home', path: '/' }] } } } } })
+    expect(next.appConfig.safeArea).toBe(true)
+    expect(next.appConfig.mobileBottomNavigation).toEqual({ enabled: true, items: [{ label: 'Home', path: '/' }] })
   })
 
   it('raggruppa, sposta e rimuove un sottoalbero senza creare cicli', () => {
@@ -103,6 +130,36 @@ describe('structured editor operations', () => {
     expect(removed.pages[0].components[0].events.submit).toBeUndefined()
   })
 
+  it('keeps visual flow names and IDs unique', () => {
+    const project = createProject('Flows')
+    project.pages.push({ id: 'home', name: 'Home', path: '/', components: [] })
+    const created = applyEditorOperation(project, 'home', { type: 'add_flow', args: { flowId: 'save', name: 'Save item' } })
+    expect(() => applyEditorOperation(created, 'home', { type: 'add_flow', args: { flowId: 'other', name: 'save ITEM' } })).toThrow('already exists')
+    expect(() => applyEditorOperation(created, 'home', { type: 'add_flow', args: { flowId: 'save', name: 'Different' } })).toThrow('already exists')
+  })
+
+  it('expands a compact record delete action into native visual nodes', () => {
+    const project = createProject('Records')
+    const list = makeComponent('list'); list.id = 'records'; list.binding = { sourceId: 'items', state: 'data' }
+    project.pages.push({ id: 'home', name: 'Home', path: '/', components: [list] })
+    project.dataSources.push({ id: 'items', name: 'Items', provider: 'indexeddb', collection: 'items', schema: { name: 'string' }, capabilities: ['get', 'query', 'insert', 'update', 'delete', 'subscribe'], secretStrategy: 'none' })
+    const next = applyEditorOperation(project, 'home', { type: 'compose_record_action', args: { componentId: 'records', action: 'delete', entity: 'Item' } })
+    expect(next.flows).toHaveLength(1)
+    expect(next.flows[0].nodes.map((node) => node.type)).toEqual(['event', 'delete', 'refresh', 'notify', 'notify'])
+    expect(next.pages[0].components[0].events.recordDelete).toBe(next.flows[0].id)
+    expect(applyEditorOperation(next, 'home', { type: 'compose_record_action', args: { componentId: 'records', action: 'delete', entity: 'Item' } }).flows).toHaveLength(1)
+  })
+
+  it('expands a registered device action and exposes its extension request', () => {
+    const project = createProject('Native composer'); project.exportConfig.target = 'android'
+    const button = makeComponent('button'); button.id = 'scanner'
+    project.pages.push({ id: 'home', name: 'Home', path: '/', components: [button] })
+    const next = applyEditorOperation(project, 'home', { type: 'compose_native_action', args: { componentId: 'scanner', capability: 'barcode', action: 'scanBarcode', permission: 'camera' } })
+    expect(next.flows[0].nodes.map((node) => node.type)).toEqual(['event', 'requestPermission', 'nativeAction', 'notify', 'notify'])
+    expect(next.flows[0].nodes.find((node) => node.type === 'nativeAction')?.config).toMatchObject({ capability: 'barcode', action: 'scanBarcode' })
+    expect(next.pages[0].components[0].events.click).toBe(next.flows[0].id)
+  })
+
   it('approves only an exact dependency requested by the visual flow', () => {
     const project = createProject('Native')
     project.pages.push({ id: 'home', name: 'Home', path: '/', components: [] })
@@ -115,5 +172,14 @@ describe('structured editor operations', () => {
     expect(approved.extensionApprovals).toEqual([expect.objectContaining({ packageName: '@capacitor-community/bluetooth-le', version: '^8.0.0', reason: 'Bluetooth Low Energy' })])
     const revoked = applyEditorOperation(approved, 'home', { type: 'revoke_dependency', args: { packageName: '@capacitor-community/bluetooth-le', confirmed: true } })
     expect(revoked.extensionApprovals).toHaveLength(0)
+  })
+
+  it('stores only reusable advanced modules with passing examples', () => {
+    const project = createProject('Recipes')
+    project.pages.push({ id: 'home', name: 'Home', path: '/', components: [] })
+    const module = { id: 'clean-name', name: 'Clean name', description: 'Reusable text cleanup', inputType: 'string', outputType: 'string', operation: 'trim', config: {}, tests: [{ id: 'example', input: ' Ada ', expected: 'Ada' }] }
+    const created = applyEditorOperation(project, 'home', { type: 'create_code_module', args: { module } })
+    expect(created.codeModules).toEqual([expect.objectContaining({ id: 'clean-name' })])
+    expect(() => applyEditorOperation(project, 'home', { type: 'create_code_module', args: { module: { ...module, tests: [{ id: 'bad', input: ' Ada ', expected: 'Grace' }] } } })).toThrow('passing test')
   })
 })

@@ -26,17 +26,21 @@ try {
   for (const [pageName, componentName, sourceName] of bindings) {
     await page.locator(".page-list button").filter({ hasText: pageName }).first().click();
     await page.locator(".layers button").filter({ hasText: componentName }).click();
-    if ((await page.locator(".right-panel .connection-summary").innerText()).startsWith("0 events\n0 flow\n1 data")) continue;
+    const connectionSummary = (await page.locator(".right-panel .connection-summary").innerText()).replace(/\s+/g, " ");
+    if (/\b1 data sources\b/.test(connectionSummary)) continue;
     const selectedId = await page.locator("[data-component-id].selected").first().getAttribute("data-component-id");
     await page.locator(`[data-component-id="${selectedId}"]`).first().click({ button: "right" });
     await page.getByRole("menuitem", { name: /Connect data/ }).click();
     const assistant = page.getByRole("region", { name: "Codex assistant" });
     await assistant.getByLabel("Request in plain language").fill(`Connect ${componentName} to the existing ${sourceName} data source.`);
     await assistant.getByRole("button", { name: "Analyze request" }).click();
-    await assistant.getByRole("button", { name: "Approve and apply" }).waitFor({ timeout: 30_000 });
-    await assistant.getByRole("button", { name: "Approve and apply" }).click();
+    const approvalCard = assistant.locator(".approval-card");
+    await approvalCard.waitFor({ timeout: 60_000 });
+    const done = approvalCard.getByRole("button", { name: "Done" });
+    if (await done.count()) await done.click();
+    else await approvalCard.getByRole("button", { name: "Approve and apply" }).click();
     const analyze = assistant.getByRole("button", { name: "Analyze request" });
-    await analyze.waitFor({ state: "visible", timeout: 30_000 });
+    await analyze.waitFor({ state: "visible", timeout: 60_000 });
     await waitEnabled(analyze);
     await assistant.getByRole("button", { name: "Close Codex panel" }).click();
   }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kyro Data"
+  short_description: "Connect typed data and CRUD behavior"
+  default_prompt: "Use $kyro-data to model, bind and verify this data behavior through the Kyro graph."

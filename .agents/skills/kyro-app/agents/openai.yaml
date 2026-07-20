@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kyro App"
+  short_description: "Structure complete visual products"
+  default_prompt: "Use $kyro-app and the indexed Kyro graph to structure this product without reading the repository."

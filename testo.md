@@ -1,18 +1,18 @@
-# Kyro demo — human narration
+# Kyro demo — narration script
 
-Target: about 2 minutes 35 seconds, leaving a few seconds for natural pauses. Read calmly; do not try to fill every silent moment.
+Target: about 2 minutes 40 seconds. Read calmly and leave a short pause when the scene changes.
 
 ## 00:00–00:16 — Introduction and new project
 
-Kyro is a visual low-code studio for people who think in layouts before code. You can start from a template, a blank canvas, or an existing project folder, and keep the result open and editable.
+Kyro is a visual low-code studio for people who think in layouts before code. Start from a template, a blank canvas, or an existing project folder, while keeping the result open and editable.
 
 ## 00:16–00:51 — Design canvas
 
-The Design workspace feels like a familiar creative tool. I can add real interface elements, select them directly, resize them, organize layers, and change colors, typography, spacing, borders, states, and animation. I can switch between desktop, tablet, and mobile without creating separate mock-ups. Every element remains native to Kyro, so it can later receive data and behavior.
+The Design workspace feels like a familiar creative tool. Add real interface elements, select and nest layers, resize them directly, use alignment guides, and control colors, typography, spacing, states, animation, and responsive rules. Desktop, tablet, and mobile remain views of the same component, not separate mock-ups.
 
 ## 00:51–01:16 — Ask Codex
 
-Now I select a component and open Ask Codex from its context menu. Kyro sends the selected element, graph context, screenshot, errors, and revision. I inspect the plan before applying it, and can undo the whole transaction. On repeated data-binding work, this cut median planning from eighteen seconds to under point three: about sixty-two times faster.
+Select a component and open Ask Codex from its context menu. Kyro sends the selected element, compact graph context, screenshot, connected flows and data, errors, and revision. GPT-5.6 returns a typed plan that can be inspected, approved, verified, and undone. In one recorded same-context check, atomic apply and verification reduced time from 41.7 to 22.6 seconds, and tokens from about 153 thousand to about 78 thousand. This is one measured scenario, not a universal speed claim.
 
 ## 01:16–01:30 — Flow editor
 
@@ -20,11 +20,11 @@ Behavior stays visual. This flow validates a form, saves the record, refreshes t
 
 ## 01:30–01:48 — Data
 
-The Data workspace creates local or generated REST sources, schemas, fields, relationships, permissions, and bindings. If a feature needs storage, a backend, a device permission, or an external provider, Kyro explains what is missing before anything is installed.
+The Data workspace creates local or generated REST sources, schemas, relationships, permissions, and bindings. When a feature needs storage, a backend, a device permission, an external provider, or a package, the Capability Resolver advises Codex before anything is installed.
 
 ## 01:48–02:04 — Preview
 
-Preview runs the same graph used by the exported application. Here I can test real navigation, validation, responsive layouts, data states, and interactions before publishing.
+Preview runs the same graph used by export. NexusField Web and Mobile were created through Kyro and tested with real authentication, role guards, data mutations, responsive layouts, offline queue and replay, and shared local data.
 
 ## 02:04–02:16 — Publish
 
@@ -32,15 +32,15 @@ From Publish, the project becomes readable TypeScript and Vite, an offline PWA, 
 
 ## 02:16–02:36 — Android device
 
-This is the generated Android application on a physical phone. Native permissions are requested by the system, authentication persists, and data can be changed while offline. When the connection returns, queued changes replay and synchronize automatically without reinstalling or losing the user's state.
+This is the generated Android application on a physical phone. Authentication persists, camera and notifications use native permission flows, and offline writes synchronize after reconnection.
 
-## 02:36–02:42 — Closing
+## 02:36–02:44 — Closing
 
-Kyro turns visual intent into working software, powered by Codex.
+Kyro turns visual intent into interface, logic, data, and native capability: local-first, inspectable, undoable, open, and powered by Codex and GPT-5.6.
 
 ## Recording notes
 
-- Record in English, with a conversational voice rather than an advertisement voice.
-- Leave a short pause when the scene changes.
-- Stress **selected element**, **inspect the plan**, **undo**, and **runs independently**.
-- A clean recording without background music is enough.
+- Use a conversational English voice.
+- Pause briefly when the scene changes.
+- Stress “selected element”, “inspect the plan”, “undo”, and “runs independently”.
+- No background music is required.

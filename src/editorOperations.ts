@@ -1,6 +1,7 @@
 import { componentTypes, makeComponent, parseProject, type Breakpoint, type EditorComponent, type Flow, type Project } from './model'
 import { canContain, descendantIds } from './hierarchy'
-import { nativeExtensionRequests } from './nativeCapabilities'
+import { nativeAction, nativeCapability, nativeExtensionRequests } from './nativeCapabilities'
+import { testCodeModule } from './codeModules'
 
 export type EditorOperation = { type: string; pageId?: string; args?: Record<string, unknown> }
 
@@ -54,7 +55,14 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     return parseProject({ ...project, name: String(args.value).trim() })
   }
   if (operation.type === 'set_app_config') {
-    const patch = object(args.patch), authentication = object(patch.authentication), realtime = object(patch.realtime)
+    const rawPatch = object(args.patch), navigation = object(rawPatch.navigation), nestedBottomNavigation = object(navigation.mobileBottomNavigation)
+    const patch = Object.fromEntries(Object.entries(rawPatch).filter(([key]) => key !== 'navigation'))
+    if (Object.keys(nestedBottomNavigation).length) {
+      const { safeArea, ...mobileBottomNavigation } = nestedBottomNavigation
+      patch.mobileBottomNavigation = mobileBottomNavigation
+      if (typeof safeArea === 'boolean') patch.safeArea = safeArea
+    }
+    const authentication = object(patch.authentication), realtime = object(patch.realtime)
     return parseProject({ ...project, appConfig: { ...project.appConfig, ...patch, authentication: { ...project.appConfig.authentication, ...authentication }, realtime: { ...project.appConfig.realtime, ...realtime } } })
   }
   if (operation.type === 'set_export_config') {
@@ -75,6 +83,79 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     if (!project.extensionApprovals.some((item) => item.packageName === packageName)) throw new Error('Dependency approval not found')
     return parseProject({ ...project, extensionApprovals: project.extensionApprovals.filter((item) => item.packageName !== packageName) })
   }
+  if (operation.type === 'create_code_module') {
+    const module = object(args.module) as Project['codeModules'][number]
+    if (project.codeModules.some((item) => item.id === module.id)) throw new Error('A module with this ID already exists')
+    const candidate = parseProject({ ...project, codeModules: [...project.codeModules, module] })
+    const created = candidate.codeModules.at(-1)!
+    if (!created.tests.length || testCodeModule(created).some((test) => !test.passed)) throw new Error('A reusable module requires at least one passing test')
+    return candidate
+  }
+  if (operation.type === 'update_code_module') {
+    const moduleId = String(args.moduleId), current = project.codeModules.find((item) => item.id === moduleId)
+    if (!current) throw new Error('Module not found')
+    const patch = object(args.patch)
+    const candidate = parseProject({ ...project, codeModules: project.codeModules.map((item) => item.id === moduleId ? { ...item, ...patch, id: item.id } : item) })
+    const updated = candidate.codeModules.find((item) => item.id === moduleId)!
+    if (!updated.tests.length || testCodeModule(updated).some((test) => !test.passed)) throw new Error('A reusable module requires passing tests')
+    return candidate
+  }
+  if (operation.type === 'remove_code_module') {
+    const moduleId = String(args.moduleId)
+    if (args.confirmed !== true) throw new Error('Removal requires confirmed=true')
+    if (project.flows.some((flow) => flow.nodes.some((node) => node.config.moduleId === moduleId))) throw new Error('Disconnect the module from its flows before removing it')
+    return parseProject({ ...project, codeModules: project.codeModules.filter((item) => item.id !== moduleId) })
+  }
+  if (operation.type === 'compose_screen') {
+    const page = project.pages.find((item) => item.id === pageId)
+    if (!page) throw new Error('Page not found')
+    const sections = Array.isArray(args.sections) ? args.sections.slice(0, 20).map(object) : []
+    const navigation = Array.isArray(args.navigation) ? args.navigation.slice(0, 8).map(object) : []
+    if (!sections.length) throw new Error('A composed screen requires at least one section')
+    if (args.replaceExisting === true && args.confirmed !== true) throw new Error('Replacing a screen requires confirmed=true')
+    const theme = object(args.theme), primary = String(theme.primary ?? project.theme.tokens.primary ?? '#22d3ee'), accent = String(theme.accent ?? project.theme.tokens.accent ?? '#fb7185')
+    const background = String(theme.background ?? project.theme.tokens.pageBackground ?? '#0f1115'), surface = String(theme.surface ?? '#171a21'), color = String(theme.text ?? '#f8fafc')
+    let next = args.replaceExisting === true
+      ? parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components: [] } : item) })
+      : project
+    next = parseProject({ ...next, theme: { tokens: { ...next.theme.tokens, primary, accent, pageBackground: background, text: color, surface } } })
+    const rootId = crypto.randomUUID()
+    next = applyEditorOperation(next, pageId, { type: 'add_component', args: {
+      componentId: rootId, componentType: 'section', name: String(args.name ?? page.name), props: { label: String(args.name ?? page.name) },
+      styles: { desktop: { width: '100%', maxWidth: args.layout === 'web-landing' ? '1200px' : '960px', marginLeft: 'auto', marginRight: 'auto', padding: '32px', background, color, display: 'flex', flexDirection: 'column', gap: '24px' }, tablet: { padding: '24px', gap: '20px' }, mobile: { padding: '16px', paddingBottom: navigation.length ? '104px' : '24px', gap: '18px' } },
+      accessibility: { label: String(args.name ?? page.name), role: 'main' }, intent: { role: String(args.layout ?? 'screen'), expectedResult: String(args.expectedResult ?? `Use ${args.name ?? page.name}`), requiredStates: args.states === true ? ['loading', 'success', 'error'] : [], permissions: [] },
+    } })
+    const visualStyle = (type: string) => ({
+      desktop: {
+        width: '100%', ...(type === 'button' || type === 'input' || type === 'select' ? { minHeight: '48px' } : {}),
+        ...(['card', 'list', 'table', 'form', 'map', 'calendar', 'chart', 'gallery'].includes(type) ? { padding: '18px' } : {}),
+        borderRadius: ['title', 'text', 'link', 'grid', 'section'].includes(type) ? '0px' : '16px',
+        background: type === 'button' ? primary : ['card', 'list', 'table', 'form', 'map', 'calendar', 'chart', 'gallery', 'input', 'select'].includes(type) ? surface : 'transparent',
+        color: type === 'button' ? background : color,
+        ...(type === 'grid' ? { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '12px' } : {}),
+      },
+      mobile: type === 'grid' ? { gridTemplateColumns: '1fr' } : {},
+    })
+    for (const section of sections) {
+      const sectionId = crypto.randomUUID(), type = componentTypes.includes(String(section.type) as EditorComponent['type']) ? String(section.type) : 'section'
+      next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentId: sectionId, componentType: 'section', parentId: rootId, name: String(section.name ?? section.label ?? 'Section'), props: { label: String(section.label ?? section.name ?? 'Section'), ...(section.description ? { description: String(section.description) } : {}) }, styles: { desktop: { width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', background: 'transparent', color, padding: '0px', borderRadius: '0px', minHeight: '0px' } }, accessibility: { label: String(section.label ?? section.name ?? 'Section'), role: 'region' }, intent: { role: String(section.role ?? 'content-section'), expectedResult: String(section.expectedResult ?? section.label ?? section.name ?? 'Present content'), requiredStates: [], permissions: [] } } })
+      if (type !== 'section') next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentType: type, parentId: sectionId, name: String(section.name ?? section.label ?? type), props: { label: String(section.label ?? section.name ?? type), ...(section.description ? { description: String(section.description) } : {}) }, styles: visualStyle(type), accessibility: { label: String(section.label ?? section.name ?? type) }, intent: { role: String(section.role ?? type), expectedResult: String(section.expectedResult ?? section.label ?? section.name ?? type), requiredStates: [], permissions: [] } } })
+      const items = Array.isArray(section.items) ? section.items.slice(0, 12).map(object) : []
+      for (const item of items) {
+        const itemType = componentTypes.includes(String(item.type) as EditorComponent['type']) ? String(item.type) : 'card'
+        next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentType: itemType, parentId: sectionId, name: String(item.name ?? item.label ?? itemType), props: { label: String(item.label ?? item.name ?? itemType), ...(item.description ? { description: String(item.description) } : {}), ...(item.path ? { path: String(item.path) } : {}) }, styles: visualStyle(itemType), accessibility: { label: String(item.label ?? item.name ?? itemType) }, intent: { role: String(item.role ?? itemType), expectedResult: String(item.expectedResult ?? item.label ?? item.name ?? itemType), requiredStates: [], permissions: [] } } })
+      }
+    }
+    if (args.states === true) for (const [type, label] of [['skeleton', 'Loading'], ['empty', 'No content yet'], ['alert', 'Something went wrong']] as const)
+      next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentType: type, parentId: rootId, name: `${label} state`, props: { label }, styles: { desktop: { width: '100%', padding: '18px', borderRadius: '16px', background: surface, display: 'none' } }, accessibility: { label, role: type === 'alert' ? 'alert' : 'status' }, intent: { role: `${type}-state`, expectedResult: label, requiredStates: [], permissions: [] } } })
+    if (navigation.length) {
+      const navId = crypto.randomUUID()
+      next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentId: navId, componentType: 'navbar', parentId: rootId, name: 'Primary navigation', props: { label: navigation.map((item) => item.label).join(' · ') }, styles: { desktop: { width: '100%', minHeight: '64px', display: 'grid', gridTemplateColumns: `repeat(${navigation.length}, minmax(0, 1fr))`, gap: '4px', padding: '8px', borderRadius: '20px', background: surface }, mobile: { position: 'fixed', left: '12px', right: '12px', bottom: '12px', width: 'auto', zIndex: '20' } }, accessibility: { label: 'Primary navigation', role: 'navigation' }, intent: { role: 'primary-navigation', expectedResult: 'Navigate between primary pages', requiredStates: [], permissions: [] } } })
+      for (const item of navigation) next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentType: 'link', parentId: navId, name: String(item.label ?? 'Page'), props: { label: String(item.label ?? 'Page'), path: String(item.path ?? '/') }, styles: { desktop: { minWidth: '48px', minHeight: '48px', color, textAlign: 'center', background: 'transparent', padding: '12px 6px', borderRadius: '12px' } }, accessibility: { label: String(item.label ?? 'Page'), role: 'link' }, intent: { role: 'navigation-item', action: 'navigate', expectedResult: `Open ${String(item.label ?? 'page')}`, requiredStates: [], permissions: [] } } })
+      if (String(args.layout ?? '').startsWith('mobile')) next = parseProject({ ...next, appConfig: { ...next.appConfig, safeArea: true, mobileBottomNavigation: { enabled: true, items: navigation.map((item) => ({ label: String(item.label ?? 'Page'), path: String(item.path ?? '/') })) } } })
+    }
+    return next
+  }
   if (operation.type === 'add_component') {
     const type = String(args.componentType) as EditorComponent['type']
     if (!componentTypes.includes(type)) throw new Error(`Invalid component type: ${type}`)
@@ -83,10 +164,13 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     if (typeof args.name === 'string' && args.name.trim()) component.name = args.name.trim()
     component.props = { ...component.props, ...object(args.props) } as EditorComponent['props']
     const styles = object(args.styles)
+    const desktopPatch = object(styles.desktop)
+    const tabletPatch = { ...desktopPatch, ...object(styles.tablet) }
+    const mobilePatch = { ...desktopPatch, ...object(styles.mobile) }
     component.styles = {
-      desktop: { ...component.styles.desktop, ...object(styles.desktop) },
-      tablet: { ...component.styles.tablet, ...object(styles.tablet) },
-      mobile: { ...component.styles.mobile, ...object(styles.mobile) },
+      desktop: { ...component.styles.desktop, ...desktopPatch },
+      tablet: { ...component.styles.tablet, ...tabletPatch },
+      mobile: { ...component.styles.mobile, ...mobilePatch },
     } as EditorComponent['styles']
     if (args.accessibility) component.accessibility = { ...component.accessibility, ...object(args.accessibility) }
     if (args.intent) component.intent = { ...component.intent, ...object(args.intent) } as EditorComponent['intent']
@@ -101,10 +185,79 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     const flow = args.flow as Flow
     return parseProject({ ...project, flows: [...project.flows, flow] })
   }
+  if (operation.type === 'compose_record_action') {
+    const { component } = componentIn(project, pageId, args.componentId)
+    const action = args.action === 'delete' ? 'delete' : args.action === 'update' ? 'update' : undefined
+    if (!action || !['list', 'table'].includes(component.type)) throw new Error('Record actions require update or delete on a list or table')
+    const sourceId = String(args.sourceId ?? component.binding?.sourceId ?? '')
+    if (!project.dataSources.some((source) => source.id === sourceId)) throw new Error('The record action requires an existing data source')
+    const event = action === 'delete' ? 'recordDelete' : 'recordUpdate'
+    if (component.events[event]) return project
+    const entity = String(args.entity ?? project.dataSources.find((source) => source.id === sourceId)?.name ?? 'record').trim()
+    const name = `${action === 'delete' ? 'Delete' : 'Update'} ${entity}`
+    if (project.flows.some((flow) => flow.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('A flow with this ID or name already exists')
+    const flowId = crypto.randomUUID(), eventId = crypto.randomUUID(), actionId = crypto.randomUUID(), refreshId = crypto.randomUUID(), successId = crypto.randomUUID(), errorId = crypto.randomUUID()
+    const flow: Flow = {
+      id: flowId,
+      name,
+      nodes: [
+        { id: eventId, type: 'event', label: action === 'delete' ? 'Deletion confirmed' : 'Record updated', position: { x: 40, y: 80 }, config: { trigger: event, componentId: component.id } },
+        { id: actionId, type: action, label: `${action === 'delete' ? 'Delete' : 'Update'} ${entity}`, position: { x: 270, y: 80 }, config: { sourceId } },
+        { id: refreshId, type: 'refresh', label: `Refresh ${component.name}`, position: { x: 500, y: 80 }, config: { componentId: component.id } },
+        { id: successId, type: 'notify', label: `${entity} ${action === 'delete' ? 'deleted' : 'updated'}`, position: { x: 730, y: 40 }, config: { message: action === 'delete' ? `${entity} deleted. Undo is available.` : `${entity} updated.`, level: 'success' } },
+        { id: errorId, type: 'notify', label: `${entity} action failed`, position: { x: 500, y: 210 }, config: { message: `${entity} could not be ${action === 'delete' ? 'deleted' : 'updated'}.`, level: 'error' } },
+      ],
+      edges: [
+        { id: crypto.randomUUID(), source: eventId, target: actionId, path: 'success' },
+        { id: crypto.randomUUID(), source: actionId, target: refreshId, path: 'success' },
+        { id: crypto.randomUUID(), source: actionId, target: errorId, path: 'error' },
+        { id: crypto.randomUUID(), source: refreshId, target: successId, path: 'success' },
+        { id: crypto.randomUUID(), source: refreshId, target: errorId, path: 'error' },
+      ],
+    }
+    return parseProject({
+      ...project,
+      flows: [...project.flows, flow],
+      pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.map((item) => item.id === component.id ? { ...item, events: { ...item.events, [event]: flowId } } : item) } : page),
+    })
+  }
+  if (operation.type === 'compose_native_action') {
+    const { component } = componentIn(project, pageId, args.componentId)
+    const capabilityId = String(args.capability ?? ''), actionId = String(args.action ?? ''), capability = nativeCapability(capabilityId), action = nativeAction(capabilityId, actionId)
+    if (!capability || !action) throw new Error('Choose a registered native capability and action')
+    const targetPlatform = project.exportConfig.target === 'android' ? 'android' : 'web'
+    if (!capability.platforms.includes(targetPlatform)) throw new Error(`${capability.label} is not available for this project target`)
+    const eventName = String(args.event ?? 'click')
+    if (component.events[eventName]) return project
+    const name = `${action.label} · ${component.name}`
+    if (project.flows.some((flow) => flow.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('A flow with this ID or name already exists')
+    const flowId = crypto.randomUUID(), eventId = crypto.randomUUID(), permissionId = crypto.randomUUID(), nativeId = crypto.randomUUID(), updateId = crypto.randomUUID(), successId = crypto.randomUUID(), errorId = crypto.randomUUID()
+    const permission = String(args.permission ?? capability.permissions[0] ?? '')
+    const resultComponentId = String(args.resultComponentId ?? '')
+    const nodes: Flow['nodes'] = [
+      { id: eventId, type: 'event', label: `${component.name} · ${eventName}`, position: { x: 40, y: 80 }, config: { trigger: eventName, componentId: component.id } },
+      ...(permission ? [{ id: permissionId, type: 'requestPermission' as const, label: `Request ${permission}`, position: { x: 250, y: 80 }, config: { permission, rationale: String(args.rationale ?? `${capability.label} needs ${permission} access.`) } }] : []),
+      { id: nativeId, type: 'nativeAction', label: action.label, position: { x: permission ? 470 : 250, y: 80 }, config: { capability: capabilityId, action: actionId } },
+      ...(resultComponentId ? [{ id: updateId, type: 'updateUI' as const, label: 'Show native result', position: { x: permission ? 690 : 470, y: 80 }, config: { componentId: resultComponentId, operation: 'value', value: '{{value}}' } }] : []),
+      { id: successId, type: 'notify', label: `${action.label} completed`, position: { x: resultComponentId ? 910 : permission ? 690 : 470, y: 40 }, config: { message: String(args.successMessage ?? `${action.label} completed.`), level: 'success' } },
+      { id: errorId, type: 'notify', label: `${action.label} failed`, position: { x: permission ? 470 : 250, y: 220 }, config: { message: String(args.errorMessage ?? `${action.label} could not be completed.`), level: 'error' } },
+    ]
+    const firstActionId = permission ? permissionId : nativeId, afterNativeId = resultComponentId ? updateId : successId
+    const edges: Flow['edges'] = [
+      { id: crypto.randomUUID(), source: eventId, target: firstActionId, path: 'success' },
+      ...(permission ? [{ id: crypto.randomUUID(), source: permissionId, target: nativeId, path: 'success' }, { id: crypto.randomUUID(), source: permissionId, target: errorId, path: 'error' }] : []),
+      { id: crypto.randomUUID(), source: nativeId, target: afterNativeId, path: 'success' },
+      { id: crypto.randomUUID(), source: nativeId, target: errorId, path: 'error' },
+      ...(resultComponentId ? [{ id: crypto.randomUUID(), source: updateId, target: successId, path: 'success' }, { id: crypto.randomUUID(), source: updateId, target: errorId, path: 'error' }] : []),
+    ]
+    const flow: Flow = { id: flowId, name, nodes, edges }
+    return parseProject({ ...project, flows: [...project.flows, flow], pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.map((item) => item.id === component.id ? { ...item, events: { ...item.events, [eventName]: flowId } } : item) } : page) })
+  }
   if (operation.type === 'add_flow') {
-    const name = String(args.name ?? '').trim()
+    const name = String(args.name ?? '').trim(), flowId = String(args.flowId ?? crypto.randomUUID())
     if (!name) throw new Error('Flow name is required')
-    return parseProject({ ...project, flows: [...project.flows, { id: String(args.flowId ?? crypto.randomUUID()), name, nodes: [], edges: [] }] })
+    if (project.flows.some((flow) => flow.id === flowId || flow.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('A flow with this ID or name already exists')
+    return parseProject({ ...project, flows: [...project.flows, { id: flowId, name, nodes: [], edges: [] }] })
   }
   if (operation.type === 'update_flow') {
     const flowId = String(args.flowId), name = String(args.name ?? '').trim()

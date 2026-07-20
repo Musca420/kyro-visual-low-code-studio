@@ -27,8 +27,8 @@ This makes the visual interface the entry point to the program, not a disposable
 
 - **Context lives with the component.** Right-click any element and choose **Ask Codex**; no selector copying is required.
 - **One source of truth.** Design, responsive styles, semantic intent, events, flows, data, native capabilities, and generated-file provenance share stable IDs in a unified graph.
-- **Fast skills for routine work.** Kyro-specific skills route common requests directly to typed graph operations. Open-ended work can still use the full model.
-- **Backend from visual intent.** The Capability Resolver explains missing storage, providers, permissions, credentials, costs, and local alternatives in plain English.
+- **Codex is always the reasoning engine.** Kyro skills provide compact graph context and typed tools; they never replace the model with a deterministic fast path.
+- **Backend from visual intent.** The Capability Resolver explains missing storage, providers, permissions, credentials, costs, and local alternatives to Codex; it assists the model rather than deciding for it.
 - **Agent changes remain governable.** Plans, diffs, validation, revision history, screenshots, and atomic undo are part of every transaction.
 - **Local-first and open.** Projects persist locally, use a versionable format, and export code that can continue outside Kyro.
 - **Visual and native.** The same flow system covers CRUD, APIs, camera, location, QR/barcode, notifications, deep links, files, sharing, haptics, network state, and platform conditions.
@@ -37,19 +37,22 @@ This makes the visual interface the entry point to the program, not a disposable
 | --- | --- |
 | ![Node-RED-style Kyro flow with validation and success/error branches](./docs/images/kyro-visual-flow.png) | ![Kyro data panel with local source, schema and bindings](./docs/images/kyro-data-model.png) |
 
-## Measured agent speed-up
+## Measured agent path
 
-The persisted **NexusField** timeline contains both the original model-driven path and the later skill-routed path. For a controlled task family—connecting a visual component to an existing data source—we measured completed runs from the same machine and development session.
+Every **Ask Codex** request uses authenticated Codex. Kyro supplies a bounded indexed graph slice, a domain skill, and an allow-listed MCP surface. Planning is read-only; after approval, the same Codex thread submits the exact typed operations as one transaction. Kyro waits for the next graph revision, validates it, captures the real preview DOM, and exposes one-click undo.
 
-| Stage | Samples | Median | p90 |
-| --- | ---: | ---: | ---: |
-| Classic Codex planning | 28 | 18.079 s | 21.747 s |
-| Kyro skill planning | 33 | 0.292 s | 0.325 s |
-| Shared transaction apply | 61 | 2.470 s | 2.907 s |
+A live A/B engineering check on 20 July 2026 used the same button-label request before and after combining apply, revision synchronization, validation, and preview into one MCP round:
 
-That is a **61.9× median planning speed-up**. Including the shared apply stage gives an estimated median of **20.549 s classic versus 2.762 s skill-routed: 7.4× end to end**.
+| Apply path | Context | Time | Input + output tokens | Result |
+| --- | ---: | ---: | ---: | --- |
+| Three separate MCP verification rounds | 5,220 B | 41.729 s | 152,778 | Applied, visually verified, undo verified |
+| One atomic verified MCP round | 5,220 B | 22.642 s | 77,823 | Applied, visually verified, undo verified |
 
-This is a historical cohort comparison of the same operation class, not identical repeated prompts, and the end-to-end value is the sum of stage medians. The classic path already received Kyro's compact context; a whole-repository scan was not timed and would not be a fair source of live IndexedDB state. The result is therefore a conservative comparison, not a claim about every Codex task. Full Codex remains available for ambiguous or custom work. Method and session evidence are recorded in [CODEX_SESSION_EVIDENCE.md](./CODEX_SESSION_EVIDENCE.md).
+This single-scenario A/B shows a **45.7% latency reduction** and **49.1% token reduction** from orchestration alone. It is not presented as a general benchmark. Raw timing, token totals, screenshots, applied preview, and undo proof are recorded in [CODEX_SESSION_EVIDENCE.md](./CODEX_SESSION_EVIDENCE.md).
+
+![Measured single-scenario comparison of separate and atomic verified Codex transactions](./docs/images/agent-orchestration-benchmark.svg)
+
+This deliberately isolates the change Kyro makes: Codex receives the same 5,220-byte indexed graph context in both runs, while the optimized path combines apply, revision synchronization, validation, preview capture, and undo evidence in one MCP round. A repository-scanning comparison would not be equivalent because the active visual project lives in Kyro's local graph rather than in source files; no broad “Kyro versus repository” claim is made without a matched fixture and repeated trials.
 
 ## Install and start Kyro
 
@@ -82,7 +85,7 @@ Kyro binds only to `127.0.0.1`; project state stays in local IndexedDB. Android 
 5. Add an IndexedDB or generated local REST source; bind a list or form and exercise CRUD states.
 6. Open **Preview**, then **Publish** to export Web/PWA or prepare Android.
 
-Judges can also test generated outputs without rebuilding Kyro from the [v0.1.14 release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.14): a standalone NexusField Web/PWA export, an Android APK, Playwright traces, and the narrated demo.
+Judges can also test generated outputs without rebuilding Kyro from the [v0.1.15 release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15): a standalone NexusField Web/PWA export, an Android APK, Playwright traces, and the narrated demo.
 
 | Configure an independent Web/PWA export | Verified on a physical Android device |
 | --- | --- |
@@ -112,7 +115,7 @@ npm --prefix generated-app run build
 npm run test:generated
 ```
 
-The final validation currently records **131 unit tests passed** and **48 Playwright scenarios passed**, with three environment-gated scenarios intentionally skipped. Kyro's visible Publish UI was also used to run the Web export independently and install the generated APK with `adb install -r`. The physical-device path verifies authentication, shared backend mutations, queued offline writes and replay, keyboard resize, back navigation, native capabilities, and persistence. Full evidence: [NEXUSFIELD_VALIDATION_REPORT.md](./NEXUSFIELD_VALIDATION_REPORT.md).
+The final validation currently records **127 unit tests passed** and **48 Playwright scenarios passed**, with three environment-gated scenarios intentionally skipped. Kyro's visible Publish UI was also used to run the Web export independently and install the generated APK with `adb install -r`. The physical-device path verifies authentication, shared backend mutations, queued offline writes and replay, keyboard resize, back navigation, native capabilities, and persistence. Full evidence: [NEXUSFIELD_VALIDATION_REPORT.md](./NEXUSFIELD_VALIDATION_REPORT.md).
 
 ## Architecture
 

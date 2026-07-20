@@ -19,6 +19,7 @@ try {
   await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" });
   await page.bringToFront();
   await page.waitForTimeout(1200);
+  if (await page.getByLabel("Close project and return to the dashboard").count()) await page.getByLabel("Close project and return to the dashboard").click();
 
   const recent = page.getByText("NexusField Mobile", { exact: true });
   if (!(await recent.count())) {
@@ -33,6 +34,10 @@ try {
   }
 
   await page.waitForTimeout(2200);
+  await page.getByRole("button", { name: /^Extensions/ }).click();
+  await page.locator(".plugin-card").filter({ hasText: "State: draft" }).first().waitFor();
+  await page.screenshot({ path: resolve(artifacts, "00-global-capability-in-nexus-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "Design" }).click();
   await page.screenshot({ path: resolve(artifacts, "01-mobile-created.png"), fullPage: true });
   console.log(JSON.stringify({
     headings: await page.getByRole("heading").allTextContents(),

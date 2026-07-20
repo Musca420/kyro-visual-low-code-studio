@@ -15,7 +15,7 @@ try {
     const assistant = page.getByRole("region", { name: "Codex assistant" });
     await assistant.getByLabel("Request in plain language").fill("Scan a QR or barcode with the device camera, request permission, and handle success and errors.");
     await assistant.getByRole("button", { name: "Analyze request" }).click();
-    const approve = assistant.getByRole("button", { name: "Approve and apply" }); await approve.waitFor({ timeout: 30_000 }); await approve.click();
+    const approve = assistant.getByRole("button", { name: "Approve and apply" }); await approve.waitFor({ timeout: 90_000 }); await approve.click();
     const analyze = assistant.getByRole("button", { name: "Analyze request" }); await analyze.waitFor();
     for (let i = 0; i < 150 && await analyze.isDisabled(); i += 1) await page.waitForTimeout(200);
     await assistant.getByRole("button", { name: "Close Codex panel" }).click();

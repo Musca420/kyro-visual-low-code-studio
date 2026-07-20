@@ -10,29 +10,17 @@ The private raw session log is intentionally not committed because it can contai
 
 Codex contributions include repository analysis, the unified visual-graph and agent tool design, implementation fixes, unit/E2E tests, headed browser validation, Android build/deployment, visual inspection, release documentation, and reproducible evidence collection. Human-directed decisions include Kyro's frontend-first model, local-first storage, explicit capability approvals, open project format, and independent export requirement.
 
-## Classic versus skill-routed measurements
+## Current measured orchestration evidence
 
-The persisted NexusField transaction timeline was inspected on 20 July 2026. Of 200 stored entries, 195 were completed. The comparison below filters one consistent task family: prompts that connect a visual component to an existing data source. Classic plans are completed model-path jobs longer than five seconds; skill plans are completed deterministic context-path jobs shorter than two seconds. Both ran on the same machine and development session.
+Kyro no longer has a deterministic or local planning fast path. **Ask Codex always invokes authenticated Codex.** Skills supply procedural context and typed graph tools; the Capability Resolver reports alternatives but does not replace model reasoning.
 
-| Stage | Samples | Minimum | Median | p90 | Maximum | Mean |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Classic Codex plan | 28 | 15.367 s | 18.079 s | 21.747 s | 22.581 s | 18.849 s |
-| Kyro skill plan | 33 | 0.271 s | 0.292 s | 0.325 s | 0.338 s | 0.298 s |
-| Shared transaction apply | 61 | 1.936 s | 2.470 s | 2.907 s | 3.290 s | 2.503 s |
+The headed live smoke test uses the editor as a user: create a blank project, add a page and button, right-click **Ask Codex**, request a label change, approve the typed plan, observe the real preview, and undo. Both runs below used a 5,220-byte indexed graph context and the same request on the same machine and session.
 
-Median planning speed-up is **61.9×**. Adding the common apply median estimates **20.549 seconds** for the classic path and **2.762 seconds** for the skill path, or **7.4× end to end**.
+| Apply orchestration | Time | Input tokens | Output tokens | Total | Outcome |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Separate apply, validate and capture tools | 41.729 s | 151,647 | 1,131 | 152,778 | Revision 3, preview verified, undo verified |
+| Atomic `kyro_apply_verified_transaction` | 22.642 s | 76,711 | 1,112 | 77,823 | Revision 3, preview verified, undo verified |
 
-This is a historical cohort comparison of the same operation class, not an identical-prompt randomized benchmark. The end-to-end values sum stage medians rather than pairing individual runs. The classic jobs already received compact graph context; a whole-repository scan was not measured and cannot discover live IndexedDB state by itself. These limitations make the result useful but intentionally narrower than a general Codex performance claim.
+Observed reduction: **45.7% elapsed time** and **49.1% total tokens**. This is a single-scenario engineering A/B, not a general Kyro-versus-repository performance claim. The artifact set is `artifacts/codex-graph-smoke/` and includes the approved plan, applied preview, undo screenshot, and `evidence.json`.
 
-The following examples measure the local compact-context-to-typed-plan stage only; they do not represent remote model response time or total feature implementation time.
-
-| Transaction | Operations | Plan latency |
-| --- | ---: | ---: |
-| Revenue chart data, properties, and flow binding | 25 | 338 ms |
-| Review submit with validation, save, refresh, success, and error | 14 | 296 ms |
-| Message submit with validation, save, refresh, success, and error | 14 | 282 ms |
-| Guarded refund mutation | 12 | 281 ms |
-| Camera completion flow | 12 | 293 ms |
-| QR/barcode permission and action flow | 12 | 624 ms |
-
-The measurement is intentionally narrow: registered Kyro skills can use stable graph IDs and typed operations without scanning the repository. Ambiguous or custom requests still use the full Codex reasoning path and depend on model and network latency.
+The comparison intentionally measures orchestration while holding the indexed graph context constant. A classic repository scan is not a matched substitute for an active visual graph stored in local project state, so the repository makes no broader speed-up or token-saving claim. Any future general benchmark must use an equivalent serialized fixture, repeated task families, raw telemetry, failures, and confidence limits.
