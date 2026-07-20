@@ -98,6 +98,8 @@ Final results: 131/131 Vitest tests passed; 48/48 enabled Playwright tests passe
 
 ## Evidence package
 
+All release assets are public at https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.13 and carry GitHub-verified SHA-256 digests.
+
 - `artifacts/nexusfield/NexusField-Web-export.zip`
 - `artifacts/nexusfield/NexusField-Mobile-debug.apk`
 - `artifacts/nexusfield/NexusField-Web-final-trace.zip`

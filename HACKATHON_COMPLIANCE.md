@@ -7,7 +7,7 @@ Kyro targets the **Developer Tools** track of OpenAI Build Week. This checklist 
 - [x] Public source repository with an MIT license.
 - [x] English installation and testing entry point in `README.md`.
 - [x] Dated Git history distinguishing pre-existing work from Build Week extensions.
-- [ ] Public working demo or unrestricted test build available through the judging period (release assets are prepared; public release upload follows the final commit).
+- [x] Public working demo and unrestricted test builds published in the [v0.1.13 GitHub Release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.13).
 - [ ] Public YouTube demonstration with audio, shorter than three minutes.
 - [x] Devpost English project description and testing instructions in `DEVPOST_SUBMISSION.md`.
 - [x] `/feedback` Codex Session ID for the main project thread: `019f7465-48aa-78e3-8531-1e4b6342b31e`.
