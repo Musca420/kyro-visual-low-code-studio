@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { installPlugin, listPlugins, removePlugin } from './db'
+import { installPlugin, listGlobalCapabilities, listPlugins, removePlugin } from './db'
 import type { PluginManifest, Project } from './model'
+import type { GlobalCapability } from './globalCapability'
 
 const example: PluginManifest = {
   id: 'example.focus-theme', name: 'Focus Theme', version: '1.0.0', author: 'Kyro',
@@ -15,8 +16,9 @@ const example: PluginManifest = {
 
 export function PluginManager({ project, onChange, onCatalogChange }: { project: Project; onChange: (project: Project) => void; onCatalogChange?: () => void }) {
   const [catalog, setCatalog] = useState<PluginManifest[]>([])
+  const [capabilities, setCapabilities] = useState<GlobalCapability[]>([])
   const [feedback, setFeedback] = useState('')
-  const refresh = useCallback(() => listPlugins().then((plugins) => { setCatalog(plugins); onCatalogChange?.() }), [onCatalogChange])
+  const refresh = useCallback(() => Promise.all([listPlugins(), listGlobalCapabilities()]).then(([plugins, globalCapabilities]) => { setCatalog(plugins); setCapabilities(globalCapabilities); onCatalogChange?.() }), [onCatalogChange])
   useEffect(() => { void refresh() }, [refresh])
   const install = async () => {
     try {
@@ -41,6 +43,11 @@ export function PluginManager({ project, onChange, onCatalogChange }: { project:
   return <section className="settings-section" aria-labelledby="plugins-title">
     <div className="section-heading"><div><p className="eyebrow">Local catalog</p><h2 id="plugins-title">Plugins</h2></div><button onClick={install}>Install example plugin</button></div>
     {feedback && <p role="status" className="feedback">{feedback}</p>}
+    <div className="section-heading"><div><p className="eyebrow">Codex capability registry</p><h3>Global capabilities</h3></div><span>{capabilities.length} saved</span></div>
+    {capabilities.length === 0 ? <div className="empty-panel"><strong>No learned capabilities yet</strong><span>Unsupported requests can become reviewed, reusable Kyro capabilities.</span></div> : capabilities.map((capability) => <article className="plugin-card" key={capability.id}>
+      <div><strong>{capability.name}</strong><span>{capability.kind.replace('_', ' ')} · v{capability.version} · global</span><small>{capability.generalizedIntent}</small><small>State: {capability.state} · activation: {capability.activation.replace('_', ' ')}</small></div>
+      <span className={capability.state === 'active' ? 'valid-chip' : 'warning-chip'}>{capability.state}</span>
+    </article>)}
     {catalog.length === 0 ? <div className="empty-panel"><strong>Empty catalog</strong><span>Install the validated example plugin without running external code.</span></div> : catalog.map((manifest) => {
       const state = project.plugins.find((plugin) => plugin.id === manifest.id)
       return <article className="plugin-card" key={manifest.id}>

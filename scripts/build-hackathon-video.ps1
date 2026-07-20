@@ -65,12 +65,12 @@ $segments += New-StillSegment "07-preview-quote" (Join-Path $shots "35-preview-q
 $segments += New-StillSegment "08-preview-review" (Join-Path $shots "36-preview-review.png") 4
 $segments += New-StillSegment "09-preview-tablet" (Join-Path $shots "39-web-tablet.png") 4
 $segments += New-StillSegment "10-preview-mobile" (Join-Path $shots "40-web-mobile.png") 4
-$segments += New-VideoSegment "11-publish" (Join-Path $raw "page@54605ba7d03d965392311e3c17740748.webm") 11.5
+$segments += New-StillSegment "11-publish" (Join-Path $shots "41-web-pwa-export.png") 11.5
 $segments += New-StillSegment "12-android-camera" (Join-Path $shots "85-android-camera-permission.png") 4
 $segments += New-StillSegment "13-android-notification" (Join-Path $shots "88-android-notification-permission.png") 4
 $segments += New-StillSegment "14-android-queued" (Join-Path $shots "106-android-offline-mutation-queued.png") 4
 $segments += New-StillSegment "15-android-synced" (Join-Path $shots "107-android-offline-mutation-synced.png") 4
-$segments += New-StillSegment "16-android-final" (Join-Path $shots "108-android-offline-sync-final.png") 4
+$segments += New-StillSegment "16-android-final" (Join-Path $shots "113-android-five-tab-final.png") 4
 $segments += New-CardSegment "17-end" 8 "DESIGN TO WORKING SOFTWARE" "Local-first | Inspectable | Undoable | Open"
 
 $concat = Join-Path $build "segments.txt"
@@ -81,20 +81,14 @@ Invoke-Ffmpeg @("-f", "concat", "-safe", "0", "-i", $concat, "-c", "copy", $sile
 $scriptText = Get-Content (Join-Path $repo "DEMO_SCRIPT.md") -Raw -Encoding UTF8
 $narration = [regex]::Match($scriptText, "(?s)## Narration\s+(.*?)\s+## Recording acceptance").Groups[1].Value
 $narration = ($narration -replace "\*\*", "" -replace "`r?`n+", " ").Trim()
-$wav = Join-Path $build "narration.wav"
-$voice = New-Object -ComObject SAPI.SpVoice
-$english = @($voice.GetVoices()) | Where-Object { $_.GetDescription() -match "English|David|Zira|Mark" } | Select-Object -First 1
-if ($english) { $voice.Voice = $english }
-$voice.Rate = 1
-$voice.Volume = 100
-$stream = New-Object -ComObject SAPI.SpFileStream
-$stream.Open($wav, 3, $false)
-$voice.AudioOutputStream = $stream
-[void]$voice.Speak($narration)
-$stream.Close()
+$narrationText = Join-Path $build "narration.txt"
+$narration | Set-Content -Encoding UTF8 $narrationText
+$audio = Join-Path $build "narration-neural.mp3"
+& python -m edge_tts --file $narrationText --voice "en-US-AndrewMultilingualNeural" --rate=-2% --write-media $audio
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $audio)) { throw "Neural narration generation failed. Install edge-tts with: python -m pip install edge-tts" }
 
 $videoDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $silent)
-$audioDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $wav)
+$audioDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $audio)
 $audioFilter = "adelay=900|900,apad=pad_dur=10"
 if ($audioDuration -gt ($videoDuration - 2)) {
   $tempo = $audioDuration / ($videoDuration - 2)
@@ -105,7 +99,7 @@ if ($audioDuration -gt ($videoDuration - 2)) {
 $outputPath = Join-Path $repo $Output
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputPath) | Out-Null
 Invoke-Ffmpeg @(
-  "-i", $silent, "-i", $wav, "-filter:a", $audioFilter, "-t", "$videoDuration",
+  "-i", $silent, "-i", $audio, "-filter:a", $audioFilter, "-t", "$videoDuration",
   "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", $outputPath
 )
 

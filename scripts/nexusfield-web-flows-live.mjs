@@ -17,12 +17,19 @@ const context = await chromium.launchPersistentContext(resolve("artifacts", "nex
 const page = context.pages()[0] ?? await context.newPage();
 page.setDefaultTimeout(60_000);
 const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const requestedActions = new Map();
 async function waitEnabled(locator) { for (let attempt = 0; attempt < 240 && await locator.isDisabled(); attempt += 1) await page.waitForTimeout(250); if (await locator.isDisabled()) throw new Error("Codex transaction did not finish"); }
 async function applyRequest(pageName, componentName, prompt) {
   await page.locator(".page-list button").filter({ hasText: pageName }).first().click();
   const layer = page.locator(".layers button").filter({ hasText: new RegExp(`${escape(componentName)}\\s*$`, "i") }).first();
   await layer.click();
   await page.waitForFunction((button) => button.classList.contains("active"), await layer.elementHandle());
+  const key = `${pageName}:${componentName}`;
+  const ordinal = (requestedActions.get(key) ?? 0) + 1;
+  requestedActions.set(key, ordinal);
+  const summary = page.locator(".right-panel .connection-summary");
+  const linked = await summary.count() ? Number((await summary.innerText()).match(/(\d+)\s+events?/i)?.[1] ?? 0) : 0;
+  if (linked >= ordinal) return;
   const selectedId = await page.locator("[data-component-id].selected").first().getAttribute("data-component-id");
   await page.locator(`[data-component-id="${selectedId}"]`).first().click({ button: "right", position: { x: 6, y: 6 } });
   const menu = page.getByRole("menu", { name: `Actions for ${componentName}` });
@@ -31,9 +38,9 @@ async function applyRequest(pageName, componentName, prompt) {
   const assistant = page.getByRole("region", { name: "Codex assistant" });
   await assistant.getByLabel("Request in plain language").fill(prompt);
   await assistant.getByRole("button", { name: "Analyze request" }).click();
-  await assistant.getByRole("button", { name: "Approve and apply" }).waitFor({ timeout: 30_000 });
+  await assistant.getByRole("button", { name: "Approve and apply" }).waitFor({ timeout: 150_000 });
   await assistant.getByRole("button", { name: "Approve and apply" }).click();
-  const analyze = assistant.getByRole("button", { name: "Analyze request" }); await analyze.waitFor({ state: "visible", timeout: 30_000 }); await waitEnabled(analyze);
+  const analyze = assistant.getByRole("button", { name: "Analyze request" }); await analyze.waitFor({ state: "visible", timeout: 90_000 }); await waitEnabled(analyze);
   await assistant.getByRole("button", { name: "Close Codex panel" }).click();
 }
 try {

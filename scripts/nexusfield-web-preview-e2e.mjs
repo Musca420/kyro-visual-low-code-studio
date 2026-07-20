@@ -29,7 +29,9 @@ async function submitPage(pageName, fields, buttonName, shot) {
   return frame.locator('[role="status"], [role="alert"], .status').allTextContents();
 }
 try {
-  await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" }); if (!(await page.getByRole("button", { name: "Design" }).count())) await page.getByRole("button", { name: /NexusField Web/ }).click();
+  await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" });
+  if (await page.getByLabel("Close project and return to the dashboard").count()) await page.getByLabel("Close project and return to the dashboard").click();
+  await page.getByRole("button", { name: /NexusField Web/ }).click();
   const results = {};
   results.quote = await submitPage("Request quote", [["What do you need?", "Boiler inspection"], ["Describe the work", "Annual inspection and pressure check"], ["Preferred date", "2026-07-22"], ["Coupon code", "BUILDWEEK"]], "Send quote request", "35-preview-quote.png");
   results.review = await submitPage("Reviews", [["Share your experience", "Fast, clear, and professional service."]], "Publish review", "36-preview-review.png");
@@ -38,11 +40,15 @@ try {
   const publicFrame = await openPreview("Public home");
   await page.getByRole("button", { name: "Tablet" }).click(); await page.waitForTimeout(600); await page.screenshot({ path: resolve("artifacts", "nexusfield", "39-web-tablet.png"), fullPage: true });
   await page.getByRole("button", { name: "Mobile" }).click(); await page.waitForTimeout(600); await page.screenshot({ path: resolve("artifacts", "nexusfield", "40-web-mobile.png"), fullPage: true });
-  await publicFrame.locator("body").press("Tab");
+  const focusableCount = await publicFrame.locator('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])').count();
+  await publicFrame.locator("body").evaluate((body) => { body.tabIndex = -1; body.focus(); });
+  await page.keyboard.press("Tab");
   const focused = await publicFrame.locator("html").evaluate(() => { const element = document.activeElement; return { tag: element?.tagName, text: element?.textContent?.slice(0, 80), label: element?.getAttribute("aria-label") }; });
-  console.log(JSON.stringify({ results, focused, consoleErrors, httpErrors }, null, 2));
+  console.log(JSON.stringify({ results, focusableCount, focused, consoleErrors, httpErrors }, null, 2));
   const blockingHttp = httpErrors.filter((entry) => !/favicon\.ico(?:\?|$)/.test(entry.url));
-  if (consoleErrors.length && blockingHttp.length) throw new Error(`Preview console errors: ${consoleErrors.join(" | ")} · ${JSON.stringify(blockingHttp)}`);
+  const blockingConsole = consoleErrors.filter((entry) => !/^Failed to load resource: the server responded with a status of 404/.test(entry));
+  if (blockingConsole.length || blockingHttp.length) throw new Error(`Preview runtime errors: ${blockingConsole.join(" | ")} · ${JSON.stringify(blockingHttp)}`);
+  if (!focusableCount || focused.tag === "BODY") throw new Error(`Keyboard focus did not enter the preview: ${JSON.stringify({ focusableCount, focused })}`);
   await page.waitForTimeout(5000);
 } catch (error) { await page.screenshot({ path: resolve("artifacts", "nexusfield", "failure-web-preview-e2e.png"), fullPage: true }); throw error; }
 finally { await context.close(); }

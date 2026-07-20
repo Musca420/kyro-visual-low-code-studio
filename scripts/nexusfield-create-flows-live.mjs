@@ -15,24 +15,29 @@ try {
     await layer.click();
     await page.locator(".layers button.active").filter({ hasText: new RegExp(`${formName}$`) }).waitFor();
     const actionsTab = page.getByRole("tab", { name: /Actions/ });
-    if (Number((await actionsTab.innerText()).match(/\d+/)?.[0] ?? 0) > 0) continue;
     await actionsTab.click();
-    await page.getByRole("region", { name: `Actions for ${formName}` }).getByRole("button", { name: "Ask Codex", exact: true }).click();
+    const actions = page.getByRole("region", { name: `Actions for ${formName}` });
+    if (await actions.getByText("Missing flow", { exact: true }).count()) await actions.getByRole("button", { name: /^Disconnect/ }).click();
+    else if (await actions.getByRole("button", { name: "Open flow" }).count()) continue;
+    await actions.getByRole("button", { name: "Ask Codex", exact: true }).click();
     const assistant = page.getByRole("region", { name: "Codex assistant" });
     await assistant.getByLabel("Request in plain language").fill(`Create a submit flow to save ${sourceName} data, validate ${requiredField}, refresh the matching list, and handle success and error.`);
     await assistant.getByRole("button", { name: "Analyze request" }).click();
-    await assistant.getByRole("button", { name: "Approve and apply" }).waitFor({ timeout: 30_000 });
+    await assistant.getByRole("button", { name: "Approve and apply" }).waitFor({ timeout: 90_000 });
     await assistant.getByRole("button", { name: "Approve and apply" }).click();
     const analyze = assistant.getByRole("button", { name: "Analyze request" });
-    await analyze.waitFor({ state: "visible", timeout: 30_000 }); await waitEnabled(analyze);
+    await analyze.waitFor({ state: "visible", timeout: 60_000 }); await waitEnabled(analyze);
     await assistant.getByRole("button", { name: "Close Codex panel" }).click();
   }
   await page.getByRole("button", { name: /^Flow/ }).first().click();
   await page.waitForTimeout(1200);
-  await page.getByLabel("Active flow").selectOption({ label: "Create Quotes" });
+  const flowOptions = await page.getByLabel("Active flow").locator("option").allTextContents();
+  const quoteFlow = flowOptions.find((label) => /quote/i.test(label)) ?? flowOptions.find(Boolean);
+  if (!quoteFlow) throw new Error("No visual flow was created");
+  await page.getByLabel("Active flow").selectOption({ label: quoteFlow });
   await page.waitForTimeout(800);
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "20-node-red-flows.png"), fullPage: true });
-  console.log(JSON.stringify({ flowOptions: await page.getByLabel("Active flow").locator("option").allTextContents() }, null, 2));
+  console.log(JSON.stringify({ flowOptions }, null, 2));
   await page.waitForTimeout(5000);
 } catch (error) {
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "failure-create-flows.png"), fullPage: true });

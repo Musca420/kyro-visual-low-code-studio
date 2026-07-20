@@ -3,7 +3,7 @@
   "description": "Kyro is a local-first visual low-code studio with an integrated Codex agent.",
   "author": "Kyro contributors",
   "private": true,
-  "version": "0.1.14",
+  "version": "0.1.15",
   "main": "electron/main.cjs",
   "bin": {
     "kyro": "bin/frontend-editor.mjs"
@@ -32,6 +32,8 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@vitejs/plugin-react": "^5.0.2",
     "@xyflow/react": "^12.9.3",
     "electron-squirrel-startup": "^1.0.1",
     "html2canvas": "^1.4.1",
@@ -39,7 +41,6 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "vite": "^7.1.4",
-    "@vitejs/plugin-react": "^5.0.2",
     "zod": "^4.1.5"
   },
   "devDependencies": {

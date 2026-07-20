@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kyro Design"
+  short_description: "Build responsive visual interfaces from the live graph"
+  default_prompt: "Use $kyro-design with $kyro-live-context to make this visual change through typed Kyro operations."

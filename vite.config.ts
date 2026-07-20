@@ -4,28 +4,25 @@ import {
   spawn,
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
-import { access, cp, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import {
-  changedPaths,
-  restoreWorkspace,
-  snapshotWorkspace,
-  type WorkspaceSnapshot,
-} from "./server/workspaceTransactions";
-import { approvedOperations, quickActionMutationPlan, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickDeepLinkPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
 import { readJsonBody } from "./server/httpBody";
+import { codexExecArguments, codexFailure, codexFinalMessage, codexThreadId, codexUsage, codexUsedDisallowedShell } from "./server/codexInvocation";
+import { buildAgentContext } from "./server/agentContext";
+import { operationNameSet, operationPrompt } from "./src/agentRegistry";
+import { parseAgentPlan } from "./src/agentPlan";
+import { parseAgentApply } from "./src/agentApply";
+import { resolveCapability } from "./src/capabilityResolver";
 
 const workspaceRoot = resolve(process.env.KYRO_WORKSPACE ?? process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
 const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
-const workspaceSkillsRoot = resolve(workspaceRoot, ".agents/skills");
-const skillsReady = bundledSkillsRoot === workspaceSkillsRoot
-  ? Promise.resolve()
-  : mkdir(workspaceSkillsRoot, { recursive: true }).then(() =>
-      cp(bundledSkillsRoot, workspaceSkillsRoot, { recursive: true, force: true }),
-    );
+const kyroRoot = resolve(bundledSkillsRoot, "../..");
+const kyroMcpPath = fileURLToPath(new URL("./server/kyroMcp.mjs", import.meta.url));
+const agentPlanSchemaPath = fileURLToPath(new URL("./server/agent-plan.schema.json", import.meta.url));
+const agentApplySchemaPath = fileURLToPath(new URL("./server/agent-apply.schema.json", import.meta.url));
 
 const sourceExtensions = new Set([".css", ".html", ".htm", ".js", ".json", ".jsx", ".md", ".mjs", ".svelte", ".ts", ".tsx", ".txt", ".vue", ".yaml", ".yml"]);
 const ignoredSourceDirectories = new Set([".agents", ".git", ".next", ".output", ".turbo", "android", "build", "coverage", "dist", "ios", "node_modules", "out", "target"]);
@@ -108,25 +105,6 @@ function reply(response: ServerResponse, status: number, value: unknown) {
   response.end(JSON.stringify(value));
 }
 
-async function gitSnapshot() {
-  try {
-    const [status, diff] = await Promise.all([
-      run("git", ["status", "--short"], {
-        cwd: workspaceRoot,
-        timeout: 10_000,
-      }),
-      run("git", ["diff", "--no-ext-diff", "--no-color", "HEAD"], {
-        cwd: workspaceRoot,
-        timeout: 10_000,
-        maxBuffer: 1_000_000,
-      }),
-    ]);
-    return { status: status.stdout, diff: diff.stdout };
-  } catch {
-    return { status: "", diff: "" };
-  }
-}
-
 function flattenComponentTree(
   tree: Record<string, unknown>[],
 ): Record<string, unknown>[] {
@@ -141,6 +119,7 @@ function flattenComponentTree(
 }
 
 function liveBridge() {
+  const agentBridgeToken = crypto.randomUUID();
   let latest: Record<string, unknown> | undefined;
   const projects = new Map<string, Record<string, unknown>>();
   const commands: {
@@ -151,6 +130,8 @@ function liveBridge() {
     tool: string;
     args: Record<string, unknown>;
     status: "pending" | "applied" | "error";
+    claimedBy?: string;
+    claimedAt?: number;
     error?: string;
     result?: unknown;
   }[] = [];
@@ -203,18 +184,25 @@ function liveBridge() {
   type CodexJob = {
     id: string;
     projectId: string;
+    clientId?: string;
     revision: number;
     mode: "plan" | "apply";
     status: "running" | "completed" | "error" | "cancelled" | "restored";
     output: string;
     errors: string;
+    warnings: string;
     code?: number | null;
     startedAt: string;
     finishedAt?: string;
-    git?: Awaited<ReturnType<typeof gitSnapshot>>;
     changedFiles: string[];
-    before?: WorkspaceSnapshot;
-    after?: WorkspaceSnapshot;
+    threadId?: string;
+    transactionId?: string;
+    contextHash?: string;
+    contextBytes?: number;
+    usage?: ReturnType<typeof codexUsage>;
+    approvedOperations?: NonNullable<ReturnType<typeof parseAgentPlan>>["operations"];
+    approvedCapabilityProposal?: NonNullable<ReturnType<typeof parseAgentPlan>>["capabilityProposal"];
+    learningCandidate?: NonNullable<ReturnType<typeof parseAgentApply>>["learningCandidate"];
   };
   const jobs = new Map<string, CodexJob>();
   return {
@@ -245,6 +233,28 @@ function liveBridge() {
               state ?? { error: "Editor non ancora collegato" },
             );
           }
+          if (url.pathname === "/api/agent/context" && request.method === "GET") {
+            if (!latest) return reply(response, 404, { error: "No Kyro project is open" });
+            return reply(response, 200, buildAgentContext(latest, { kind: (latest.selectedComponentIds as unknown[])?.length ? "component" : "page" }));
+          }
+          if (url.pathname === "/api/agent/authorization" && request.method === "GET") {
+            if (request.headers.authorization !== `Bearer ${agentBridgeToken}`)
+              return reply(response, 401, { error: "Invalid Kyro agent token" });
+            const activeJob = agentJobId ? jobs.get(agentJobId) : undefined;
+            if (!activeJob || activeJob.status !== "running")
+              return reply(response, 409, { error: "No active Kyro agent job" });
+            return reply(response, 200, {
+              mode: activeJob.mode,
+              approvedOperations: activeJob.mode === "apply" ? activeJob.approvedOperations : undefined,
+              approvedCapabilityProposal: activeJob.mode === "apply" ? activeJob.approvedCapabilityProposal : undefined,
+            });
+          }
+          if (url.pathname === "/api/agent/capability" && request.method === "POST") {
+            if (request.headers.authorization !== `Bearer ${agentBridgeToken}`)
+              return reply(response, 401, { error: "Invalid Kyro agent token" });
+            const input = await body(request);
+            return reply(response, 200, resolveCapability(input.request, latest));
+          }
           if (url.pathname === "/api/live/state" && request.method === "POST") {
             const state = await body(request);
             if (
@@ -259,6 +269,7 @@ function liveBridge() {
               workspace: workspaceRoot,
             };
             projects.set(String(state.projectId), latest);
+            if (state.clientId) projects.set(`${String(state.projectId)}:${String(state.clientId)}`, latest);
             return reply(response, 200, { ok: true });
           }
           if (
@@ -268,7 +279,8 @@ function liveBridge() {
             const tool = url.pathname.split("/").at(-1)!,
               input = await body(request),
               projectId = String(input.projectId ?? ""),
-              state = projects.get(projectId);
+              activeClientId = agentJobId ? jobs.get(agentJobId)?.clientId : undefined,
+              state = (activeClientId ? projects.get(`${projectId}:${activeClientId}`) : undefined) ?? projects.get(projectId);
             if (!state)
               return reply(response, 404, {
                 error: "Progetto live non trovato",
@@ -330,47 +342,7 @@ function liveBridge() {
               }),
             };
             if (reads[tool]) return reply(response, 200, reads[tool]());
-            const mutations = new Set([
-              "move_component",
-              "resize_component",
-              "set_component_property",
-              "set_component_style",
-              "set_responsive_style",
-              "set_component_state_style",
-              "set_component_accessibility",
-              "set_component_intent",
-              "set_component_event",
-              "remove_component_event",
-              "set_theme_token",
-              "add_component",
-              "remove_component",
-              "reorder_component",
-              "wrap_component",
-              "create_flow",
-              "add_flow",
-              "update_flow",
-              "remove_flow",
-              "add_flow_node",
-              "update_flow_node",
-              "remove_flow_node",
-              "connect_nodes",
-              "remove_flow_edge",
-              "bind_component_data",
-              "create_data_source",
-              "update_data_source",
-              "remove_data_source",
-              "add_page",
-              "update_page",
-              "remove_page",
-              "set_project_property",
-              "set_app_config",
-              "set_export_config",
-              "apply_editor_transaction",
-              "undo_last_transaction",
-              "open_preview",
-              "capture_canvas",
-              "capture_preview",
-            ]);
+            const mutations = new Set([...operationNameSet, "apply_editor_transaction", "register_global_capability", "undo_last_transaction", "open_preview", "capture_canvas", "capture_preview"]);
             if (!mutations.has(tool))
               return reply(response, 404, {
                 error: `Tool non disponibile: ${tool}`,
@@ -386,7 +358,7 @@ function liveBridge() {
               return reply(response, 409, {
                 error: "A transaction is already pending",
               });
-            const command = {
+            const command: (typeof commands)[number] = {
               id: crypto.randomUUID(),
               projectId,
               pageId: String(input.pageId ?? state.pageId),
@@ -396,21 +368,26 @@ function liveBridge() {
               status: "pending" as const,
             };
             commands.push(command);
-            return reply(response, 202, {
-              transactionId: command.id,
-              status: command.status,
-            });
+            for (let attempt = 0; attempt < 240 && command.status === "pending"; attempt += 1)
+              await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+            if (command.status === "error")
+              return reply(response, 409, { error: command.error || "Kyro command failed", transactionId: command.id });
+            if (command.status === "pending")
+              return reply(response, 504, { error: "Kyro command timed out", transactionId: command.id });
+            return reply(response, 202, { ...command, transactionId: command.id });
           }
-          if (url.pathname === "/api/live/commands" && request.method === "GET")
-            return reply(
-              response,
-              200,
-              commands.filter(
-                (item) =>
-                  item.projectId === url.searchParams.get("projectId") &&
-                  item.status === "pending",
-              ),
+          if (url.pathname === "/api/live/commands" && request.method === "GET") {
+            const clientId = url.searchParams.get("clientId") ?? "";
+            if (!clientId) return reply(response, 400, { error: "A live editor client ID is required" });
+            const now = Date.now();
+            const available = commands.filter((item) =>
+              item.projectId === url.searchParams.get("projectId") &&
+              item.status === "pending" &&
+              (!item.claimedBy || item.claimedBy === clientId || now - (item.claimedAt ?? 0) > 60_000),
             );
+            available.forEach((item) => { item.claimedBy = clientId; item.claimedAt = now; });
+            return reply(response, 200, available);
+          }
           if (
             url.pathname.startsWith("/api/live/commands/") &&
             request.method === "POST"
@@ -421,6 +398,8 @@ function liveBridge() {
               result = await body(request);
             if (!command)
               return reply(response, 404, { error: "Transazione non trovata" });
+            if (command.claimedBy && command.claimedBy !== url.searchParams.get("clientId"))
+              return reply(response, 409, { error: "This transaction is leased to another editor client" });
             command.status = result.ok === true ? "applied" : "error";
             command.error = result.error ? String(result.error) : undefined;
             command.result = result.result;
@@ -891,18 +870,21 @@ function liveBridge() {
               job ?? { error: "Build Android non trovata" },
             );
           }
+          if (url.pathname === "/api/codex/jobs" && request.method === "GET")
+            return reply(response, 200, [...jobs.values()].slice(-20).reverse().map((job) => ({ ...job })));
           if (url.pathname === "/api/codex/jobs" && request.method === "POST") {
             if (agent || agentJobId)
               return reply(response, 409, { error: "Codex is already working" });
             const input = await body(request),
               prompt = String(input.prompt ?? ""),
               mode = input.mode === "apply" ? "apply" : "plan",
-              projectId = String(input.projectId ?? "");
+              projectId = String(input.projectId ?? ""),
+              clientId = String(input.clientId ?? "").trim();
             if (!prompt.trim() || prompt.length > 8_000)
               return reply(response, 400, {
                 error: "La richiesta deve contenere da 1 a 8000 caratteri",
               });
-            const current = projects.get(projectId);
+            const current = (clientId ? projects.get(`${projectId}:${clientId}`) : undefined) ?? projects.get(projectId);
             if (!current || input.revision !== current.revision)
               return reply(response, 409, {
                 error:
@@ -912,47 +894,77 @@ function liveBridge() {
               job: CodexJob = {
                 id,
                 projectId,
+                ...(clientId ? { clientId } : {}),
                 revision: Number(input.revision),
                 mode,
                 status: "running",
                 output: "",
                 errors: "",
+                warnings: "",
                 startedAt: new Date().toISOString(),
                 changedFiles: [],
-                before:
-                  mode === "apply"
-                    ? await snapshotWorkspace(workspaceRoot)
-                    : undefined,
-              };
+            };
             jobs.set(id, job);
             agentJobId = id;
-            const quickPlan = mode === "plan"
-              ? quickVisualPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickBindingPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickFormCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickRecordCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickActionMutationPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickNativeActionPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickDeepLinkPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickLocalNotificationPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickDataViewsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickNavigationFlowPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickStructurePlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickDashboardPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickDailyFlowScreenPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickHabitsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickCrudSurfacePlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-                ?? quickCrudFlowsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
-              : undefined;
-            if (quickPlan) {
-              job.status = "completed";
+            const bridgeBase = `${url.protocol}//${request.headers.host ?? "127.0.0.1:4173"}`;
+            const approvedPlan = String(input.approvedPlan ?? "").trim();
+            const parsedApprovedPlan = mode === "apply" ? parseAgentPlan(approvedPlan) : undefined;
+            if (mode === "apply" && !parsedApprovedPlan) {
+              job.status = "error";
               job.finishedAt = new Date().toISOString();
-              job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: quickPlan } }) + "\n";
+              job.errors = "The approved Codex plan is invalid or uses unsupported Kyro operations.";
+              agentJobId = undefined;
+              return reply(response, 202, { jobId: id, status: job.status });
+            }
+            if (parsedApprovedPlan) {
+              job.approvedOperations = parsedApprovedPlan.operations;
+              job.approvedCapabilityProposal = parsedApprovedPlan.capabilityProposal;
+            }
+            if (mode === "apply" && parsedApprovedPlan) {
+              const indexedContext = buildAgentContext(current, input.focus ?? input.context);
+              job.contextHash = indexedContext.contextHash;
+              job.contextBytes = indexedContext.contextBytes;
+              const isVisualTransaction = parsedApprovedPlan.operations.length > 0;
+              const command: (typeof commands)[number] = {
+                id: crypto.randomUUID(),
+                projectId,
+                pageId: String((input.focus as Record<string, unknown> | undefined)?.pageId ?? current.pageId),
+                revision: Number(current.revision),
+                tool: isVisualTransaction ? "apply_editor_transaction" : "register_global_capability",
+                args: isVisualTransaction
+                  ? { operations: parsedApprovedPlan.operations }
+                  : parsedApprovedPlan.capabilityProposal as Record<string, unknown>,
+                status: "pending",
+                ...(clientId ? { claimedBy: clientId, claimedAt: Date.now() } : {}),
+              };
+              commands.push(command);
+              for (let attempt = 0; attempt < 240 && command.status === "pending"; attempt += 1)
+                await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+              job.finishedAt = new Date().toISOString();
+              job.code = command.status === "applied" ? 0 : 1;
+              if (command.status !== "applied") {
+                job.status = "error";
+                job.errors = command.error || (command.status === "pending" ? "Kyro transaction timed out" : "Kyro transaction failed");
+              } else {
+                job.status = "completed";
+                job.transactionId = command.id;
+                job.learningCandidate = null;
+                job.usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 };
+                const result = {
+                  status: "completed",
+                  summary: `Applied approved Codex plan: ${parsedApprovedPlan.summary}`,
+                  transactionId: command.id,
+                  validation: parsedApprovedPlan.checks,
+                  visualResult: "The approved typed operations were applied to the live graph and persisted by Kyro.",
+                  learningCandidate: null,
+                };
+                job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: JSON.stringify(result) } }) + "\n";
+              }
               agentJobId = undefined;
               return reply(response, 202, { jobId: id, status: job.status });
             }
             const auth = await codexAuthStatus();
-            if (!auth.authenticated && (mode === "plan" || !approvedOperations(input.approvedPlan))) {
+            if (!auth.authenticated) {
               job.status = "error";
               job.finishedAt = new Date().toISOString();
               job.errors = auth.message;
@@ -960,73 +972,79 @@ function liveBridge() {
               agentJobId = undefined;
               return reply(response, 202, { jobId: id, status: job.status });
             }
-            await skillsReady;
-            const bridgeBase = `${url.protocol}//${request.headers.host ?? "127.0.0.1:4173"}`;
-            const approvedPlan = String(input.approvedPlan ?? "").trim();
             const liveBridgeContract = mode === "plan" ? `
-Use only the Kyro context pack provided below. Do not run commands, read files, query the bridge, or capture screenshots.
+Use the Kyro context pack provided below. Do not run commands or read project files. Use kyro_get_context or kyro_resolve_capability only when the supplied indexed slice is insufficient.
 Produce a short plan based on stable IDs, typed operations, and observable criteria. The visual project and its graph are the source of truth.
-Available operations: add_page, update_page, remove_page, add_component, move_component, resize_component, reorder_component, wrap_component, remove_component, set_component_property, set_responsive_style, set_component_state_style, set_component_accessibility, set_component_intent, set_component_event, remove_component_event, set_theme_token, add_flow, update_flow, remove_flow, add_flow_node, update_flow_node, remove_flow_node, connect_nodes, remove_flow_edge, create_data_source, update_data_source, remove_data_source, bind_component_data, set_project_property, set_app_config, set_export_config. Every operation uses {"type":"...","pageId":"... optional","args":{...}}.
-Essential signatures: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; set_component_property args={componentId,property,value}, where property="name" renames the layer; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; set_component_event args={componentId,event,flowId}; remove_component_event args={componentId,event}; remove_component args={componentId,confirmed:true}; add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config and set_export_config args={patch:{...}}. Use a componentType already present in context or: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
-Always finish with exactly one FRONTEND_EDITOR_OPERATIONS=<json> line containing 1 to 50 valid operations. Put pageId at operation level when the target is not the active page. Use multiple set_responsive_style operations for multiple styles or breakpoints.
+Available operations: ${operationPrompt}. In the plan output every operation uses {"type":"...","pageId":"page ID or null","argsJson":"{...}"}. argsJson must be valid JSON encoding the operation argument object.
+Essential signatures: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; compose_screen args={name,layout,expectedResult?,replaceExisting?,confirmed?,theme?:{primary?,accent?,background?,surface?,text?},sections:[{type?,name,label,description?,role?,expectedResult?,items?:[{type?,name,label,description?,path?,role?,expectedResult?}]}],navigation?:[{label,path}],states?:boolean}. Prefer one compose_screen for a whole screen or large redesign so Kyro expands professional responsive defaults into native editable components; use atomic operations only for precise changes. set_component_property args={componentId,property,value}, where property="name" renames the layer; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; set_component_event args={componentId,event,flowId}; remove_component_event args={componentId,event}; remove_component args={componentId,confirmed:true}; compose_record_action args={componentId,sourceId?,entity,action:"update"|"delete"}. Prefer compose_record_action for a bound list/table update or confirmed delete with refresh, success/error feedback and generated undo support. compose_native_action args={componentId,event?,capability,action,permission?,resultComponentId?,rationale?,successMessage?,errorMessage?}. Prefer it for one registered device action. Registered capability/action pairs: camera/takePhoto|pickImage; barcode/scanQr|scanBarcode; location/getCurrentPosition|openMap; bluetooth/requestDevice|scan|connect|disconnect|read|write; device/getInfo|getBattery; network/getStatus; haptics/impact|vibrate; share/share; clipboard/write|read; files/writeFile|readFile|deleteFile; motion/getOrientation; push/register. External packages remain inactive until the separate visual approval step. add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?:"success"|"error"}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config args={patch:{safeArea?,offline?,themeMode?,supportedThemes?,mobileBottomNavigation?:{enabled,items:[{label,path}]},authentication?,realtime?}} with no navigation wrapper; set_export_config args={patch:{...}}. Native flow node types are event, readInput, validate, condition, switch, loop, getState, setState, resetState, delay, debounce, format, map, http, file, requireRole, signOut, insert, query, update, delete, filter, sort, kpi, refresh, navigate, openModal, updateUI, notify, localNotification, requestPermission, nativeAction, platformCondition, runFlow, module, log. A manual nativeAction config must contain a registered capability and action. Use insert instead of data-create, refresh instead of data-refresh, notify instead of toast or alert, and success/error for validation and failure branches. Use a componentType already present in context or: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
+If the request is not directly covered, call kyro_resolve_capability. Prefer a reusable visual flow. A tested built-in advanced function can use create_code_module args={module:{id,name,description,inputType,outputType,operation,config,tests}} where operation is trim, uppercase, lowercase, template, pick, or count; connect it with a module flow node. External code or packages require an explicit confirmation and a separate reviewed extension plan: never invent or install them silently.
+Every plan must return alreadySatisfied and capabilityProposal. Set alreadySatisfied=true only when the indexed graph proves the requested outcome already exists; then return operations=[] and capabilityProposal=null. Otherwise set it to false. When registered graph operations fully express a required change, use capabilityProposal=null. When they cannot, do not add a fake intent operation: return operations=[] and a scope="global" proposal generalized for all future Kyro projects, with typed inputs/outputs, permissions, dependencies, validation tests and its activation gate.
+Return the structured JSON plan required by the output schema. Put pageId at operation level when the target is not the active page. Use multiple set_responsive_style operations for multiple styles or breakpoints.
 ` : `
-The open visual project and its graph are the source of truth. Do not edit generated code for a change that can be represented in the editor.
-Use $frontend-editor-live and the relevant domain skill installed in .agents/skills. Do not use the Browser skill to modify Kyro.
-The Live Bridge URL is available in FRONTEND_EDITOR_LIVE_URL. Invoke tools through node .agents/skills/frontend-editor-live/scripts/invoke_live_tool.mjs; do not print the full /api/live/status payload.
-The plan is already approved: execute it directly without repeating analysis or taking screenshots through the bridge. Use one apply_editor_transaction for related changes. The script waits for transactionId. Do not call /api/live/state.
+The approved plan and persistent thread already contain the selected Kyro skill guidance and indexed graph context. Do not reread skills, inspect files, use Browser, or run shell commands during apply.
+The plan is already approved. With visual operations, call kyro_apply_verified_transaction once with exactly its operations. With only a global capability proposal, call kyro_register_global_capability once with exactly that proposal; it records an inactive versioned draft and never installs dependencies. Report its transaction and result. Do not call other tools or change the approved scope.
+After successful verification, return learningCandidate only when the pattern is meaningfully reusable; otherwise return null. A candidate must generalize intent and types, contain no project names, record values or stable IDs, and remain inactive pending passing tests or explicit review.
 `;
+            const indexedContext = buildAgentContext(current, input.focus ?? input.context);
+            job.contextHash = indexedContext.contextHash;
+            job.contextBytes = indexedContext.contextBytes;
+            const canonicalApprovedPlan = parsedApprovedPlan ? JSON.stringify(parsedApprovedPlan) : "";
             const instruction = `${
               mode === "plan"
                 ? "Propose the minimum plan. Do not modify files or the project."
                 : "Apply the approved plan to the visual graph through Live Bridge now."
-            }\n${liveBridgeContract}${approvedPlan ? `\nApproved plan:\n${approvedPlan}\n` : ""}\nOriginal request:\n${prompt}\n\nIndexed context pack:\n${JSON.stringify(input.context)}`;
-            const operations = mode === "apply" ? approvedOperations(input.approvedPlan) : undefined;
-            if (operations) {
-              const context = (input.context ?? {}) as Record<string, unknown>;
-              const command = {
-                id: crypto.randomUUID(),
-                projectId,
-                pageId: String(context.pageId ?? current.pageId),
-                revision: Number(input.revision),
-                tool: "apply_editor_transaction",
-                args: { operations },
-                status: "pending" as "pending" | "applied" | "error",
-                error: undefined as string | undefined,
-                result: undefined as unknown,
-              };
-              commands.push(command);
-              void (async () => {
-                for (let attempt = 0; attempt < 300 && command.status === "pending" && job.status === "running"; attempt += 1)
-                  await new Promise((done) => setTimeout(done, 100));
-                if (job.status === "cancelled") return;
-                job.finishedAt = new Date().toISOString();
-                job.status = command.status === "applied" ? "completed" : "error";
-                job.errors = command.error ?? (command.status === "pending" ? "La transazione visuale non ha risposto" : "");
-                job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: command.status === "applied" ? `Change applied to the graph. Transaction ${command.id}.` : job.errors } }) + "\n";
-                agentJobId = undefined;
-              })();
+            }\n${liveBridgeContract}${canonicalApprovedPlan ? `\nApproved plan:\n${canonicalApprovedPlan}\n` : ""}\nOriginal request:\n${prompt}\n\nIndexed context pack:\n${JSON.stringify(indexedContext)}`;
+            const threadId = String(input.threadId ?? "").trim();
+            if (mode === "apply" && !threadId) {
+              job.status = "error";
+              job.finishedAt = new Date().toISOString();
+              job.usage = codexUsage(job.output);
+              job.errors = "The approved plan has no Codex thread to resume.";
+              agentJobId = undefined;
               return reply(response, 202, { jobId: id, status: job.status });
             }
+            const execArgs = codexExecArguments(mode, threadId, mode === "plan" ? agentPlanSchemaPath : agentApplySchemaPath);
+            const enabledKyroTools = mode === "plan"
+              ? ["kyro_get_context", "kyro_resolve_capability"]
+              : parsedApprovedPlan?.operations.length
+                ? ["kyro_apply_verified_transaction"]
+                : ["kyro_register_global_capability"];
             const spawnedAgent = spawn(
               codexCommand,
               [
                 ...codexPrefix,
                 "-a",
                 "never",
-                "exec",
-                "--json",
-                "--ephemeral",
-                "--skip-git-repo-check",
                 "-C",
-                workspaceRoot,
+                kyroRoot,
                 "-s",
-                mode === "plan" ? "read-only" : "workspace-write",
-                "-",
+                "read-only",
+                ...(mode === "plan" ? ["-c", 'model_reasoning_effort="low"'] : []),
+                "-c",
+                `mcp_servers.kyro.command=${JSON.stringify(nodeCommand)}`,
+                "-c",
+                `mcp_servers.kyro.args=${JSON.stringify([kyroMcpPath])}`,
+                "-c",
+                `mcp_servers.kyro.env.KYRO_LIVE_URL=${JSON.stringify(bridgeBase)}`,
+                "-c",
+                `mcp_servers.kyro.env.KYRO_AGENT_TOKEN=${JSON.stringify(agentBridgeToken)}`,
+                "-c",
+                "mcp_servers.kyro.required=true",
+                "-c",
+                `mcp_servers.kyro.enabled_tools=${JSON.stringify(enabledKyroTools)}`,
+                "-c",
+                'mcp_servers.kyro.default_tools_approval_mode="approve"',
+                "-c",
+                "mcp_servers.kyro.tool_timeout_sec=60",
+                ...execArgs,
               ],
               {
-                cwd: workspaceRoot,
+                cwd: kyroRoot,
                 stdio: "pipe",
-                env: { ...process.env, FRONTEND_EDITOR_LIVE_URL: bridgeBase },
+                env: {
+                  ...process.env,
+                  FRONTEND_EDITOR_LIVE_URL: bridgeBase,
+                },
               },
             );
             agent = spawnedAgent;
@@ -1035,24 +1053,45 @@ The plan is already approved: execute it directly without repeating analysis or 
               if (job.output.length > 250_000) spawnedAgent.kill();
             });
             spawnedAgent.stderr.on("data", (chunk) => {
-              job.errors += chunk;
+              job.warnings += chunk;
             });
             spawnedAgent.stdin.end(instruction);
             spawnedAgent.on("close", async (code) => {
               if (agent === spawnedAgent) agent = undefined;
               if (agentJobId === id) agentJobId = undefined;
               job.code = code;
+              job.threadId = codexThreadId(job.output, threadId);
               job.finishedAt = new Date().toISOString();
+              job.usage = codexUsage(job.output);
               job.status =
                 job.status === "cancelled"
                   ? "cancelled"
                   : code === 0
                     ? "completed"
                     : "error";
-              job.git = await gitSnapshot();
-              if (job.before) {
-                job.after = await snapshotWorkspace(workspaceRoot);
-                job.changedFiles = changedPaths(job.before, job.after);
+              if (job.status === "error" && !job.errors.trim()) job.errors = codexFailure(job.output) || "Codex stopped before returning a result.";
+              const finalMessage = codexFinalMessage(job.output);
+              if (job.status === "completed" && codexUsedDisallowedShell(job.output)) {
+                job.status = "error";
+                job.errors += "\nKyro rejected this run because Codex used shell access outside the selected Kyro skill files.";
+              }
+              if (job.status === "completed" && mode === "plan" && !parseAgentPlan(finalMessage)) {
+                job.status = "error";
+                job.errors += "\nCodex did not return a valid typed Kyro plan.";
+              }
+              if (job.status === "completed" && mode === "apply") {
+                const applied = parseAgentApply(finalMessage);
+                const transaction = applied?.transactionId
+                  ? commands.find((command) => command.id === applied.transactionId && command.projectId === projectId)
+                  : undefined;
+                const expectedTool = parsedApprovedPlan?.operations.length ? "apply_editor_transaction" : "register_global_capability";
+                if (!applied || applied.status !== "completed" || !transaction || transaction.tool !== expectedTool || transaction.status !== "applied") {
+                  job.status = "error";
+                  job.errors += "\nCodex did not provide a verified applied Kyro transaction.";
+                } else {
+                  job.transactionId = transaction.id;
+                  job.learningCandidate = applied.learningCandidate;
+                }
               }
             });
             spawnedAgent.on("error", (error) => {
@@ -1075,8 +1114,6 @@ The plan is already approved: execute it directly without repeating analysis or 
               });
             return reply(response, 200, {
               ...job,
-              before: undefined,
-              after: undefined,
             });
           }
           if (
@@ -1104,17 +1141,27 @@ The plan is already approved: execute it directly without repeating analysis or 
           ) {
             const id = url.pathname.split("/")[4],
               job = jobs.get(id);
-            if (!job?.before || !job.after || job.status !== "completed")
+            if (!job?.transactionId || job.status !== "completed")
               return reply(response, 409, {
                 error: "Operazione non ripristinabile",
               });
-            const restored = await restoreWorkspace(
-              workspaceRoot,
-              job.before,
-              job.after,
-            );
+            const state = projects.get(job.projectId);
+            if (!state || state.revision !== job.revision + 1)
+              return reply(response, 409, {
+                error: "The project changed after this operation; undo it from the editor history instead.",
+              });
+            const command: (typeof commands)[number] = {
+              id: crypto.randomUUID(), projectId: job.projectId,
+              pageId: String(state.pageId), revision: Number(state.revision),
+              tool: "undo_last_transaction", args: {}, status: "pending",
+            };
+            commands.push(command);
+            for (let attempt = 0; attempt < 40 && command.status === "pending"; attempt += 1)
+              await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+            if (command.status !== "applied")
+              return reply(response, 409, { error: command.error || "The visual rollback did not complete." });
             job.status = "restored";
-            return reply(response, 200, { restored, jobId: id });
+            return reply(response, 200, { restored: [job.transactionId], transactionId: command.id, jobId: id });
           }
           if (request.url === "/api/codex/status" && request.method === "GET") {
             return reply(response, 200, { ...(await codexAuthStatus()), workspace: workspaceRoot });
@@ -1223,71 +1270,6 @@ The plan is already approved: execute it directly without repeating analysis or 
                 error: error instanceof Error ? error.message : String(error),
               });
             }
-          }
-          if (request.url === "/api/codex/run" && request.method === "POST") {
-            if (agent)
-              return reply(response, 409, { error: "Codex is already working" });
-            const input = await body(request),
-              prompt = String(input.prompt ?? ""),
-              mode = input.mode === "apply" ? "apply" : "plan";
-            if (!prompt.trim() || prompt.length > 8_000)
-              return reply(response, 400, {
-                error: "La richiesta deve contenere da 1 a 8000 caratteri",
-              });
-            const current = projects.get(String(input.projectId));
-            if (!current || input.revision !== current.revision)
-              return reply(response, 409, {
-                error:
-                  "The project changed: refresh the context before continuing",
-              });
-            const instruction = `${mode === "plan" ? "Analyze and propose a plan. Do not modify files." : "Apply the requested change and verify the result."}\n\n${prompt}\n\nKyro context:\n${JSON.stringify(input.context)}`;
-            agent = spawn(
-              codexCommand,
-              [
-                ...codexPrefix,
-                "-a",
-                "never",
-                "exec",
-                "--json",
-                "--ephemeral",
-                "--skip-git-repo-check",
-                "-C",
-                workspaceRoot,
-                "-s",
-                mode === "plan" ? "read-only" : "workspace-write",
-                "-",
-              ],
-              { cwd: workspaceRoot, stdio: "pipe" },
-            );
-            let output = "",
-              errors = "";
-            agent.stdout.on("data", (chunk) => {
-              output += chunk;
-              if (output.length > 250_000) agent?.kill();
-            });
-            agent.stderr.on("data", (chunk) => {
-              errors += chunk;
-            });
-            agent.stdin.end(instruction);
-            agent.on("close", async (code) => {
-              agent = undefined;
-              reply(response, code === 0 ? 200 : 500, {
-                code,
-                output,
-                errors,
-                git: await gitSnapshot(),
-              });
-            });
-            return;
-          }
-          if (
-            request.url === "/api/codex/cancel" &&
-            request.method === "POST"
-          ) {
-            const cancelled = Boolean(agent);
-            agent?.kill();
-            agent = undefined;
-            return reply(response, 200, { cancelled });
           }
           next();
         } catch (error) {

@@ -11,14 +11,14 @@ Date: 20 July 2026. Environment: local Windows host, headed Chromium/Playwright,
 | Web export | ZIP generated through Publish, installed, built, and run independently |
 | Android export | Capacitor project generated through Publish, APK built and installed with `adb install -r` |
 | Shared data | Web and Android protected flows created records in the same generated local backend |
-| Visual evidence | Headed recordings, screenshots 01–108, final/offline Playwright traces, and narrated MP4 |
+| Visual evidence | Headed recordings, screenshots 01–113, final/offline Playwright traces, and narrated MP4 |
 
 ## Mobile/Web parity
 
 | Capability | Web/PWA | Android |
 | --- | --- | --- |
 | Registration/login and roles | Generated auth, role guards, admin/manager allowed and viewer denied | Same backend/auth; session survives force-stop after generator fix |
-| Search/filter/navigation | Responsive forms, filters, routes, sidebar/navigation | Search screen, filters, bottom navigation, More drawer, Android back |
+| Search/filter/navigation | Responsive forms, filters, routes, sidebar/navigation | Search screen, filters, five-tab bottom navigation, Android back |
 | Quote/booking/payment | Visual pages and protected sandbox payment flow | Equivalent pages and sandbox payment action |
 | Assignment/team | Assigned-team action writes a shared protected record | Urgent-job action writes the same shared backend and shows success toast |
 | Chat/realtime | Messages/chat surfaces and SSE configuration | Equivalent routes; local backend SSE shared with Web |
@@ -53,7 +53,7 @@ Final Web result: login passed; protected mutation passed; shared backend mutati
 10. Enable notifications and schedule Add appointment; observe “Reminder scheduled” and the real Android “Appointment reminder” notification.
 11. Disable Wi-Fi and mobile data, tap the visible Urgent job action, verify one queued mutation, reconnect, then verify queue drain and shared backend count `1 -> 2`.
 
-Final Android result: cold launch about 1.5 seconds; zero matched fatal/runtime errors after recovery; camera, location, local notification, keyboard resize, back navigation, auth persistence, offline queue/replay, and shared backend mutation verified on physical hardware. The release APK was updated in place with `adb install -r`; `106-android-offline-mutation-queued.png`, `107-android-offline-mutation-synced.png`, and `108-android-offline-sync-final.png` record the offline transaction and authenticated force-stop/relaunch.
+Final Android result: cold launch about 1.5 seconds; zero matched fatal/runtime errors after recovery; camera, location, local notification, keyboard resize, back navigation, auth persistence, offline queue/replay, and shared backend mutation verified on physical hardware. The release APK was updated in place with `adb install -r`; `106-android-offline-mutation-queued.png`, `107-android-offline-mutation-synced.png`, `108-android-offline-sync-final.png`, and `113-android-five-tab-final.png` record the offline transaction, authenticated force-stop/relaunch, safe area, and final five-tab navigation.
 
 ## Unified graph evidence
 
@@ -88,6 +88,9 @@ The final projects remain editable visual graphs rather than handwritten demo ap
 | A persisted client token could outlive a restarted local backend | Generated clients validate the stored token against `/auth/session`, clear stale state, and guide the user to sign in again | Generic generator/backend tests, independent Web export, and physical Android sign-in/relaunch |
 | Offline mode kept the shell available but could not preserve a user mutation | Generated remote data clients queue only offline mutations, never credentials, replay serially on `online`, keep failed entries, refresh bindings, and expose plain-language queued/synchronized feedback | Generic generator tests plus headed Web and physical Android queue/replay verifiers |
 | Dynamic routes such as `/bookings/:id` were emitted but matched as literal strings | Generated routing now matches equal-length path segments and treats named parameters as wildcards for visibility and bound-data refresh | Generic generator assertion and independent `/bookings/offline-test` export verification |
+| Two simultaneous Kyro windows could expose the wrong live project to an agent job | Live state, Codex jobs, and deterministic commands carry a stable client ID and use the requesting window's exact graph revision | Agent-context tests plus repeated Web/Mobile Ask Codex runs |
+| A generated backend test could talk to an already running export on port 8787 | Generated backends accept a local `PORT`; the test reserves a free port and remains isolated | Generated backend integration test while NexusField backend remains active |
+| First-run Electron/Vite optimization exceeded the generic Playwright timeout | The production-shell scenario has an explicit cold-start budget while preserving its functional assertions | Targeted cold-start run and full Playwright suite |
 
 No fix checks project names, test data, or Playwright state. All fixes operate in the shared generator/runtime.
 
@@ -104,21 +107,20 @@ node scripts/nexusfield-verify-android-offline-sync.mjs
 adb install -r app-debug.apk
 ```
 
-Final results: 131/131 Vitest tests passed; 48/48 enabled Playwright tests passed with three separately gated scenarios; the packaged desktop test passed 1/1; the independent Web/PWA build and runtime verifier passed; the physical Android package launched, authenticated, and retained its session without fatal runtime errors.
+Final results: 127/127 Vitest tests passed; 48/48 enabled Playwright tests passed with three separately gated scenarios; the production Electron shell passed its cold-start test; the independent Web/PWA build and runtime verifier passed; the physical Android package launched, authenticated, and retained its session without fatal runtime errors.
 
 ## Evidence package
 
-All release assets are public at https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.14 and carry GitHub-verified SHA-256 digests.
+All release assets are public at https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15 and carry GitHub-verified SHA-256 digests.
 
 - `artifacts/nexusfield/NexusField-Web-export.zip`
 - `artifacts/nexusfield/NexusField-Mobile-debug.apk`
 - `artifacts/nexusfield/NexusField-Web-final-trace.zip`
 - `artifacts/nexusfield/NexusField-Web-offline-sync-trace.zip`
-- `artifacts/nexusfield/Kyro-Windows-x64.zip`
 - `artifacts/nexusfield/raw-video/`
-- `artifacts/nexusfield/Kyro-Hackathon-Demo.mp4` (about 74 seconds, 1920×1080, narrated audio)
+- `artifacts/nexusfield/Kyro-Hackathon-Demo-Final.mp4` (162.5 seconds, 1920×1080, English neural narration)
 - Screenshots in `artifacts/nexusfield/`
 
 ## Observed external limitations
 
-Remote push registration requires a provider project and credentials (for example FCM/APNs); the Android permission and local notifications are fully verified, while remote push is not simulated. Production APK/store signing and a publicly trusted desktop installer require release certificates. GitHub-hosted runners are currently unavailable on the repository account, so the optional desktop workflow is manual-only and the published packages use the documented local test/build evidence. Publishing the final MP4 to a public YouTube URL and submitting the Devpost form require the entrant's external accounts.
+Remote push registration requires a provider project and credentials (for example FCM/APNs); the Android permission and local notifications are fully verified, while remote push is not simulated. Production APK/store signing and a publicly trusted desktop installer require release certificates. `npm audit --omit=dev` reports zero runtime vulnerabilities; the full development-tree audit reports high-severity advisories without an available fix in Electron Forge's packaging-only `tar`/`tmp` chain. That chain is not part of the supported repository-first CLI install. GitHub-hosted runners are currently unavailable on the repository account, so the optional desktop workflow is manual-only and the published packages use the documented local test/build evidence. Publishing the final MP4 to a public YouTube URL and submitting the Devpost form require the entrant's external accounts.

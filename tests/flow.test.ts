@@ -258,6 +258,9 @@ describe('flow runtime', () => {
     await runFlow(access, { input: '', insert: async () => undefined, refresh: async () => undefined, getRole: () => 'viewer', signOut, notify })
     expect(signOut).toHaveBeenCalledOnce()
     expect(notify).toHaveBeenCalledWith('Permesso mancante', 'error')
+    access.nodes[1].config.roles = '["admin","editor"]'
+    await runFlow(access, { input: '', insert: async () => undefined, refresh: async () => undefined, getRole: () => 'editor', signOut, notify })
+    expect(signOut).toHaveBeenCalledTimes(2)
   })
 
   it('naviga a pagina, indietro o URL senza accettare protocolli pericolosi', async () => {

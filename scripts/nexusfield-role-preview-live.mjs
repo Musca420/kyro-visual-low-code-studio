@@ -4,8 +4,8 @@ const context = await chromium.launchPersistentContext(resolve("artifacts", "nex
 const page = context.pages()[0] ?? await context.newPage(); page.setDefaultTimeout(60_000);
 async function setRole(role) {
   await page.getByRole("button", { name: /^Flow/ }).click();
-  await page.getByLabel("Active flow").selectOption({ label: "Create Sandbox payments from Sandbox payment" });
-  await page.locator(".flow-node").filter({ hasText: "Check access" }).click();
+  await page.getByLabel("Active flow").selectOption({ label: "Record sandbox payment" });
+  await page.locator(".react-flow__node").filter({ hasText: /Require customer or admin/i }).click();
   await page.getByLabel("Simulated preview role").selectOption(role);
   await page.waitForTimeout(800);
 }
@@ -24,8 +24,8 @@ try {
   if (!(await page.getByRole("button", { name: "Design" }).count())) await page.getByRole("button", { name: /NexusField Web/ }).click();
   await setRole("customer"); const allowed = await run("51-role-allowed.png");
   await setRole("viewer"); const denied = await run("52-role-denied.png");
-  if (!allowed.includes("Sandbox payment completed")) throw new Error("Allowed mutation did not complete");
-  if (!denied.includes("permission")) throw new Error("Denied mutation was not reported");
+  if (!allowed.toLowerCase().includes("recorded successfully")) throw new Error("Allowed mutation did not complete");
+  if (!/permission|requires/i.test(denied)) throw new Error("Denied mutation was not reported");
   await setRole("customer");
   console.log(JSON.stringify({ allowed, denied }, null, 2));
   await page.waitForTimeout(3000);

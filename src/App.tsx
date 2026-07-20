@@ -15,6 +15,8 @@ import {
   insertGenericRecord,
   insertRecord,
   listPlugins,
+  listGlobalCapabilities,
+  registerGlobalCapability,
   listExports,
   listProjectVersions,
   listProjects,
@@ -28,6 +30,7 @@ import {
   type ProjectVersion,
 } from "./db";
 import { runProjectFlow, type FlowLog } from "./flow";
+import type { GlobalCapability } from "./globalCapability";
 import { runCodeModule } from "./codeModules";
 import {
   BREAKPOINTS,
@@ -52,6 +55,7 @@ import {
 } from "./templates";
 import { CodexPanel, type CodexContext } from "./CodexPanel";
 import { applyEditorOperation } from "./editorOperations";
+import { operationNames } from "./agentRegistry";
 import { captureElement, type CaptureResult } from "./capture";
 import {
   canContain,
@@ -614,6 +618,7 @@ function Editor({
 }) {
   const [project, setProject] = useState(initial);
   const [installedPlugins, setInstalledPlugins] = useState<PluginManifest[]>([]);
+  const [globalCapabilities, setGlobalCapabilities] = useState<GlobalCapability[]>([]);
   const [pageId, setPageId] = useState(initial.pages[0]?.id ?? "");
   const [selected, setSelected] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<{
@@ -690,12 +695,16 @@ function Editor({
     tool: "capture_canvas" | "capture_preview";
   }>();
   const processingCommands = useRef(new Set<string>());
+  const bridgeClientId = useRef(crypto.randomUUID());
   const projectRef = useRef(project);
   const runtimeState = useRef<Record<string, unknown>>({ ...initial.state });
   const resumeFlow = useRef<(() => void) | undefined>(undefined);
   const assetInput = useRef<HTMLInputElement>(null);
   const refreshPlugins = useCallback(
-    () => listPlugins().then(setInstalledPlugins),
+    () => Promise.all([listPlugins(), listGlobalCapabilities()]).then(([plugins, capabilities]) => {
+      setInstalledPlugins(plugins);
+      setGlobalCapabilities(capabilities);
+    }),
     [],
   );
   useEffect(() => {
@@ -850,6 +859,7 @@ function Editor({
       }),
     );
     const state = {
+      clientId: bridgeClientId.current,
       projectId: project.id,
       pageId: currentPage?.id ?? "no-page",
       revision: project.revision,
@@ -869,15 +879,27 @@ function Editor({
             ).issues
           : [],
       ),
+      globalCapabilities,
       validationErrors: [],
       consoleErrors: [],
+      project: {
+        id: project.id,
+        name: project.name,
+        revision: project.revision,
+        brief: project.state.projectBrief,
+        target: project.exportConfig.target,
+        appConfig: project.appConfig,
+        exportConfig: project.exportConfig,
+        themeTokens: project.theme.tokens,
+      },
+      pages: project.pages.map(({ id, name, path }) => ({ id, name, path })),
     };
     void fetch("/api/live/state", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(state),
     }).catch(() => undefined);
-  }, [project, currentPage, selected, breakpoint, tab]);
+  }, [project, currentPage, selected, breakpoint, tab, globalCapabilities]);
 
   const askCodex = (action: string, direct?: { component: EditorComponent; bounds: CodexContext["bounds"]; prompt?: string }) => {
     const source = direct ?? contextMenu;
@@ -939,23 +961,15 @@ function Editor({
       capabilities: inspectComponentProgram(project, currentPage.id, component.id).issues,
       availableActions: [
         "inspect_project", "inspect_page", "inspect_component", "select_component",
-        "add_page", "update_page", "remove_page", "add_component", "move_component",
-        "resize_component", "reorder_component", "wrap_component", "remove_component",
-        "set_component_property", "set_responsive_style", "set_component_state_style",
-        "set_component_accessibility", "set_component_intent", "set_component_event",
-        "add_flow", "update_flow", "remove_flow", "add_flow_node", "connect_nodes",
-        "create_data_source", "update_data_source", "remove_data_source", "bind_component_data",
-        "set_theme_token", "set_app_config", "set_export_config", "apply_editor_transaction",
-        "approve_dependency", "revoke_dependency",
+        ...operationNames, "apply_editor_transaction",
         "undo_transaction", "capture_preview", "read_runtime_logs", "run_preview",
         "generate_backend", "export_web", "export_android", "build_android",
       ],
       installedSkills: [
-        "kyro-live-context", "kyro-actions", "kyro-native", "kyro-extensions",
-        "frontend-editor-live", "frontend-editor-design", "frontend-editor-flow",
-        "frontend-editor-data", "frontend-editor-app", "frontend-editor-test",
-        "frontend-editor-publish",
+        "kyro-live-context", "kyro-design", "kyro-app", "kyro-data",
+        "kyro-actions", "kyro-native", "kyro-extensions", "kyro-publish", "kyro-test",
       ],
+      globalCapabilities,
     };
     const prompts: Record<string, string> = {
       "Ask Codex": "",
@@ -992,6 +1006,7 @@ function Editor({
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      if (projectRef.current.revision !== project.revision) return;
       void saveProject(project)
         .then(async () => {
           setSaveState("Saved automatically");
@@ -1053,7 +1068,7 @@ function Editor({
 
   const finishBridgeCommand = useCallback(
     async (id: string, result?: CaptureResult, error?: unknown) => {
-      await fetch(`/api/live/commands/${id}`, {
+      await fetch(`/api/live/commands/${id}?clientId=${encodeURIComponent(bridgeClientId.current)}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
@@ -1096,7 +1111,7 @@ function Editor({
     const timer = setInterval(async () => {
       try {
         const commands = (await fetch(
-          `/api/live/commands?projectId=${project.id}`,
+          `/api/live/commands?projectId=${project.id}&clientId=${encodeURIComponent(bridgeClientId.current)}`,
         ).then((response) => response.json())) as {
           id: string;
           tool: string;
@@ -1116,14 +1131,35 @@ function Editor({
             }
             if (command.tool === "undo_last_transaction") undo();
             else if (command.tool === "open_preview") setTab("preview");
+            else if (command.tool === "register_global_capability") {
+              const capability = await registerGlobalCapability(command.args as never, {
+                jobId: command.id,
+                prompt: String(command.args.generalizedIntent ?? "Approved global capability"),
+              });
+              await fetch(`/api/live/commands/${command.id}?clientId=${encodeURIComponent(bridgeClientId.current)}`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ ok: true, result: capability }),
+              });
+              processingCommands.current.delete(command.id);
+              setGlobalCapabilities((items) => [capability, ...items.filter((item) => item.id !== capability.id)]);
+              setFeedback(`Global capability draft saved · ${capability.name}`);
+              continue;
+            }
             else {
               const next = applyEditorOperation(project, pageId, {
                 type: command.tool,
                 args: command.args,
               });
-              change(next);
+              const persisted = { ...next, revision: project.revision + 1, updatedAt: new Date().toISOString() };
+              setHistory((items) => [...items.slice(-49), project]);
+              setFuture([]);
+              setProject(persisted);
+              projectRef.current = persisted;
+              await saveProject(persisted);
+              setSaveState("Saved automatically");
             }
-            await fetch(`/api/live/commands/${command.id}`, {
+            await fetch(`/api/live/commands/${command.id}?clientId=${encodeURIComponent(bridgeClientId.current)}`, {
               method: "POST",
               headers: { "content-type": "application/json" },
               body: JSON.stringify({ ok: true }),
@@ -1855,6 +1891,24 @@ function Editor({
     setFlowId(id);
     setSelectedFlowNodeId(startId);
     setFeedback("Reusable flow created. Add steps, then call it from any other flow.");
+  };
+  const deleteCurrentFlow = () => {
+    if (!flow || !window.confirm(`Delete “${flow.name}”? Connected element events will be removed.`)) return;
+    const remaining = project.flows.filter((item) => item.id !== flow.id);
+    change({
+      ...project,
+      flows: remaining,
+      pages: project.pages.map((page) => ({
+        ...page,
+        components: page.components.map((component) => ({
+          ...component,
+          events: Object.fromEntries(Object.entries(component.events).filter(([, targetFlowId]) => targetFlowId !== flow.id)),
+        })),
+      })),
+    });
+    setFlowId(remaining[0]?.id ?? "");
+    setSelectedFlowNodeId("");
+    setFeedback(`Flow deleted · ${flow.name}`);
   };
   const addPluginNode = (
     contribution: Extract<PluginContribution, { kind: "node" }>,
@@ -2951,6 +3005,7 @@ function Editor({
             </div>
             <div className="button-row">
               <button className="secondary" onClick={createReusableFlow}>New reusable flow</button>
+              {flow && <button className="danger" onClick={deleteCurrentFlow}>Delete flow</button>}
               <button onClick={createFlow}>
                 {project.state.experience === "landing"
                   ? "Create landing interactions"
@@ -3462,6 +3517,7 @@ function Editor({
         open={Boolean(codexRequest)}
         context={codexRequest?.context}
         suggestedPrompt={codexRequest?.prompt ?? ""}
+        clientId={bridgeClientId.current}
         captureEvidence={async () => {
           const canvas = document.querySelector<HTMLElement>(".design-canvas");
           if (!canvas) throw new Error("Canvas is unavailable for visual verification");

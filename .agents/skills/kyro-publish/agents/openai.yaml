@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kyro Publish"
+  short_description: "Export and verify open runnable projects"
+  default_prompt: "Use $kyro-publish to configure and verify this export from the Kyro graph."

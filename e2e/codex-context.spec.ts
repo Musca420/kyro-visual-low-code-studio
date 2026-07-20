@@ -80,7 +80,7 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
     await writeFile(`artifacts/live-${tool.replace('capture_', '')}-capture.png`, Buffer.from(result.dataUrl.split(',')[1], 'base64'))
   }
 
-  const stale = await request.post('/api/codex/run', { data: { mode: 'plan', prompt: 'Spiega', context: {}, projectId: live.projectId, revision: live.revision - 1 } })
+  const stale = await request.post('/api/codex/jobs', { data: { mode: 'plan', prompt: 'Explain', context: {}, projectId: live.projectId, revision: live.revision - 1 } })
   expect(stale.status()).toBe(409)
   await expect(stale.json()).resolves.toMatchObject({ error: /progetto è cambiato/i })
 })

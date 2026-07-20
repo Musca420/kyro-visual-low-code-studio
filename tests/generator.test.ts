@@ -130,9 +130,8 @@ describe("web generator", () => {
     expect(files["index.html"]).toContain('class="app-bottom-nav"');
     expect(files["src/main.ts"]).toContain("aria-current");
     expect(files["src/style.css"]).toContain("safe-area-inset-bottom");
-    expect(files["index.html"]).toContain('class="app-nav-more"');
-    expect(files["index.html"]).toContain('href="#/settings"');
-    expect(files["src/main.ts"]).toContain(".app-nav-more");
+    expect(files["index.html"]).not.toContain('class="app-nav-more"');
+    expect(files["index.html"]).toContain('data-route="/settings"');
   });
 
   it("mantiene tipi, vincoli e opzioni dei form visuali", () => {

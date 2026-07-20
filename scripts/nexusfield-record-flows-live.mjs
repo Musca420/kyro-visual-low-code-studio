@@ -11,7 +11,7 @@ async function applyRequest(region, request) {
   await assistant.getByLabel("Request in plain language").fill(request);
   await assistant.getByRole("button", { name: "Analyze request" }).click();
   const approve = assistant.getByRole("button", { name: "Approve and apply" });
-  await approve.waitFor({ timeout: 30_000 }); await approve.click();
+  await approve.waitFor({ timeout: 90_000 }); await approve.click();
   const analyze = assistant.getByRole("button", { name: "Analyze request" });
   await analyze.waitFor();
   for (let i = 0; i < 150 && await analyze.isDisabled(); i += 1) await page.waitForTimeout(200);
@@ -32,10 +32,13 @@ try {
       await applyRequest(region, `Delete a ${sourceName} record with confirmation and undo, refresh the list, and handle success and error.`);
   }
   await page.getByRole("button", { name: /^Flow/ }).first().click();
-  await page.getByLabel("Active flow").selectOption({ label: "Delete Bookings" });
+  const flowOptions = await page.getByLabel("Active flow").locator("option").allTextContents();
+  const deleteBooking = flowOptions.find((label) => /delete.*booking|booking.*delete/i.test(label));
+  if (!deleteBooking) throw new Error("The Bookings delete flow is missing");
+  await page.getByLabel("Active flow").selectOption({ label: deleteBooking });
   await page.waitForTimeout(1000);
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "21-record-crud-flows.png"), fullPage: true });
-  console.log(JSON.stringify({ flows: await page.getByLabel("Active flow").locator("option").allTextContents() }, null, 2));
+  console.log(JSON.stringify({ flows: flowOptions }, null, 2));
   await page.waitForTimeout(5000);
 } catch (error) {
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "failure-record-flows.png"), fullPage: true });

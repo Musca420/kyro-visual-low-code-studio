@@ -1,9 +1,10 @@
 import type { PluginManifest, Project } from './model'
 import { parseProject, pluginManifestSchema } from './model'
 import { z } from 'zod'
+import { capabilityProposalSchema, globalCapabilitySchema, type CapabilityProposal, type GlobalCapability } from './globalCapability'
 
 const DB_NAME = 'frontend-editor'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -16,6 +17,7 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('codexTimeline')) db.createObjectStore('codexTimeline', { keyPath: 'id' }).createIndex('projectId', 'projectId')
       if (!db.objectStoreNames.contains('projectVersions')) db.createObjectStore('projectVersions', { keyPath: 'id' }).createIndex('projectId', 'projectId')
       if (!db.objectStoreNames.contains('exports')) db.createObjectStore('exports', { keyPath: 'id' }).createIndex('projectId', 'projectId')
+      if (!db.objectStoreNames.contains('globalCapabilities')) db.createObjectStore('globalCapabilities', { keyPath: 'id' }).createIndex('state', 'state')
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -43,13 +45,30 @@ export async function getProject(id: string): Promise<Project | undefined> {
 }
 
 export async function saveProject(project: Project) {
-  const value = parseProject({ ...project, updatedAt: new Date().toISOString() })
+  const value = parseProject(project)
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(['projects', 'projectVersions'], 'readwrite')
-    transaction.objectStore('projects').put(value)
-    transaction.objectStore('projectVersions').put({ id: `${value.id}:${value.revision}`, projectId: value.id, revision: value.revision, createdAt: value.updatedAt, project: value })
-    transaction.oncomplete = () => { db.close(); resolve() }
+    let conflict: Error | undefined
+    const existingRequest = transaction.objectStore('projects').get(value.id)
+    existingRequest.onsuccess = () => {
+      const existing = existingRequest.result ? parseProject(existingRequest.result) : undefined
+      const isNewer = existing && (
+        existing.revision > value.revision
+        || (existing.revision === value.revision && existing.updatedAt > value.updatedAt)
+      )
+      if (isNewer) {
+        conflict = new Error(`A newer revision of ${value.name} is already saved`)
+        return
+      }
+      transaction.objectStore('projects').put(value)
+      transaction.objectStore('projectVersions').put({ id: `${value.id}:${value.revision}`, projectId: value.id, revision: value.revision, createdAt: value.updatedAt, project: value })
+    }
+    transaction.oncomplete = () => {
+      db.close()
+      if (conflict) reject(conflict)
+      else resolve()
+    }
     transaction.onerror = () => { db.close(); reject(transaction.error) }
   })
   const obsolete = (await listProjectVersions(value.id)).slice(40)
@@ -111,8 +130,25 @@ export const codexTimelineEntrySchema = z.object({
   finishedAt: z.string().optional(),
   output: z.string(),
   errors: z.string(),
+  warnings: z.string().optional(),
   changedFiles: z.array(z.string()),
   tests: z.array(z.object({ command: z.string(), passed: z.boolean(), output: z.string() })),
+  transactionId: z.string().optional(),
+  contextHash: z.string().optional(),
+  contextBytes: z.number().int().nonnegative().optional(),
+  usage: z.object({
+    inputTokens: z.number().int().nonnegative(), cachedInputTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(), reasoningOutputTokens: z.number().int().nonnegative(), totalTokens: z.number().int().nonnegative(),
+  }).optional(),
+  learningCandidate: z.object({
+    kind: z.enum(["reusable_flow", "typed_module", "plugin"]),
+    name: z.string().min(1),
+    generalizedIntent: z.string().min(1),
+    inputs: z.array(z.string()),
+    outputs: z.array(z.string()),
+    activation: z.enum(["passing_tests", "explicit_review"]),
+  }).optional(),
+  capabilityProposal: capabilityProposalSchema.optional(),
   beforeScreenshot: z.string().startsWith('data:image/png;base64,').max(1_500_000).optional(),
   afterScreenshot: z.string().startsWith('data:image/png;base64,').max(1_500_000).optional(),
 })
@@ -199,22 +235,46 @@ export async function queryRecords(sourceId: string): Promise<LocalRecord[]> {
 export const listPlugins = () => request<PluginManifest[]>('plugins', 'readonly', (store) => store.getAll())
 export const listAllRecords = () => request<LocalRecord[]>('records', 'readonly', (store) => store.getAll())
 
-export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = [], versions: ProjectVersion[] = [], exports: ExportRecord[] = []) {
+export const listGlobalCapabilities = () => request<GlobalCapability[]>('globalCapabilities', 'readonly', (store) => store.getAll())
+  .then((items) => items.map((item) => globalCapabilitySchema.parse(item)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+
+export async function registerGlobalCapability(proposalValue: CapabilityProposal, source: { jobId: string; prompt: string }) {
+  const proposal = capabilityProposalSchema.parse(proposalValue)
+  const installed = await listGlobalCapabilities()
+  const existing = installed.find((item) => item.kind === proposal.kind && item.generalizedIntent.toLocaleLowerCase() === proposal.generalizedIntent.toLocaleLowerCase())
+  const now = new Date().toISOString()
+  const capability = globalCapabilitySchema.parse({
+    ...proposal,
+    id: existing?.id ?? crypto.randomUUID(),
+    version: existing?.version ?? '0.1.0',
+    state: 'draft',
+    sourceJobId: source.jobId,
+    sourcePrompt: source.prompt,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  })
+  await request('globalCapabilities', 'readwrite', (store) => store.put(capability))
+  return capability
+}
+
+export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = [], versions: ProjectVersion[] = [], exports: ExportRecord[] = [], globalCapabilities: GlobalCapability[] = []) {
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline', 'projectVersions', 'exports'], 'readwrite')
+    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline', 'projectVersions', 'exports', 'globalCapabilities'], 'readwrite')
     const projectStore = transaction.objectStore('projects')
     const recordStore = transaction.objectStore('records')
     const pluginStore = transaction.objectStore('plugins')
     const timelineStore = transaction.objectStore('codexTimeline')
     const versionStore = transaction.objectStore('projectVersions')
     const exportStore = transaction.objectStore('exports')
+    const capabilityStore = transaction.objectStore('globalCapabilities')
     projects.forEach((project) => projectStore.put(parseProject(project)))
     records.forEach((record) => recordStore.put(record))
     plugins.forEach((plugin) => pluginStore.put(pluginManifestSchema.parse(plugin)))
     timeline.forEach((entry) => timelineStore.put(codexTimelineEntrySchema.parse(entry)))
     versions.forEach((version) => versionStore.put({ ...version, project: parseProject(version.project) }))
     exports.forEach((item) => exportStore.put(item))
+    globalCapabilities.forEach((item) => capabilityStore.put(globalCapabilitySchema.parse(item)))
     transaction.oncomplete = () => { db.close(); resolve() }
     transaction.onerror = () => { db.close(); reject(transaction.error) }
     transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error('Ripristino annullato')) }

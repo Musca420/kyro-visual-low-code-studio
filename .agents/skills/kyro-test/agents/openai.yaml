@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kyro Test"
+  short_description: "Verify visual behavior with evidence"
+  default_prompt: "Use $kyro-test to validate and visually verify the live Kyro result."

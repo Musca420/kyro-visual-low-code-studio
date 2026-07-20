@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "transactionId", "validation", "visualResult", "learningCandidate"],
+  "properties": {
+    "status": { "type": "string", "enum": ["completed", "needs_revision", "failed"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "transactionId": { "type": "string" },
+    "validation": { "type": "array", "items": { "type": "string" } },
+    "visualResult": { "type": "string", "minLength": 1 },
+    "learningCandidate": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["kind", "name", "generalizedIntent", "inputs", "outputs", "activation"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["reusable_flow", "typed_module", "plugin"] },
+        "name": { "type": "string" },
+        "generalizedIntent": { "type": "string" },
+        "inputs": { "type": "array", "items": { "type": "string" } },
+        "outputs": { "type": "array", "items": { "type": "string" } },
+        "activation": { "type": "string", "enum": ["passing_tests", "explicit_review"] }
+      }
+    }
+  }
+}

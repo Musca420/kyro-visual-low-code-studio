@@ -1,3 +1,4 @@
 interface:
   display_name: "Kyro Live Context"
   short_description: "Read only the active visual graph slice"
+  default_prompt: "Use $kyro-live-context to plan or apply this request through the indexed Kyro graph and typed MCP tools without scanning project files."

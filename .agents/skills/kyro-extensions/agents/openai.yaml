@@ -1,3 +1,4 @@
 interface:
   display_name: "Kyro Extensions"
-  short_description: "Review and add approved extensions"
+  short_description: "Review and generalize missing capabilities"
+  default_prompt: "Use $kyro-extensions to resolve this missing Kyro capability safely and make the verified result reusable."
