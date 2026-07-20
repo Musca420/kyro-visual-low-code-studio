@@ -144,6 +144,70 @@ export function quickLocalNotificationPlan(prompt: string, context: Record<strin
 
 type IndexedSource = { id: string; name?: string; schema?: Record<string, unknown> };
 
+const semanticTokens = (value: unknown) => String(value ?? "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase()
+  .split(/[^a-z0-9]+/)
+  .map((token) => token.replace(/(?:ies|es|s)$/i, (ending) => ending === "ies" ? "y" : ""))
+  .filter((token) => token.length > 2 && !["data", "source", "list", "table", "view", "loading", "empty", "error", "state", "the", "and", "with"].includes(token));
+
+export function quickBindingPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/(?:connect|bind|collega|associa).{0,40}(?:data|source|dati|sorgente)|(?:data|source|dati|sorgente).{0,40}(?:connect|bind|collega|associa)/i.test(prompt)) return undefined;
+  const componentId = String(context.componentId ?? ""), pageId = String(context.pageId ?? ""), componentType = String(context.componentType ?? "");
+  if (!componentId || !pageId || !["list", "table", "chart", "calendar", "card", "map", "loader", "empty", "alert", "skeleton"].includes(componentType)) return undefined;
+  const sources = Array.isArray(context.dataSources)
+    ? context.dataSources.filter((item): item is IndexedSource & { collection?: string } => Boolean(item && typeof item.id === "string"))
+    : [];
+  if (!sources.length) return undefined;
+  const intent = context.intent && typeof context.intent === "object" ? context.intent as Record<string, unknown> : {};
+  const wanted = new Set(semanticTokens(`${context.componentName ?? ""} ${intent.entity ?? ""} ${prompt}`));
+  const ranked = sources.map((source) => ({
+    source,
+    score: semanticTokens(`${source.id} ${source.name ?? ""} ${source.collection ?? ""}`).filter((token) => wanted.has(token)).length,
+  })).sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  if (!best || (best.score === 0 && sources.length > 1) || (ranked[1] && ranked[1].score === best.score)) return undefined;
+  return `Immediate plan: connect ${String(context.componentName ?? componentId)} to ${best.source.name ?? best.source.id} using the existing visual data binding.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify([{ type: "bind_component_data", pageId, args: { componentId, sourceId: best.source.id, state: componentType === "loader" ? "loading" : componentType === "empty" ? "empty" : componentType === "alert" ? "error" : "data" } }])}`;
+}
+
+export function quickFormCrudPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/(?:submit|save|create|insert|invia|salva|crea).{0,50}(?:flow|data|source|dati|sorgente)|(?:flow|data|source|dati|sorgente).{0,50}(?:submit|save|create|insert|invia|salva|crea)/i.test(prompt)) return undefined;
+  const pageId = String(context.pageId ?? ""), formId = String(context.componentId ?? "");
+  if (!pageId || !formId || context.componentType !== "form") return undefined;
+  const sources = Array.isArray(context.dataSources) ? context.dataSources.filter((item): item is IndexedSource & { collection?: string } => Boolean(item && typeof item.id === "string")) : [];
+  const wanted = new Set(semanticTokens(`${context.componentName ?? ""} ${prompt}`));
+  const ranked = sources.map((source) => ({ source, score: semanticTokens(`${source.id} ${source.name ?? ""} ${source.collection ?? ""}`).filter((token) => wanted.has(token)).length })).sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  if (!best || best.score === 0 || (ranked[1] && ranked[1].score === best.score)) return undefined;
+  const components = Array.isArray(context.pageComponents) ? context.pageComponents as IndexedComponent[] : [];
+  const children = components.filter((item) => item.parentId === formId);
+  const requestedField = Object.keys(best.source.schema ?? {}).find((field) => field !== "id" && semanticTokens(field).some((token) => wanted.has(token)));
+  const requiredField = requestedField ?? Object.keys(best.source.schema ?? {}).find((field) => field !== "id" && children.some((item) => semanticTokens(item.name).some((token) => semanticTokens(field).includes(token)))) ?? "";
+  const list = components.find((item) => item.type === "list" && semanticTokens(item.name).some((token) => semanticTokens(`${best.source.name} ${best.source.collection}`).includes(token)));
+  const flowId = `create-${slug(best.source.collection ?? best.source.name ?? best.source.id)}`.slice(0, 80);
+  const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = [];
+  if (!exists) {
+    const addNode = (id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => operations.push({ type: "add_flow_node", args: { flowId, node: { id, type, label, position: { x, y }, config } } });
+    const edge = (source: string, target: string, path = "success") => operations.push({ type: "connect_nodes", args: { flowId, source, target, path } });
+    operations.push({ type: "add_flow", args: { flowId, name: `Create ${best.source.name ?? best.source.id}` } });
+    addNode(`${flowId}-event`, "event", "Form submitted", 0, 0, { trigger: "submit", componentId: formId });
+    if (requiredField) addNode(`${flowId}-validate`, "validate", `Validate ${requiredField}`, 220, 0, { field: requiredField, rule: "required", message: `Complete ${requiredField}` });
+    addNode(`${flowId}-insert`, "insert", `Save ${best.source.name ?? "record"}`, 440, 0, { sourceId: best.source.id });
+    if (list) addNode(`${flowId}-refresh`, "refresh", `Refresh ${list.name}`, 660, 0, { componentId: list.id });
+    addNode(`${flowId}-success`, "notify", "Success", list ? 880 : 660, 0, { message: "Saved successfully", level: "success" });
+    addNode(`${flowId}-error`, "notify", "Validation or save error", 440, 160, { message: "Check the fields and try again", level: "error" });
+    edge(`${flowId}-event`, requiredField ? `${flowId}-validate` : `${flowId}-insert`);
+    if (requiredField) { edge(`${flowId}-validate`, `${flowId}-insert`); edge(`${flowId}-validate`, `${flowId}-error`, "error"); }
+    edge(`${flowId}-insert`, list ? `${flowId}-refresh` : `${flowId}-success`);
+    edge(`${flowId}-insert`, `${flowId}-error`, "error");
+    if (list) edge(`${flowId}-refresh`, `${flowId}-success`);
+  }
+  operations.push({ type: "set_component_event", pageId, args: { componentId: formId, event: "submit", flowId } });
+  return `Immediate plan: connect ${String(context.componentName ?? formId)} to ${best.source.name ?? best.source.id} with a reusable visual submit, validation, save, refresh, success, and error flow.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
 export function quickDataViewsPlan(prompt: string, context: Record<string, unknown>) {
   if (!/(?:calendar|statistics?|charts?|calendario|statistic|grafici?|kpi).{0,60}(?:data|dynamic|real|connect|dati|dinamic|reali|collega)|(?:connect|make|collega|rendi).{0,60}(?:calendar|statistics?|charts?|calendario|statistic|grafici?|kpi)/i.test(prompt)) return undefined;
   const pageId = String(context.pageId ?? "");

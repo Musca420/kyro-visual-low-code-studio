@@ -15,7 +15,7 @@ import {
   snapshotWorkspace,
   type WorkspaceSnapshot,
 } from "./server/workspaceTransactions";
-import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
+import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
 
 const workspaceRoot = resolve(process.env.KYRO_WORKSPACE ?? process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
 const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
@@ -934,6 +934,8 @@ function liveBridge() {
             agentJobId = id;
             const quickPlan = mode === "plan"
               ? quickVisualPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickBindingPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickFormCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickLocalNotificationPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickDataViewsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickNavigationFlowPlan(prompt, (input.context ?? {}) as Record<string, unknown>)

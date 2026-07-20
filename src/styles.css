@@ -1838,15 +1838,15 @@ label {
   display: grid;
   gap: 10px;
   padding: 18px 10px 10px;
-  border: 1px dashed #c8c2ff;
+  border: 1px dashed color-mix(in srgb, currentColor 24%, transparent);
   border-radius: 8px;
-  background: #faf9ff;
+  background: color-mix(in srgb, currentColor 3%, transparent);
 }
 .component-children > .drop-hint {
   position: absolute;
   top: 3px;
   left: 8px;
-  color: #8279c9;
+  color: var(--accent);
   font-size: 9px;
   font-weight: 750;
   pointer-events: none;

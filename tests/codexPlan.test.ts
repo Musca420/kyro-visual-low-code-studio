@@ -1,7 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { approvedOperations, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
+import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
 
 describe("approved Codex plan", () => {
+  it("collega una vista alla sorgente semanticamente corrispondente", () => {
+    const operations = approvedOperations(quickBindingPlan("Connect Booking list to the data it needs", {
+      pageId: "bookings-page", componentId: "booking-list", componentName: "Booking list", componentType: "list",
+      dataSources: [{ id: "users", name: "Users", collection: "users" }, { id: "bookings", name: "Bookings", collection: "bookings" }],
+    }));
+    expect(operations).toEqual([{ type: "bind_component_data", pageId: "bookings-page", args: { componentId: "booking-list", sourceId: "bookings", state: "data" } }]);
+  });
+
+  it("non indovina un binding ambiguo", () => {
+    expect(quickBindingPlan("Connect this list to data", {
+      pageId: "page", componentId: "items", componentName: "Items", componentType: "list",
+      dataSources: [{ id: "users", name: "Users" }, { id: "services", name: "Services" }],
+    })).toBeUndefined();
+  });
+
+  it("crea un flow CRUD generico dal form e dalla sorgente nominata", () => {
+    const operations = approvedOperations(quickFormCrudPlan("Create a submit flow to save Reviews data and validate rating", {
+      pageId: "reviews-page", componentId: "review-form", componentName: "Review form", componentType: "form",
+      pageComponents: [{ id: "review-form", name: "Review form", type: "form" }, { id: "rating", name: "Review rating", type: "select", parentId: "review-form" }, { id: "review-list", name: "Review list", type: "list" }],
+      dataSources: [{ id: "reviews", name: "Reviews", collection: "reviews", schema: { id: "string", rating: "number", comment: "string" } }], flowIndex: [],
+    }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow", args: { flowId: "create-reviews", name: "Create Reviews" } }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ flowId: "create-reviews", node: expect.objectContaining({ type: "validate", config: expect.objectContaining({ field: "rating" }) }) }) }));
+    expect(operations?.at(-1)).toEqual({ type: "set_component_event", pageId: "reviews-page", args: { componentId: "review-form", event: "submit", flowId: "create-reviews" } });
+  });
+
   it("collega grafici e KPI alle sorgenti in base allo schema, non al nome del progetto", () => {
     const operations = approvedOperations(quickDataViewsPlan("Rendi statistiche e grafici dinamici con i dati reali", {
       pageId: "insights", pageComponents: [
