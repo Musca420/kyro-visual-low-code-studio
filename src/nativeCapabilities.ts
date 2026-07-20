@@ -24,6 +24,10 @@ export const nativeCapabilities: NativeCapabilityDefinition[] = [
     { id: "takePhoto", label: "Take photo", description: "Open the system camera and return the captured image.", output: "record" },
     { id: "pickImage", label: "Choose image", description: "Open the system media picker.", output: "record" },
   ] },
+  { id: "barcode", label: "QR & barcode scanner", description: "Scan QR codes and common product or inventory barcodes with the device camera.", platforms: ["web", "android", "ios"], minAndroid: 24, permissions: ["camera"], packages: { "@capacitor-mlkit/barcode-scanning": "^8.1.0" }, externalApproval: true, actions: [
+    { id: "scanQr", label: "Scan QR code", description: "Open the native scanner and return the first QR code.", output: "record" },
+    { id: "scanBarcode", label: "Scan barcode", description: "Open the native scanner and return the first supported barcode.", output: "record" },
+  ] },
   { id: "location", label: "Location", description: "Read the current device location or watch movement.", platforms: ["web", "android", "ios"], minAndroid: 24, permissions: ["geolocation"], packages: { "@capacitor/geolocation": "^8.0.0" }, externalApproval: false, actions: [
     { id: "getCurrentPosition", label: "Get current position", description: "Return latitude, longitude and accuracy.", output: "record" },
     { id: "openMap", label: "Open map", description: "Open a map at the supplied coordinates.", output: "unknown" },

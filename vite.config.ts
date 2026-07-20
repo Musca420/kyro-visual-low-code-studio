@@ -15,7 +15,8 @@ import {
   snapshotWorkspace,
   type WorkspaceSnapshot,
 } from "./server/workspaceTransactions";
-import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
+import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
+import { readJsonBody } from "./server/httpBody";
 
 const workspaceRoot = resolve(process.env.KYRO_WORKSPACE ?? process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
 const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
@@ -97,14 +98,7 @@ const javaCandidates = () => [
   ),
 ];
 
-async function body(request: IncomingMessage) {
-  let raw = "";
-  for await (const chunk of request) {
-    raw += chunk;
-    if (raw.length > 4_000_000) throw new Error("Request is too large");
-  }
-  return JSON.parse(raw || "{}") as Record<string, unknown>;
-}
+const body = readJsonBody;
 
 function reply(response: ServerResponse, status: number, value: unknown) {
   response.writeHead(status, {
@@ -936,6 +930,8 @@ function liveBridge() {
               ? quickVisualPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickBindingPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickFormCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickRecordCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickNativeActionPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickLocalNotificationPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickDataViewsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickNavigationFlowPlan(prompt, (input.context ?? {}) as Record<string, unknown>)

@@ -4084,6 +4084,8 @@ function designContent(component: EditorComponent) {
         ▧ {label}
       </div>
     );
+  if (component.type === "signature")
+    return <div role="img" aria-label={component.accessibility.label} style={{ minHeight: 120, borderBottom: "2px solid currentColor", opacity: 0.75 }}>✍ {label}</div>;
   if (component.type === "table")
     return (
       <table>

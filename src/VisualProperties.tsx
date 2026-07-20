@@ -179,7 +179,7 @@ export function VisualProperties({
           }
         />
       </label>
-      {["input", "textarea", "select", "checkbox", "radio", "calendar"].includes(component.type) && (
+      {["input", "textarea", "select", "checkbox", "radio", "calendar", "signature"].includes(component.type) && (
         <label>
           Data field name
           <input

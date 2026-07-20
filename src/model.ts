@@ -125,6 +125,7 @@ export const componentTypes = [
   "tooltip",
   "pagination",
   "upload",
+  "signature",
   "avatar",
   "badge",
   "progress",
@@ -542,6 +543,7 @@ export function makeComponent(type: EditorComponent["type"]): EditorComponent {
     list: "Tasks",
     title: "Title",
     text: "Testo",
+    signature: "Signature",
   };
   const layout =
     type === "grid"

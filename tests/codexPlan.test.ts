@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNavigationFlowPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
+import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
 
 describe("approved Codex plan", () => {
   it("collega una vista alla sorgente semanticamente corrispondente", () => {
@@ -26,6 +26,22 @@ describe("approved Codex plan", () => {
     expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow", args: { flowId: "create-reviews", name: "Create Reviews" } }));
     expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ flowId: "create-reviews", node: expect.objectContaining({ type: "validate", config: expect.objectContaining({ field: "rating" }) }) }) }));
     expect(operations?.at(-1)).toEqual({ type: "set_component_event", pageId: "reviews-page", args: { componentId: "review-form", event: "submit", flowId: "create-reviews" } });
+  });
+
+  it("crea flow update e delete riutilizzabili per una vista dati non NexusField", () => {
+    const context = { pageId: "catalog", componentId: "product-grid", componentName: "Product list", componentType: "list", dataSources: [{ id: "products", name: "Products", collection: "products" }, { id: "customers", name: "Customers", collection: "customers" }], flowIndex: [] };
+    const update = approvedOperations(quickRecordCrudPlan("Update a product record with a visual flow", context));
+    const remove = approvedOperations(quickRecordCrudPlan("Delete a product record with confirmation and undo", context));
+    expect(update).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ flowId: "update-products", node: expect.objectContaining({ type: "update", config: { sourceId: "products" } }) }) }));
+    expect(update?.at(-1)).toEqual({ type: "set_component_event", pageId: "catalog", args: { componentId: "product-grid", event: "recordUpdate", flowId: "update-products" } });
+    expect(remove).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ flowId: "delete-products", node: expect.objectContaining({ type: "delete", config: { sourceId: "products" } }) }) }));
+    expect(remove?.at(-1)).toEqual({ type: "set_component_event", pageId: "catalog", args: { componentId: "product-grid", event: "recordDelete", flowId: "delete-products" } });
+  });
+  it("crea una capacità QR tipizzata senza approvare automaticamente estensioni", () => {
+    const operations = approvedOperations(quickNativeActionPlan("Scan a QR code and handle permission errors", { pageId: "stock", componentId: "scan", componentName: "Scan stock", componentType: "button", flowIndex: [] }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "requestPermission", config: expect.objectContaining({ permission: "camera" }) }) }) }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "nativeAction", config: { capability: "barcode", action: "scanQr" } }) }) }));
+    expect(operations?.some((operation) => operation.type === "approve_dependency")).toBe(false);
   });
 
   it("collega grafici e KPI alle sorgenti in base allo schema, non al nome del progetto", () => {

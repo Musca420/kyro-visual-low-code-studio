@@ -13,7 +13,7 @@ export type ActionEventDefinition = {
 };
 
 const formTypes: EditorComponent["type"][] = ["form"];
-const inputTypes: EditorComponent["type"][] = ["input", "textarea", "select", "checkbox", "radio", "upload"];
+const inputTypes: EditorComponent["type"][] = ["input", "textarea", "select", "checkbox", "radio", "upload", "signature"];
 const pointerTypes: EditorComponent["type"][] = [
   "button", "link", "image", "icon", "card", "list", "table", "navbar", "tabs", "modal", "header", "sidebar", "hero", "section", "carousel", "gallery", "menu", "accordion", "drawer", "calendar", "map", "audio", "video", "container", "stack", "grid", "reusable",
 ];
@@ -42,6 +42,7 @@ export const actionEventCatalog: ActionEventDefinition[] = [
   { id: "online", label: "Connection restored", description: "Run when the device reconnects.", category: "Device", payload: "network state", pageOnly: true },
   { id: "offline", label: "Connection lost", description: "Run when the device goes offline.", category: "Device", payload: "network state", pageOnly: true },
   { id: "deviceShake", label: "Device shaken", description: "Run after a physical shake on a supported device.", category: "Device", payload: "acceleration", pageOnly: true },
+  { id: "deepLink", label: "Deep link opened", description: "Run when the app is opened from a registered URL and receive that URL.", category: "Device", payload: "URL", pageOnly: true },
 ];
 
 export function eventsForComponent(type: EditorComponent["type"]) {

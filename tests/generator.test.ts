@@ -4,6 +4,33 @@ import { createProject, makeComponent } from "../src/model";
 import { createTemplateProject } from "../src/templates";
 
 describe("web generator", () => {
+  it("mantiene una firma touchscreen accessibile dentro i form", () => {
+    const project = createProject("Delivery proof");
+    const form = makeComponent("form"), signature = makeComponent("signature");
+    form.id = "proof"; signature.id = "customer-signature"; signature.parentId = form.id; signature.props.fieldName = "signature"; signature.accessibility.label = "Customer signature";
+    project.pages.push({ id: "job", name: "Job", path: "/", components: [form, signature] });
+    const files = generateFiles(project);
+    expect(files["index.html"]).toContain('data-signature-canvas role="img" aria-label="Customer signature"');
+    expect(files["index.html"]).toContain('type="hidden" name="signature"');
+    expect(files["src/main.ts"]).toContain("canvas.toDataURL('image/png')");
+    expect(files["src/style.css"]).toContain("touch-action:none");
+  });
+  it("esegue i flow visuali collegati a modifica ed eliminazione nell'export", () => {
+    const project = createProject("Store manager");
+    const list = makeComponent("list"); list.id = "products"; list.binding = { sourceId: "products", state: "data" }; list.events = { recordUpdate: "update-products", recordDelete: "delete-products" };
+    project.pages.push({ id: "catalog", name: "Catalog", path: "/", components: [list] });
+    project.dataSources.push({ id: "products", name: "Products", provider: "indexeddb", collection: "products", schema: { id: "string", title: "string", status: "string" }, capabilities: ["get", "query", "insert", "update", "delete", "subscribe"], secretStrategy: "none" });
+    project.flows.push(
+      { id: "update-products", name: "Update products", nodes: [{ id: "event", type: "event", label: "Update", position: { x: 0, y: 0 }, config: {} }], edges: [] },
+      { id: "delete-products", name: "Delete products", nodes: [{ id: "event", type: "event", label: "Delete", position: { x: 0, y: 0 }, config: {} }], edges: [] },
+    );
+    const source = generateFiles(project)["src/main.ts"];
+    expect(source).toContain('"updateFlowId":"update-products"');
+    expect(source).toContain('"deleteFlowId":"delete-products"');
+    expect(source).toContain("await runGraph(binding.updateFlowId, value)");
+    expect(source).toContain("await runGraph(binding.deleteFlowId,item)");
+    expect(source).toContain("updateFlowId: '', deleteFlowId: ''");
+  });
   it("genera calendario, grafici e KPI collegati a sorgenti reali", () => {
     const project = createProject("Insights");
     const calendar = makeComponent("calendar"), chart = makeComponent("chart"), kpi = makeComponent("card");
@@ -55,6 +82,23 @@ describe("web generator", () => {
     expect(files["src/main.ts"]).toContain("requestNativePermission");
     expect(files["src/main.ts"]).toContain("graphPlatformMatches");
     expect(files["scripts/configure-android.mjs"]).toContain("android.permission.CAMERA");
+  });
+  it("esporta scanner QR approvato e deep link come capacità Android generiche", () => {
+    const project = createProject("Warehouse scanner");
+    project.pages.push({ id: "home", name: "Home", path: "/", components: [] });
+    project.exportConfig = { target: "android", capacitor: true, android: { packageId: "studio.kyro.scanner", appName: "Scanner", orientation: "any", themeColor: "#00b8c8", versionName: "1.0.0", versionCode: 1, permissions: [], statusBarStyle: "dark", keyboardResize: true, backButton: true } };
+    project.extensionApprovals.push({ packageName: "@capacitor-mlkit/barcode-scanning", version: "^8.1.0", reason: "Scan inventory codes", approvedAt: new Date().toISOString() });
+    project.flows.push(
+      { id: "scan", name: "Scan", nodes: [{ id: "event", type: "event", label: "Tap", position: { x: 0, y: 0 }, config: {} }, { id: "scanner", type: "nativeAction", label: "Scan QR", position: { x: 1, y: 0 }, config: { capability: "barcode", action: "scanQr" } }], edges: [{ id: "edge", source: "event", target: "scanner", path: "success" }] },
+      { id: "deep", name: "Deep link", nodes: [{ id: "event", type: "event", label: "Open URL", position: { x: 0, y: 0 }, config: { trigger: "deepLink", pageId: "home" } }], edges: [] },
+    );
+    const files = generateFiles(project), pkg = JSON.parse(files["package.json"]);
+    expect(pkg.dependencies["@capacitor-mlkit/barcode-scanning"]).toBe("^8.1.0");
+    expect(files["src/native.ts"]).toContain("BarcodeScanner.scan");
+    expect(files["scripts/configure-android.mjs"]).toContain("com.google.mlkit.vision.DEPENDENCIES");
+    expect(files["scripts/configure-android.mjs"]).toContain("barcodeMetadata + '\\n    </application>'");
+    expect(files["src/main.ts"]).toContain("appUrlOpen");
+    expect(files["src/main.ts"]).toContain("kyroDeepLink");
   });
   it("mantiene la navigazione mobile configurata nell'app esportata", () => {
     const project = createProject("Mobile routes");

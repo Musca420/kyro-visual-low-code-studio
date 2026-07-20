@@ -208,6 +208,67 @@ export function quickFormCrudPlan(prompt: string, context: Record<string, unknow
   return `Immediate plan: connect ${String(context.componentName ?? formId)} to ${best.source.name ?? best.source.id} with a reusable visual submit, validation, save, refresh, success, and error flow.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
+export function quickRecordCrudPlan(prompt: string, context: Record<string, unknown>) {
+  const action = /(?:delete|remove|elimina|cancella)/i.test(prompt) ? "delete" : /(?:update|edit|complete|modifica|aggiorna|completa)/i.test(prompt) ? "update" : undefined;
+  if (!action || !/(?:record|item|data|flow|dato|elemento|azione)/i.test(prompt)) return undefined;
+  const pageId = String(context.pageId ?? ""), componentId = String(context.componentId ?? ""), componentType = String(context.componentType ?? "");
+  if (!pageId || !componentId || !["list", "table"].includes(componentType)) return undefined;
+  const sources = Array.isArray(context.dataSources) ? context.dataSources.filter((item): item is IndexedSource & { collection?: string } => Boolean(item && typeof item.id === "string")) : [];
+  const wanted = new Set(semanticTokens(`${context.componentName ?? ""} ${prompt}`));
+  const ranked = sources.map((source) => ({ source, score: semanticTokens(`${source.id} ${source.name ?? ""} ${source.collection ?? ""}`).filter((token) => wanted.has(token)).length })).sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  if (!best || best.score === 0 || (ranked[1] && ranked[1].score === best.score)) return undefined;
+  const flowId = `${action}-${slug(best.source.collection ?? best.source.name ?? best.source.id)}`.slice(0, 80);
+  const event = action === "delete" ? "recordDelete" : "recordUpdate";
+  const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = [];
+  if (!exists) {
+    const node = (id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => operations.push({ type: "add_flow_node", args: { flowId, node: { id, type, label, position: { x, y }, config } } });
+    const edge = (source: string, target: string, path = "success") => operations.push({ type: "connect_nodes", args: { flowId, source, target, path } });
+    operations.push({ type: "add_flow", args: { flowId, name: `${action === "delete" ? "Delete" : "Update"} ${best.source.name ?? best.source.id}` } });
+    node(`${flowId}-event`, "event", action === "delete" ? "Record deletion confirmed" : "Record updated", 0, 0, { trigger: event, componentId });
+    node(`${flowId}-${action}`, action, action === "delete" ? `Delete ${best.source.name ?? "record"}` : `Update ${best.source.name ?? "record"}`, 240, 0, { sourceId: best.source.id });
+    node(`${flowId}-refresh`, "refresh", `Refresh ${String(context.componentName ?? "view")}`, 480, 0, { componentId });
+    node(`${flowId}-success`, "notify", action === "delete" ? "Deleted — Undo is available" : "Updated", 720, 0, { message: action === "delete" ? "Deleted. Undo is available." : "Updated successfully", level: "success" });
+    node(`${flowId}-error`, "notify", "Operation failed", 480, 160, { message: "The change could not be saved", level: "error" });
+    edge(`${flowId}-event`, `${flowId}-${action}`); edge(`${flowId}-${action}`, `${flowId}-refresh`); edge(`${flowId}-${action}`, `${flowId}-error`, "error"); edge(`${flowId}-refresh`, `${flowId}-success`);
+  }
+  operations.push({ type: "set_component_event", pageId, args: { componentId, event, flowId } });
+  return `Immediate plan: connect ${String(context.componentName ?? componentId)} to a reusable ${action} flow for ${best.source.name ?? best.source.id}, with refresh, success, error, and the runtime confirmation/undo path.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
+export function quickNativeActionPlan(prompt: string, context: Record<string, unknown>) {
+  const matches = [
+    { test: /(?:qr|barcode|codice a barre)/i, capability: "barcode", action: /\bqr\b/i.test(prompt) ? "scanQr" : "scanBarcode", permission: "camera", label: "Scan code" },
+    { test: /(?:take|capture|scatta|cattura).{0,20}(?:photo|picture|foto)/i, capability: "camera", action: "takePhoto", permission: "camera", label: "Take photo" },
+    { test: /(?:current|read|use|ottieni|leggi|usa).{0,20}(?:location|position|posizione)/i, capability: "location", action: "getCurrentPosition", permission: "geolocation", label: "Get location" },
+    { test: /(?:share|condividi)/i, capability: "share", action: "share", permission: "", label: "Share" },
+    { test: /(?:haptic|vibrat|aptico|vibra)/i, capability: "haptics", action: "impact", permission: "", label: "Haptic feedback" },
+    { test: /(?:push).{0,20}(?:notification|notifica)|(?:notification|notifica).{0,20}(?:push)/i, capability: "push", action: "register", permission: "notifications", label: "Register push notifications" },
+  ].find((item) => item.test.test(prompt));
+  if (!matches) return undefined;
+  const pageId = String(context.pageId ?? ""), componentId = String(context.componentId ?? "");
+  if (!pageId || !componentId || !["button", "link", "icon", "card", "image"].includes(String(context.componentType ?? ""))) return undefined;
+  const flowId = `${matches.capability}-${matches.action}-${slug(String(context.componentName ?? componentId))}`.slice(0, 80);
+  const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = [];
+  if (!exists) {
+    const node = (id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => operations.push({ type: "add_flow_node", args: { flowId, node: { id, type, label, position: { x, y }, config } } });
+    const edge = (source: string, target: string, path = "success") => operations.push({ type: "connect_nodes", args: { flowId, source, target, path } });
+    operations.push({ type: "add_flow", args: { flowId, name: matches.label } });
+    node(`${flowId}-event`, "event", "Click / tap", 0, 0, { trigger: "click", componentId });
+    if (matches.permission) node(`${flowId}-permission`, "requestPermission", `Request ${matches.permission}`, 220, 0, { permission: matches.permission, rationale: `${matches.label} needs this permission` });
+    node(`${flowId}-native`, "nativeAction", matches.label, matches.permission ? 440 : 220, 0, { capability: matches.capability, action: matches.action });
+    node(`${flowId}-success`, "notify", "Capability completed", matches.permission ? 660 : 440, 0, { message: `${matches.label} completed`, level: "success" });
+    node(`${flowId}-error`, "notify", "Permission or device error", matches.permission ? 440 : 220, 160, { message: `${matches.label} is unavailable or permission was denied`, level: "error" });
+    edge(`${flowId}-event`, matches.permission ? `${flowId}-permission` : `${flowId}-native`);
+    if (matches.permission) { edge(`${flowId}-permission`, `${flowId}-native`); edge(`${flowId}-permission`, `${flowId}-error`, "error"); }
+    edge(`${flowId}-native`, `${flowId}-success`); edge(`${flowId}-native`, `${flowId}-error`, "error");
+  }
+  operations.push({ type: "set_component_event", pageId, args: { componentId, event: "click", flowId } });
+  return `Immediate plan: connect ${String(context.componentName ?? componentId)} to the typed ${matches.label} capability with explicit permission, success, and error paths. Any reviewed external package remains pending in Extensions until approved.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
 export function quickDataViewsPlan(prompt: string, context: Record<string, unknown>) {
   if (!/(?:calendar|statistics?|charts?|calendario|statistic|grafici?|kpi).{0,60}(?:data|dynamic|real|connect|dati|dinamic|reali|collega)|(?:connect|make|collega|rendi).{0,60}(?:calendar|statistics?|charts?|calendario|statistic|grafici?|kpi)/i.test(prompt)) return undefined;
   const pageId = String(context.pageId ?? "");
