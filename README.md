@@ -37,20 +37,19 @@ This makes the visual interface the entry point to the program, not a disposable
 | --- | --- |
 | ![Node-RED-style Kyro flow with validation and success/error branches](./docs/images/kyro-visual-flow.png) | ![Kyro data panel with local source, schema and bindings](./docs/images/kyro-data-model.png) |
 
-## Measured agent fast paths
+## Measured agent speed-up
 
-These measurements come from completed transactions in the persisted **NexusField** validation project. They measure Kyro's local context-to-typed-plan path, not network model response time or the total time to design a feature.
+The persisted **NexusField** timeline contains both the original model-driven path and the later skill-routed path. For a controlled task family—connecting a visual component to an existing data source—we measured completed runs from the same machine and development session.
 
-| Real request | Typed graph operations | Plan latency |
-| --- | ---: | ---: |
-| Bind a revenue chart to data, properties, and flow | 25 | 338 ms |
-| Submit a review with validation, save, refresh, success, and error | 14 | 296 ms |
-| Submit a message with the same complete state handling | 14 | 282 ms |
-| Add a guarded refund mutation | 12 | 281 ms |
-| Add a camera completion flow | 12 | 293 ms |
-| Add QR/barcode permission and action flow | 12 | 624 ms |
+| Stage | Samples | Median | p90 |
+| --- | ---: | ---: | ---: |
+| Classic Codex planning | 28 | 18.079 s | 21.747 s |
+| Kyro skill planning | 33 | 0.292 s | 0.325 s |
+| Shared transaction apply | 61 | 2.470 s | 2.907 s |
 
-The speed comes from stable component IDs, compact live context, and registered skills that avoid rediscovering the entire project. Full Codex requests remain available for ambiguous or custom work and naturally depend on model latency. Session and model evidence is recorded in [CODEX_SESSION_EVIDENCE.md](./CODEX_SESSION_EVIDENCE.md).
+That is a **61.9× median planning speed-up**. Including the shared apply stage gives an estimated median of **20.549 s classic versus 2.762 s skill-routed: 7.4× end to end**.
+
+This is a historical cohort comparison of the same operation class, not identical repeated prompts, and the end-to-end value is the sum of stage medians. The classic path already received Kyro's compact context; a whole-repository scan was not timed and would not be a fair source of live IndexedDB state. The result is therefore a conservative comparison, not a claim about every Codex task. Full Codex remains available for ambiguous or custom work. Method and session evidence are recorded in [CODEX_SESSION_EVIDENCE.md](./CODEX_SESSION_EVIDENCE.md).
 
 ## Install and start Kyro
 
