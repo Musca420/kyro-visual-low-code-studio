@@ -162,13 +162,13 @@ label {
   padding: 10px 14px;
   border: 1px solid var(--data);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--data) 12%, var(--surface-raised));
+  background: rgba(34, 211, 238, 0.12);
   color: var(--ink);
   text-align: center;
 }
 .desktop-update-status.rejected {
   border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface-raised));
+  background: rgba(239, 68, 68, 0.10);
 }
 .hero {
   padding-top: 20px;
@@ -871,7 +871,7 @@ label {
   width: 3px;
   height: 42px;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--muted) 36%, transparent);
+  background: rgba(148, 163, 184, 0.16);
   transform: translateY(-50%);
   transition: background 150ms ease, height 150ms ease;
 }
@@ -1036,7 +1036,7 @@ label {
   padding: 10px 12px;
   border: 1px solid var(--data);
   border-radius: 11px;
-  background: color-mix(in srgb, var(--data) 10%, var(--surface-raised));
+  background: rgba(34, 211, 238, 0.10);
 }
 .plugin-contribution-bar > span,
 .plugin-provider-presets > strong {
@@ -1105,7 +1105,7 @@ label {
   position: absolute;
   z-index: 20;
   border: 1px solid var(--purple);
-  background: color-mix(in srgb, var(--purple) 16%, transparent);
+  background: rgba(139, 92, 246, 0.16);
   pointer-events: none;
 }
 .canvas-desktop {
@@ -1145,7 +1145,7 @@ label {
 .layers button.drop-inside {
   outline: 3px solid var(--accent);
   outline-offset: -3px;
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+  background: rgba(251, 146, 60, 0.12);
 }
 .layers button.drop-before { box-shadow: inset 0 3px var(--accent); }
 .layers button.drop-after { box-shadow: inset 0 -3px var(--accent); }
@@ -1226,7 +1226,7 @@ label {
   padding: 0 !important;
   border: 0 !important;
   border-radius: 7px !important;
-  background: color-mix(in srgb, var(--purple) 24%, transparent) !important;
+  background: rgba(139, 92, 246, 0.24) !important;
   cursor: col-resize;
   touch-action: none;
   transform: translateX(-50%);
@@ -1409,7 +1409,7 @@ label {
 .flow-existing-nodes summary { display: flex; justify-content: space-between; padding: 8px; cursor: pointer; color: var(--ink); font-size: 11px; font-weight: 800; }
 .flow-existing-nodes nav { display: grid; gap: 4px; max-height: 150px; padding: 0 6px 6px; overflow: auto; }
 .flow-existing-nodes nav button { padding: 6px 8px; font-size: 10px; }
-.flow-existing-nodes nav button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--ink); }
+.flow-existing-nodes nav button.active { border-color: var(--accent); background: rgba(251, 146, 60, 0.14); color: var(--ink); }
 .flow-palette > div { display: grid; gap: 6px; max-height: 430px; overflow: auto; }
 .flow-groups details { border-bottom: 1px solid var(--line); }
 .flow-groups summary { display: flex; justify-content: space-between; padding: 8px 2px; cursor: pointer; color: var(--ink); font-size: 12px; font-weight: 800; }
@@ -1429,7 +1429,7 @@ label {
 .code-module-editor p { margin: 0; color: var(--muted); font-size: 12px; }
 .code-module-editor fieldset { display: grid; gap: 8px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
 .code-module-editor output { display: block; font-size: 12px; }
-.module-signature { width: max-content; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font: 12px ui-monospace, monospace; }
+.module-signature { width: max-content; padding: 4px 8px; border-radius: 999px; background: rgba(251, 146, 60, 0.15); color: var(--accent); font: 12px ui-monospace, monospace; }
 .module-test-pass { color: var(--success); }
 .flow-inspector { max-height: max(520px, calc(100vh - 180px)); overflow-y: auto; border-left: 1px solid var(--line); }
 .flow-inspector label { display: grid; gap: 5px; font-size: 11px; }
@@ -1460,7 +1460,7 @@ label {
 .log-step time { color: #8290a8; font: 10px ui-monospace, monospace; }
 .log-step pre { grid-column: 1 / -1; }
 .log-step:hover { background: transparent; color: var(--purple); transform: none; }
-.flow-paused { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px; border: 1px solid var(--flow); border-radius: 10px; background: color-mix(in srgb, var(--flow) 12%, transparent); }
+.flow-paused { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px; border: 1px solid var(--flow); border-radius: 10px; background: rgba(45, 212, 191, 0.12); }
 .flow-paused pre { flex: 1; margin: 0; }
 .log-replay { display: flex; align-items: center; gap: 7px; margin-top: 12px; }
 .log-replay button { padding: 6px 9px; }
@@ -1537,7 +1537,7 @@ label {
 }
 .source-schema-editor fieldset { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 11px; }
 .source-schema-editor .inline-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.relation-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 8%, transparent); font-size: 12px; }
+.relation-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 9px; background: rgba(251, 146, 60, 0.08); font-size: 12px; }
 .source-schema-editor details { color: var(--muted); font-size: 12px; }
 .data-source-connections {
   display: grid;
@@ -1840,9 +1840,9 @@ label {
   display: grid;
   gap: 10px;
   padding: 18px 10px 10px;
-  border: 1px dashed color-mix(in srgb, currentColor 24%, transparent);
+  border: 1px dashed currentColor;
   border-radius: 8px;
-  background: color-mix(in srgb, currentColor 3%, transparent);
+  background: transparent;
 }
 .component-children > .drop-hint {
   position: absolute;
@@ -2325,9 +2325,9 @@ label {
   display: grid;
   gap: 11px;
   padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border: 1px solid rgba(251, 146, 60, 0.24);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  background: rgba(251, 146, 60, 0.04);
 }
 .quick-layout > div:first-child { display: grid; gap: 2px; }
 .quick-layout small { color: var(--muted); }
@@ -2339,14 +2339,14 @@ label {
   min-width: 0;
   min-height: 54px;
   padding: 6px 3px;
-  background: color-mix(in srgb, var(--surface-raised) 88%, var(--accent));
+  background: var(--surface-raised);
   color: var(--ink);
   font-size: 15px;
 }
 .layout-presets button > span:last-child { font-size: 9px; line-height: 1.1; }
 .layout-presets button.active,
 .layout-control-row button.active,
-.quick-wrap.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface)); color: var(--accent-strong); }
+.quick-wrap.active { border-color: var(--accent); background: rgba(251, 146, 60, 0.18); color: var(--accent-strong); }
 .layout-columns { display: flex; gap: 2px; width: 25px; height: 17px; }
 .layout-columns i { flex: 1; border: 1px solid currentColor; border-radius: 2px; }
 .layout-direction { display: flex; justify-content: center; gap: 2px; width: 25px; height: 17px; }
@@ -2756,10 +2756,10 @@ label {
 /* Component-local actions keep the design and program graph in one inspector. */
 .inspector-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 14px 12px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .inspector-tabs button{min-height:38px;padding:7px 10px;border-radius:8px;background:transparent;color:var(--muted)}
-.inspector-tabs button.active{background:color-mix(in srgb,var(--ui) 16%,var(--surface-raised));color:var(--ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui) 40%,transparent)}
+.inspector-tabs button.active{background:rgba(34, 211, 238, 0.16);color:var(--ink);box-shadow:inset 0 0 0 1px rgba(34, 211, 238, 0.40)}
 .inspector-tabs span{display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:4px;border-radius:999px;background:var(--flow);color:#071113;font-size:11px}
 .component-actions{display:grid;gap:12px;padding:0 14px 18px;overflow:auto}
-.component-actions>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px;border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--flow) 14%,var(--surface-raised)),var(--surface-raised))}
+.component-actions>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px;border-radius:12px;background:linear-gradient(135deg,rgba(45, 212, 191, 0.14),var(--surface-raised))}
 .component-actions header div,.component-actions article>div:first-child{display:grid;gap:3px}
 .component-actions small{color:var(--muted);line-height:1.35}
 .component-actions h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -2768,7 +2768,7 @@ label {
 .component-actions article{display:grid;gap:9px;padding:12px;border-top:1px solid var(--line)}
 .component-actions article>button{justify-self:start}
 .linked-actions{display:grid;gap:8px}
-.linked-actions article{grid-template-columns:1fr auto auto;align-items:center;border:1px solid color-mix(in srgb,var(--flow) 42%,var(--line));border-radius:10px}
+.linked-actions article{grid-template-columns:1fr auto auto;align-items:center;border:1px solid rgba(45, 212, 191, 0.42);border-radius:10px}
 .reuse-flow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
 .reuse-flow select{min-width:0}
 .flow-context-picker{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr)) auto;gap:10px;align-items:end;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}

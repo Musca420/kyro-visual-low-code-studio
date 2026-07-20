@@ -12,10 +12,10 @@ test("genera e compila Android esclusivamente dal percorso guidato", async ({
   );
   await page.goto("/");
   await page.getByRole("radio", { name: /Applicazione Android/ }).check();
-  await page.getByLabel("Nome progetto").fill(`Android Build ${Date.now()}`);
+  await page.getByLabel("Project name").fill(`Android Build ${Date.now()}`);
   await page.locator(".template").filter({ hasText: "Lista" }).click();
-  await page.getByRole("button", { name: "Pubblica" }).click();
-  await page.getByLabel("Versione", { exact: true }).fill("2.3.0");
+  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByLabel("Version", { exact: true }).fill("2.3.0");
   await page.getByLabel("Numero build").fill("23");
   await page.getByLabel("Orientamento").selectOption("portrait");
   await page.getByLabel("Barra di stato").selectOption("light");

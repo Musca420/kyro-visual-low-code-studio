@@ -19,7 +19,7 @@ test("la shell desktop apre una cartella esistente nel modello visuale", async (
   try {
     const window = await application.firstWindow();
     await expect(window.locator(".project-title input")).toHaveValue("desktop-project", { timeout: 15_000 });
-    await expect(window.getByText(/Sorgente importata/)).toBeVisible();
+    await expect(window.getByText(/Imported source/)).toBeVisible();
     await expect(window.getByText("Studio Aurora", { exact: true }).first()).toBeVisible();
     await window.screenshot({ path: "artifacts/frontend-editor-desktop-import.png" });
     const security = await application.evaluate(({ BrowserWindow }) => {

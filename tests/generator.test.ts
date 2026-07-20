@@ -4,6 +4,21 @@ import { createProject, makeComponent } from "../src/model";
 import { createTemplateProject } from "../src/templates";
 
 describe("web generator", () => {
+  it("keeps loading, empty, and error surfaces mutually exclusive", () => {
+    const project = createProject("Stateful view");
+    const list = makeComponent("list"), loader = makeComponent("loader"), empty = makeComponent("empty"), error = makeComponent("alert");
+    error.name = "Records error";
+    list.id = "records"; list.binding = { sourceId: "records", state: "data" };
+    project.pages.push({ id: "home", name: "Home", path: "/", components: [list, loader, empty, error] });
+    project.dataSources.push({ id: "records", name: "Records", provider: "indexeddb", collection: "records", schema: { id: "string", text: "string" }, capabilities: ["get", "query", "insert", "update", "delete", "subscribe"], secretStrategy: "none" });
+    const files = generateFiles(project);
+    expect(files["index.html"]).toContain('data-view-state="loading" role="status" hidden');
+    expect(files["index.html"]).toContain('data-view-state="empty" role="status" hidden');
+    expect(files["index.html"]).toContain('data-view-state="error" role="alert" hidden');
+    expect(files["src/main.ts"]).toContain("finishViewState(root, items.length)");
+    expect(files["src/main.ts"]).toContain("current.error ? 'error' : current.empty ? 'empty' : 'ready'");
+  });
+
   it("mantiene una firma touchscreen accessibile dentro i form", () => {
     const project = createProject("Delivery proof");
     const form = makeComponent("form"), signature = makeComponent("signature");
@@ -286,7 +301,7 @@ describe("web generator", () => {
     const source = generateFiles(project)["src/main.ts"];
     expect(source).toContain("const graphRole");
     expect(source).toContain("current.type === 'requireRole'");
-    expect(source).toContain("sessionStorage.removeItem('frontend-editor-session')");
+    expect(source).toContain("localStorage.removeItem('frontend-editor-session')");
   });
 
   it("esporta pagina, indietro e URL sicuro dal nodo navigazione", () => {
@@ -411,6 +426,27 @@ describe("web generator", () => {
     expect(files["public/service-worker.js"]).toContain("caches.open");
     expect(files["public/service-worker.js"]).toContain("url.startsWith('/assets/')");
     expect(files["public/service-worker.js"]).toContain("event.request.mode==='navigate'");
+  });
+
+  it("lets an Android export reach an explicitly configured loopback backend", () => {
+    const project = createProject("Local Android backend");
+    project.exportConfig = { target: "android", capacitor: true };
+    project.pages.push({ id: "home", name: "Home", path: "/", components: [] });
+    project.dataSources.push({
+      id: "local-api",
+      name: "Local API",
+      provider: "rest",
+      collection: "records",
+      endpoint: "http://127.0.0.1:8787/records",
+      schema: { id: "string" },
+      capabilities: ["get", "query", "insert", "update", "delete"],
+      secretStrategy: "none",
+    });
+    const files = generateFiles(project);
+    expect(files["scripts/configure-android.mjs"]).toContain(
+      'android:usesCleartextTraffic=\\"true\\"',
+    );
+    expect(files["README-ANDROID.md"]).toContain("loopback development backend");
   });
 
   it("exports semantic multipage templates instead of empty component placeholders", () => {
@@ -554,12 +590,18 @@ describe("web generator", () => {
     expect(files["src/main.ts"]).toContain("fetch(endpoint");
     expect(files["src/main.ts"]).toContain("let authToken");
     expect(files["server/index.mjs"]).toContain("allowedRoles.includes(role) && !readOnlyRoles.has(role)");
+    expect(files["server/index.mjs"]).toContain("['127.0.0.1', 'localhost'].includes(value.hostname)");
+    expect(files["server/index.mjs"]).not.toContain("access-control-allow-origin', '*'");
     expect(files["server/index.mjs"]).toContain('["admin","customer","field-technician","viewer"]');
     expect(files["index.html"]).toContain('id="auth-gate"');
+    expect(files["src/main.ts"]).toContain("await validateSession()")
+    expect(files["server/index.mjs"]).toContain("url.pathname === '/auth/session'")
     expect(files["server/index.mjs"]).toContain("scryptSync");
     expect(files["src/main.ts"]).toContain("new EventSource");
     expect(files["server/index.mjs"]).toContain("text/event-stream");
     expect(files[".env.example"]).toContain("AUTH_SECRET=");
+    expect(files[".env.example"]).toContain("ALLOWED_ORIGIN=");
+    expect(files["server/index.mjs"]).toContain("['http:', 'https:'].includes(value.protocol)");
     expect(files["index.html"]).toContain('rel="manifest"');
     expect(files["project.kyro.json"]).not.toContain("API_TOKEN=");
     expect(files["project.frontend-editor.json"]).toBe(files["project.kyro.json"]);

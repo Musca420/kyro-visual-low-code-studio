@@ -6,7 +6,7 @@ const arches = new Set(["x64", "arm64"]);
 const artifactExtensions = [".exe", ".dmg", ".zip", ".deb", ".rpm", ".appimage", ".nupkg"];
 
 function versionParts(value) {
-  if (!/^\d+\.\d+\.\d+$/.test(value)) throw new Error(`Versione aggiornamento non valida: ${value}`);
+  if (!/^\d+\.\d+\.\d+$/.test(value)) throw new Error(`Invalid update version: ${value}`);
   return value.split(".").map(Number);
 }
 
@@ -32,35 +32,35 @@ function signedPayload(manifest) {
 }
 
 function verifyUpdateManifest(manifest, options) {
-  if (!manifest || typeof manifest !== "object") throw new Error("Manifest aggiornamento assente");
+  if (!manifest || typeof manifest !== "object") throw new Error("Update manifest is missing");
   versionParts(String(manifest.version));
-  if (!channels.has(manifest.channel)) throw new Error("Canale aggiornamento non valido");
-  if (!platforms.has(manifest.platform) || !arches.has(manifest.arch)) throw new Error("Piattaforma aggiornamento non valida");
-  if (manifest.channel !== options.channel) throw new Error(`Canale inatteso: ${manifest.channel}`);
-  if (manifest.platform !== options.platform || manifest.arch !== options.arch) throw new Error("Artefatto destinato a un'altra piattaforma");
-  if (compareVersions(manifest.version, options.currentVersion) <= 0) throw new Error("Aggiornamento obsoleto o downgrade rifiutato");
+  if (!channels.has(manifest.channel)) throw new Error("Invalid update channel");
+  if (!platforms.has(manifest.platform) || !arches.has(manifest.arch)) throw new Error("Invalid update platform");
+  if (manifest.channel !== options.channel) throw new Error(`Unexpected channel: ${manifest.channel}`);
+  if (manifest.platform !== options.platform || manifest.arch !== options.arch) throw new Error("The artifact targets a different platform");
+  if (compareVersions(manifest.version, options.currentVersion) <= 0) throw new Error("Outdated update or downgrade rejected");
   const publishedAt = Date.parse(manifest.publishedAt);
-  if (!Number.isFinite(publishedAt) || publishedAt > (options.now ?? Date.now()) + 300_000) throw new Error("Data pubblicazione non valida");
+  if (!Number.isFinite(publishedAt) || publishedAt > (options.now ?? Date.now()) + 300_000) throw new Error("Invalid publication date");
   const url = new URL(manifest.url);
-  if (url.protocol !== "https:") throw new Error("Gli aggiornamenti richiedono HTTPS");
-  if (!artifactExtensions.some((extension) => url.pathname.toLowerCase().endsWith(extension))) throw new Error("Tipo artefatto non consentito");
-  if (!/^[a-f0-9]{64}$/.test(manifest.sha256) || !Number.isSafeInteger(manifest.size) || manifest.size <= 0 || manifest.size > 250_000_000) throw new Error("Metadati artefatto non validi");
-  if (typeof manifest.signature !== "string" || !manifest.signature) throw new Error("Firma aggiornamento assente");
+  if (url.protocol !== "https:") throw new Error("Updates require HTTPS");
+  if (!artifactExtensions.some((extension) => url.pathname.toLowerCase().endsWith(extension))) throw new Error("Artifact type is not allowed");
+  if (!/^[a-f0-9]{64}$/.test(manifest.sha256) || !Number.isSafeInteger(manifest.size) || manifest.size <= 0 || manifest.size > 250_000_000) throw new Error("Invalid artifact metadata");
+  if (typeof manifest.signature !== "string" || !manifest.signature) throw new Error("Update signature is missing");
   const valid = verify(
     null,
     Buffer.from(signedPayload(manifest)),
     options.publicKey,
     Buffer.from(manifest.signature, "base64"),
   );
-  if (!valid) throw new Error("Firma aggiornamento non valida");
+  if (!valid) throw new Error("Invalid update signature");
   return Object.freeze({ ...manifest });
 }
 
 function verifyUpdateArtifact(bytes, manifest) {
   const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
-  if (buffer.length !== manifest.size) throw new Error("Dimensione artefatto diversa dal manifest");
+  if (buffer.length !== manifest.size) throw new Error("Artifact size does not match the manifest");
   const digest = createHash("sha256").update(buffer).digest("hex");
-  if (digest !== manifest.sha256) throw new Error("Hash artefatto non valido");
+  if (digest !== manifest.sha256) throw new Error("Invalid artifact hash");
   return true;
 }
 

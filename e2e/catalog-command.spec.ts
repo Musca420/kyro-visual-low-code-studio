@@ -5,33 +5,33 @@ test("template multipagina, ricerca componenti e comandi rapidi sono visuali", a
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Nome progetto")
+    .getByLabel("Project name")
     .fill(`Portfolio visuale ${Date.now()}`);
-  await page.getByPlaceholder("Cerca template…").fill("portfolio");
+  await page.getByPlaceholder("Search templates…").fill("portfolio");
   await page.locator(".template").filter({ hasText: "Portfolio" }).click();
 
   await expect(
     page.locator(".page-list button").filter({ hasText: "Home" }),
   ).toBeVisible();
   await expect(
-    page.locator(".page-list button").filter({ hasText: "Progetti" }),
+    page.locator(".page-list button").filter({ hasText: "Projects" }),
   ).toBeVisible();
   await expect(
-    page.locator(".page-list button").filter({ hasText: "Profilo" }),
+    page.locator(".page-list button").filter({ hasText: "Profile" }),
   ).toBeVisible();
   await expect(
-    page.locator(".page-list button").filter({ hasText: "Contatti" }),
+    page.locator(".page-list button").filter({ hasText: "Contact" }),
   ).toBeVisible();
 
-  await page.getByPlaceholder("Cerca componenti…").fill("grafico");
+  await page.getByPlaceholder("Search components…").fill("chart");
   await expect(
     page.locator(".palette button").filter({ hasText: "chart" }),
   ).toBeVisible();
   await page.keyboard.press("Control+K");
-  await page.getByPlaceholder("Cosa vuoi fare?").fill("aggiungi chart");
+  await page.getByPlaceholder("What would you like to do?").fill("add chart");
   await page
     .locator(".command-results button")
-    .filter({ hasText: "Aggiungi chart" })
+    .filter({ hasText: "Add chart" })
     .click();
   await expect(
     page
@@ -40,10 +40,10 @@ test("template multipagina, ricerca componenti e comandi rapidi sono visuali", a
   ).toBeVisible();
 
   await page.keyboard.press("Control+K");
-  await page.getByPlaceholder("Cosa vuoi fare?").fill("preview");
+  await page.getByPlaceholder("What would you like to do?").fill("preview");
   await page
     .locator(".command-results button")
-    .filter({ hasText: "Apri Preview" })
+    .filter({ hasText: "Open Preview" })
     .click();
   await expect(page.getByTitle("Preview isolata")).toBeVisible();
   await page.screenshot({ path: "artifacts/template-catalog-command.png", fullPage: true });

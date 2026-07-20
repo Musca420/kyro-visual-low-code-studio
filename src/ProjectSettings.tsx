@@ -135,7 +135,7 @@ export function ProjectSettings({
       <div className="section-heading">
         <div>
           <p className="eyebrow">Guided publishing</p>
-          <h1>Web, PWA e Android</h1>
+          <h1>Web, PWA, and Android</h1>
           <p>
             Choose the result you need. Kyro configures the required files
             without asking you for libraries or commands.
@@ -593,7 +593,7 @@ export function ProjectSettings({
                   </span>
                 </li>
                 <li className={environment.adb.available ? "ok" : "missing"}>
-                  ADB / dispositivo{" "}
+                  ADB / device{" "}
                   <span>
                     {environment.adb.available
                       ? environment.adb.version

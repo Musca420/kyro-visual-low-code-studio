@@ -2,14 +2,15 @@ import { expect, test } from "@playwright/test";
 
 test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Canva Canvas");
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  await page.getByLabel("Project name").fill("Canva Canvas");
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Add page", exact: true }).click();
+  await page.getByRole("button", { name: "Create screen" }).click();
   const palette = page.locator(".palette");
-  await palette.getByRole("button").filter({ hasText: "Colonne" }).click();
+  await palette.getByRole("button").filter({ hasText: "Columns" }).click();
   const grid = page.getByTestId("component-grid");
   await expect(grid).toBeVisible();
-  await page.getByRole("button", { name: "Tre colonne" }).click();
+  await page.getByRole("button", { name: "Three columns" }).click();
   const dropZone = grid.locator(":scope > .component-children");
   await expect(dropZone).toHaveCSS("display", "grid");
   expect(await dropZone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toContain("repeat(3");
@@ -22,7 +23,7 @@ test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo"
   await grid.locator(":scope > .component-tag").click();
 
   await page.getByRole("button", { name: "mobile" }).click();
-  await page.getByRole("button", { name: "Una colonna" }).click();
+  await page.getByRole("button", { name: "One column" }).click();
   expect(await dropZone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toContain("repeat(1");
   await page.getByRole("button", { name: "desktop" }).click();
   expect(await dropZone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toContain("repeat(3");
@@ -52,9 +53,9 @@ test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo"
   await expect(grid).toHaveCSS("left", "32px");
   await expect(grid).toHaveCSS("top", "24px");
 
-  await page.getByRole("button", { name: "Annulla" }).click();
+  await page.getByRole("button", { name: "Undo" }).click();
   await expect(grid).toHaveCSS("left", "0px");
-  await page.getByRole("button", { name: "Ripristina" }).click();
+  await page.getByRole("button", { name: "Redo" }).click();
   await expect(grid).toHaveCSS("left", "32px");
   await page.screenshot({ path: "artifacts/frontend-editor-canva-columns.png", fullPage: true });
 
@@ -69,12 +70,12 @@ test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo"
   expect((await previewGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns)).split(" ")).toHaveLength(1);
   await page.getByRole("button", { name: "desktop" }).click();
   const exportDownload = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Esporta app" }).click();
+  await page.getByRole("button", { name: "Export app" }).click();
   await (await exportDownload).saveAs("artifacts/canva-canvas-export.zip");
   await page.getByRole("button", { name: "Design" }).click();
 
-  await expect(page.getByText("Salvato automaticamente")).toBeVisible({ timeout: 5_000 });
-  await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
+  await expect(page.getByText("Saved automatically")).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("button", { name: "Close project and return to the dashboard" }).click();
   await page.getByRole("button", { name: /Canva Canvas/ }).click();
   const reopened = page.getByTestId("component-grid");
   const reopenedDropZone = reopened.locator(":scope > .component-children");
@@ -85,16 +86,17 @@ test("canvas visuale crea colonne responsive e usa maniglie con snapping e undo"
 
 test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Canva Multi Select");
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  await page.getByLabel("Project name").fill("Canva Multi Select");
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Add page", exact: true }).click();
+  await page.getByRole("button", { name: "Create screen" }).click();
   const paletteButton = page.locator(".palette").getByRole("button").filter({ hasText: "button" });
   for (const [x, y] of [[16, 0], [152, 40], [336, 80]]) {
     await paletteButton.click();
-    await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
-    await page.getByLabel("Larghezza").fill("120px");
-    await page.getByLabel("Posizione X").fill(`${x}px`);
-    await page.getByLabel("Posizione Y").fill(`${y}px`);
+    await page.locator(".right-panel").getByRole("button", { name: "Advanced" }).click();
+    await page.getByLabel("Width", { exact: true }).fill("120px");
+    await page.getByLabel("Position X").fill(`${x}px`);
+    await page.getByLabel("Position Y").fill(`${y}px`);
   }
 
   const buttons = page.getByTestId("component-button");
@@ -105,19 +107,24 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
   await buttons.nth(0).click();
   await buttons.nth(1).click({ modifiers: ["Control"] });
   await buttons.nth(2).click({ modifiers: ["Control"] });
-  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
+  await expect(page.getByLabel("Arrange 3 selected elements")).toBeVisible();
 
   const canvas = page.locator(".design-canvas");
-  const canvasBox = await canvas.boundingBox();
-  await page.mouse.click(canvasBox!.x + 8, canvasBox!.y + 8);
-  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Arrange 3 selected elements")).toHaveCount(0);
   const initialBoxes = await buttons.evaluateAll((items) =>
     items.map((item) => item.getBoundingClientRect()),
   );
-  const marqueeStart = {
-    x: Math.min(...initialBoxes.map((box) => box.left)) - 12,
-    y: Math.min(...initialBoxes.map((box) => box.top)) - 12,
-  };
+  const marqueeStart = await canvas.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    for (let y = Math.max(0, box.top) + 16; y < Math.min(innerHeight, box.bottom); y += 16) {
+      for (let x = Math.max(0, box.left) + 16; x < Math.min(innerWidth, box.right); x += 16) {
+        const target = document.elementFromPoint(x, y) as HTMLElement | null;
+        if (target && element.contains(target) && !target.closest("button, input, textarea, select, [data-testid]:not([data-testid='component-section'])")) return { x, y };
+      }
+    }
+    throw new Error("No blank canvas point available for marquee selection");
+  });
   const marqueeEnd = {
     x: Math.max(...initialBoxes.map((box) => box.right)) + 12,
     y: Math.max(...initialBoxes.map((box) => box.bottom)) + 12,
@@ -128,16 +135,16 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
   await expect(page.locator(".selection-marquee")).toBeVisible();
   await page.screenshot({ path: "artifacts/frontend-editor-canva-marquee.png", fullPage: true });
   await page.mouse.up();
-  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
+  await expect(page.getByLabel("Arrange 3 selected elements")).toBeVisible();
 
-  await page.getByRole("button", { name: "Allinea in alto" }).click();
+  await page.getByRole("button", { name: "Align top" }).click();
   await page.waitForTimeout(250);
   const alignedTops = await buttons.evaluateAll((items) =>
     items.map((item) => Math.round(item.getBoundingClientRect().top)),
   );
   expect(Math.max(...alignedTops) - Math.min(...alignedTops)).toBeLessThanOrEqual(8);
 
-  await page.getByRole("button", { name: "Distribuisci orizzontalmente" }).click();
+  await page.getByRole("button", { name: "Distribute horizontally" }).click();
   await page.waitForTimeout(250);
   const distributed = await buttons.evaluateAll((items) =>
     items.map((item) => item.getBoundingClientRect()).sort((a, b) => a.left - b.left),
@@ -147,7 +154,7 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
   expect(Math.abs(firstGap - secondGap)).toBeLessThanOrEqual(8);
 
   const beforeMove = await buttons.evaluateAll((items) =>
-    items.map((item) => ({ left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top })),
+    items.map((item) => ({ left: Number.parseFloat((item as HTMLElement).style.left) || 0, top: Number.parseFloat((item as HTMLElement).style.top) || 0 })),
   );
   const mover = buttons.nth(0).getByRole("button", { name: "Trascina per spostare" });
   await mover.hover();
@@ -161,27 +168,27 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
   await page.mouse.up();
   await page.waitForTimeout(250);
   const afterMove = await buttons.evaluateAll((items) =>
-    items.map((item) => ({ left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top })),
+    items.map((item) => ({ left: Number.parseFloat((item as HTMLElement).style.left) || 0, top: Number.parseFloat((item as HTMLElement).style.top) || 0 })),
   );
   afterMove.forEach((box, index) => {
     expect(Math.round(box.left - beforeMove[index].left)).toBe(32);
     expect(Math.round(box.top - beforeMove[index].top)).toBe(24);
   });
-  await expect(page.getByLabel("Disponi 3 elementi selezionati")).toBeVisible();
+  await expect(page.getByLabel("Arrange 3 selected elements")).toBeVisible();
   await page.mouse.move(800, 620);
   await page.waitForTimeout(600);
   await page.screenshot({ path: "artifacts/frontend-editor-canva-multiselect.png", fullPage: true });
 
-  await page.getByRole("button", { name: "Annulla" }).click();
+  await page.getByRole("button", { name: "Undo" }).click();
   await page.waitForTimeout(250);
   const afterUndo = await buttons.evaluateAll((items) =>
-    items.map((item) => ({ left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top })),
+    items.map((item) => ({ left: Number.parseFloat((item as HTMLElement).style.left) || 0, top: Number.parseFloat((item as HTMLElement).style.top) || 0 })),
   );
   afterUndo.forEach((box, index) => {
     expect(Math.round(box.left)).toBe(Math.round(beforeMove[index].left));
     expect(Math.round(box.top)).toBe(Math.round(beforeMove[index].top));
   });
-  await page.getByRole("button", { name: "Ripristina" }).click();
+  await page.getByRole("button", { name: "Redo" }).click();
   await page.waitForTimeout(250);
   await page.getByRole("button", { name: "Preview" }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
@@ -199,17 +206,18 @@ test("multiselezione allinea, distribuisce e sposta un gruppo senza codice", asy
 
 test("guide intelligenti agganciano bordi e centro degli elementi vicini", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Canva Smart Guides");
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  await page.getByLabel("Project name").fill("Canva Smart Guides");
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Add page", exact: true }).click();
+  await page.getByRole("button", { name: "Create screen" }).click();
   const paletteButton = page.locator(".palette").getByRole("button").filter({ hasText: "button" });
   await paletteButton.click();
-  await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
-  await page.getByLabel("Larghezza").fill("120px");
+  await page.locator(".right-panel").getByRole("button", { name: "Advanced" }).click();
+  await page.getByLabel("Width", { exact: true }).fill("120px");
   await paletteButton.click();
-  await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
-  await page.getByLabel("Larghezza").fill("120px");
-  await page.getByLabel("Posizione X").fill("157px");
+  await page.locator(".right-panel").getByRole("button", { name: "Advanced" }).click();
+  await page.getByLabel("Width", { exact: true }).fill("120px");
+  await page.getByLabel("Position X").fill("157px");
   await page.waitForTimeout(250);
 
   const buttons = page.getByTestId("component-button");
@@ -233,7 +241,7 @@ test("guide intelligenti agganciano bordi e centro degli elementi vicini", async
   const snappedSecond = (await buttons.nth(1).boundingBox())!;
   expect(Math.abs(snappedFirst.x - snappedSecond.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(snappedFirst.y - snappedSecond.y)).toBeLessThanOrEqual(1);
-  await page.getByRole("button", { name: "Annulla" }).click();
+  await page.getByRole("button", { name: "Undo" }).click();
   await page.waitForTimeout(250);
   const restored = (await buttons.nth(1).boundingBox())!;
   expect(restored.x).toBeGreaterThan(snappedSecond.x + 100);

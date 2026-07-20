@@ -32,14 +32,16 @@ try {
   await open("NexusField Web");
   await apply("Booking details", "Sandbox payment", "Record a sandbox payment data record, only customer or admin may run it, with success and error paths.");
   await apply("Disputes", "Dispute policy", "Record a sandbox payment refund record, only admin or manager may run it, with success and error paths.");
+  await apply("Booking details", "Assigned team", "Record a shared domain data source record, only admin or manager may run it, with success and error paths.");
   await page.getByRole("button", { name: /^Flow/ }).click(); await page.waitForTimeout(1600);
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "49-web-guarded-domain-flows.png"), fullPage: true });
   await open("NexusField Mobile");
   await apply("Home", "Upcoming booking", "Record a sandbox payment data record, only customer or admin may run it, with success and error paths.");
   await apply("Tasks", "Completed job", "Record an audit data record for job completion, only professional, employee or manager may run it, with success and error paths.");
+  await apply("Tasks", "Urgent job", "Record a shared domain data source record, only admin or manager may run it, with success and error paths.");
   await page.getByRole("button", { name: /^Flow/ }).click(); await page.waitForTimeout(1600);
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "50-mobile-guarded-domain-flows.png"), fullPage: true });
-  console.log(JSON.stringify({ web: 2, mobile: 2, guarded: true, dataMutations: true }));
+  console.log(JSON.stringify({ web: 3, mobile: 3, guarded: true, dataMutations: true, sharedBackendFlow: true }));
   await page.waitForTimeout(2500);
 } catch (error) {
   await page.screenshot({ path: resolve("artifacts", "nexusfield", "failure-domain-actions.png"), fullPage: true });

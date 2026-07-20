@@ -21,12 +21,12 @@ test("importa React come componenti visuali senza eseguire il codice", async ({ 
   await page.goto("/");
   await page.locator("input[webkitdirectory]").setInputFiles(join(process.cwd(), "e2e", "fixtures", "react-import"));
   await expect(page.locator(".import-source-banner")).toContainText("React");
-  await expect(page.locator(".import-source-banner")).toContainText("convertito staticamente");
+  await expect(page.locator(".import-source-banner")).toContainText("converted statically");
   await expect(page.getByTestId("component-title")).toContainText("Portfolio React");
   await page.getByTestId("component-button").click();
-  await page.getByLabel("Testo o etichetta").fill("Apri progetto importato");
+  await page.getByLabel("Text or label").fill("Open imported project");
   await page.getByRole("button", { name: "Preview", exact: true }).click();
-  await expect(page.frameLocator('iframe[title="Preview isolata"]').getByRole("button", { name: "Apri progetto importato" })).toBeVisible();
+  await expect(page.frameLocator('iframe[title="Preview isolata"]').getByRole("button", { name: "Open imported project" })).toBeVisible();
   await page.screenshot({ path: "artifacts/frontend-editor-react-import.png", fullPage: true });
 });
 
@@ -40,24 +40,24 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   const directoryInput = page.locator("input[webkitdirectory]");
   await directoryInput.setInputFiles(source!);
 
-  await expect(page.getByLabel("Nome progetto")).toHaveValue(/importato$/);
+  await expect(page.getByLabel("Project name")).toHaveValue(/imported$/);
   await expect(page.locator(".import-source-banner")).toContainText(
     "Capacitor",
   );
   await expect(page.locator(".import-source-banner")).toContainText(
-    "modello Frontend Editor è stato ripristinato integralmente",
+    "complete Kyro model was restored",
   );
   await expect(page.getByText("Titolo", { exact: true }).first()).toBeVisible();
 
   await page.getByTestId("component-title").click();
   const inspector = page.locator(".right-panel");
-  await inspector.getByRole("button", { name: "Avanzata" }).click();
-  await inspector.getByText("Effetti e animazioni").click();
+  await inspector.getByRole("button", { name: "Advanced" }).click();
+  await inspector.getByText("Effects and animations").click();
   await inspector
-    .getByLabel("Animazione pronta")
-    .selectOption({ label: "Salita" });
-  await inspector.getByText("Sfondo, bordi e angoli").click();
-  await inspector.getByLabel("Sfondo valore", { exact: true }).fill("#fff1cc");
+    .getByLabel("Animation preset")
+    .selectOption({ label: "Rise" });
+  await inspector.getByText("Background, borders, and corners").click();
+  await inspector.getByLabel("Background value", { exact: true }).fill("#fff1cc");
   await page.getByRole("button", { name: "Preview" }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
   await expect(preview.getByRole("heading", { name: "Titolo" })).toBeVisible();
@@ -66,9 +66,9 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
     fullPage: true,
   });
 
-  await expect(page.getByText("Salvato automaticamente")).toBeVisible();
+  await expect(page.getByText("Saved automatically")).toBeVisible();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Esporta app" }).click();
+  await page.getByRole("button", { name: "Export app" }).click();
   const saved = join(process.cwd(), "artifacts", "imported-android-app.zip");
   await (await download).saveAs(saved);
   const zip = await JSZip.loadAsync(await readFile(saved));
@@ -76,10 +76,10 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   expect(zip.file("project.frontend-editor.json")).toBeTruthy();
 
   await page
-    .getByRole("button", { name: "Chiudi progetto e torna alla dashboard" })
+    .getByRole("button", { name: "Close project and return to the dashboard" })
     .click();
   await page
-    .getByRole("button", { name: /importato/ })
+    .getByRole("button", { name: /imported/ })
     .first()
     .click();
   await page.getByRole("button", { name: "Preview" }).click();

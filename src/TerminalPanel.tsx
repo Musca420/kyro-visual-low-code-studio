@@ -27,7 +27,7 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
         });
         const value = await response.json();
         if (!response.ok)
-          throw new Error(value.error || "Terminale non disponibile");
+          throw new Error(value.error || "Terminal is unavailable");
         if (disposed) return;
         const next = value as SessionState;
         setSession(next);
@@ -39,7 +39,7 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
             );
             const update = await result.json();
             if (!result.ok)
-              throw new Error(update.error || "Sessione interrotta");
+              throw new Error(update.error || "Session interrupted");
             cursor.current = Number(update.cursor);
             setOutput((current) =>
               update.reset
@@ -87,7 +87,7 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
         },
       );
       const value = await response.json();
-      if (!response.ok) return setError(value.error || "Comando non accettato");
+      if (!response.ok) return setError(value.error || "Command was not accepted");
       setCommand("");
     } finally {
       setSubmitting(false);
@@ -107,24 +107,24 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
     <main className="terminal-workspace">
       <header>
         <div>
-          <p>STRUMENTO AVANZATO</p>
-          <h1>Terminale del progetto</h1>
+          <p>ADVANCED TOOL</p>
+          <h1>Project terminal</h1>
           <span>
-            I comandi partono solo quando premi Esegui. La sessione resta nella
-            cartella del workspace e le variabili che sembrano segreti non
-            vengono ereditate.
+            Commands run only when you press Run. The session stays inside the
+            workspace folder, and variables that look like secrets are not
+            inherited.
           </span>
         </div>
         <div className={`terminal-status ${session?.status ?? "loading"}`}>
-          <i /> {session?.status ?? "avvio"}
+          <i /> {session?.status ?? "starting"}
         </div>
       </header>
       <div className="terminal-path">
-        <strong>Cartella</strong>
-        <code>{session?.workspace ?? "Connessione al bridge locale…"}</code>
+        <strong>Folder</strong>
+        <code>{session?.workspace ?? "Connecting to the local bridge…"}</code>
       </div>
-      <pre ref={screen} aria-label="Output terminale" aria-live="polite">
-        {output || "Avvio della sessione locale…"}
+      <pre ref={screen} aria-label="Terminal output" aria-live="polite">
+        {output || "Starting the local session…"}
       </pre>
       {error && (
         <div className="terminal-error" role="alert">
@@ -133,11 +133,11 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
       )}
       <form onSubmit={(event) => void submit(event)}>
         <label>
-          Comando
+          Command
           <input
             value={command}
             onChange={(event) => setCommand(event.target.value)}
-            placeholder="Esempio: git status --short"
+            placeholder="Example: git status --short"
             autoComplete="off"
             disabled={session?.status !== "running" || submitting}
           />
@@ -146,7 +146,7 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
           type="submit"
           disabled={session?.status !== "running" || submitting || !command.trim()}
         >
-          Esegui
+          Run
         </button>
         <button
           className="secondary"

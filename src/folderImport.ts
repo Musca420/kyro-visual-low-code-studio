@@ -48,12 +48,12 @@ export async function readFolderFiles(input: FileList | File[]) {
   });
   if (candidates.length > 250)
     throw new Error(
-      "La cartella contiene troppi file testuali: seleziona la sorgente senza dipendenze o cartelle di build.",
+      "The folder contains too many text files. Select the source without dependencies or build folders.",
     );
   const total = candidates.reduce((sum, file) => sum + file.size, 0);
   if (total > 6_000_000)
     throw new Error(
-      "La sorgente supera 6 MB di testo. Escludi dipendenze e build generate.",
+      "The source exceeds 6 MB of text. Exclude dependencies and generated builds.",
     );
   return Promise.all(
     candidates.map(async (file) => ({
@@ -84,7 +84,7 @@ function detectStack(files: FolderTextFile[]) {
     files.some((file) => /\.html?$/.test(file.path)) && "HTML/CSS",
   ].filter(Boolean);
   return {
-    detected: labels.join(" + ") || "progetto Web",
+    detected: labels.join(" + ") || "Web project",
     dependencies,
   };
 }
@@ -206,7 +206,7 @@ function pageFromHtml(file: FolderTextFile, index: number) {
     const placeholder = makeComponent("alert");
     placeholder.name = "Preserved source";
     placeholder.props.label =
-      "Il progetto usa rendering JavaScript. I file sono preservati; collega Codex per convertirne gradualmente i componenti visuali.";
+      "This project uses JavaScript rendering. Its files are preserved; connect Codex to convert components into visual elements progressively.";
     components.push(placeholder);
   }
   const filename = file.path
@@ -279,7 +279,7 @@ export function importExistingFolder(
     return parseProject({
       ...original,
       id: crypto.randomUUID(),
-      name: `${original.name} importato`,
+      name: `${original.name} imported`,
       createdAt: now,
       updatedAt: now,
       importedSource: {
@@ -293,7 +293,7 @@ export function importExistingFolder(
     });
   }
 
-  const project = createProject(originName || "Progetto importato");
+  const project = createProject(originName || "Imported project");
   const htmlFiles = files
     .filter((file) => /(^|\/)(index|[^/]+)\.html?$/.test(file.path))
     .sort(
@@ -337,7 +337,7 @@ export function importExistingFolder(
   }
   const warnings = [
     htmlFiles.length ? "HTML and inline styles were converted into visual components." : frameworkFiles.length ? `Recognizable ${stack.detected} markup was converted statically into visual components without executing code.` : "No convertible markup was found; the source remains preserved for progressive conversion.",
-    "CSS avanzato, componenti dinamici e codice JavaScript restano preservati nella sorgente originale e vanno convertiti progressivamente in flow.",
+    "Advanced CSS, dynamic components, and JavaScript remain preserved in the original source and can be converted progressively into visual flows.",
   ];
   project.importedSource = {
     originName,

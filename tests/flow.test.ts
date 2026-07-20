@@ -48,12 +48,12 @@ describe('flow runtime', () => {
 
   it('stops uncontrolled loops', async () => {
     const cyclic: Flow = { id: 'cycle', name: 'cycle', nodes: [{ id: 'event', type: 'event', label: 'Event', position: { x: 0, y: 0 }, config: {} }], edges: [{ id: 'loop', source: 'event', target: 'event', path: 'success' }] }
-    await expect(runFlow(cyclic, { input: '', insert: async () => undefined, refresh: async () => undefined })).rejects.toThrow('Loop non controllato')
+    await expect(runFlow(cyclic, { input: '', insert: async () => undefined, refresh: async () => undefined })).rejects.toThrow('Uncontrolled loop')
   })
 
   it('routes timed out operations to the error path', async () => {
     const logs = await runFlow(flow, { input: 'slow', insert: () => new Promise(() => undefined), refresh: async () => undefined, timeoutMs: 10 })
-    expect(logs.some((log) => log.level === 'error' && log.message === 'Timeout del flow')).toBe(true)
+    expect(logs.some((log) => log.level === 'error' && log.message === 'Flow timed out')).toBe(true)
     expect(logs.at(-1)?.nodeId).toBe('error')
   })
 
@@ -125,7 +125,7 @@ describe('flow runtime', () => {
     const logs = await runFlow(api, { input: 'Canva', insert: async () => undefined, refresh: async () => undefined, request })
     expect(request).toHaveBeenCalledWith('https://api.example.test/items', 'POST', '{"name":"Canva"}')
     expect(logs.at(-1)?.value).toEqual({ id: '1' })
-    expect(() => safeHttpUrl('javascript:alert(1)')).toThrow('HTTP o HTTPS')
+    expect(() => safeHttpUrl('javascript:alert(1)')).toThrow('HTTP or HTTPS')
   })
 
   it('trasforma elenchi e lascia proseguire solo l’ultimo input ravvicinato', async () => {
@@ -176,7 +176,7 @@ describe('flow runtime', () => {
     expect(logs.filter((entry) => entry.nodeId === 'format').map((entry) => entry.value)).toEqual(['Item A', 'Item B'])
     expect(notify).toHaveBeenCalledOnce()
     const tooMany = structuredClone(each); tooMany.nodes.find((node) => node.type === 'loop')!.config.max = '1'
-    expect((await runFlow(tooMany, { input: ['A', 'B'], insert: async () => undefined, refresh: async () => undefined })).some((entry) => entry.message.includes('limite di 1'))).toBe(true)
+    expect((await runFlow(tooMany, { input: ['A', 'B'], insert: async () => undefined, refresh: async () => undefined })).some((entry) => entry.message.includes('1-item limit'))).toBe(true)
   })
 
   it('mette in pausa su un breakpoint e riprende solo su comando', async () => {
@@ -272,7 +272,7 @@ describe('flow runtime', () => {
     await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })
     expect(navigate).toHaveBeenLastCalledWith('/', 'back')
     navigation.nodes[1].config = { mode: 'url', path: 'javascript:alert(1)' }
-    expect((await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })).some((entry) => entry.message === 'Usa un indirizzo API HTTP o HTTPS')).toBe(true)
+    expect((await runFlow(navigation, { input: '', insert: async () => undefined, refresh: async () => undefined, navigate })).some((entry) => entry.message === 'Use an HTTP or HTTPS API address')).toBe(true)
   })
 
   it('apre e chiude la stessa modal dal nodo visuale', async () => {
@@ -298,7 +298,7 @@ describe('flow runtime', () => {
     expect(logs.at(-1)?.value).toEqual(records[1])
     expect(logs.every((log) => typeof log.durationMs === 'number' && log.durationMs >= 0)).toBe(true)
     const missing = await runFlow(one, { input: { projectId: 'missing' }, insert: async () => undefined, refresh: async () => undefined, query: async () => records })
-    expect(missing.at(-1)?.message).toBe('Record missing non trovato')
+    expect(missing.at(-1)?.message).toBe('Record missing was not found')
   })
 
   it('esegue permessi, condizioni di piattaforma e capacità native come nodi generici', async () => {

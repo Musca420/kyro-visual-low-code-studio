@@ -24,9 +24,9 @@ describe('project model', () => {
     project.pages.push({ id: 'page', name: 'Home', path: '/', components: [parent, child] })
     expect(parseProject(project).pages[0].components[1].parentId).toBe(parent.id)
     parent.parentId = child.id
-    expect(() => parseProject(project)).toThrow('Gerarchia ciclica')
+    expect(() => parseProject(project)).toThrow('Cyclic hierarchy')
     parent.parentId = undefined; child.parentId = 'missing'
-    expect(() => parseProject(project)).toThrow('Contenitore mancante')
+    expect(() => parseProject(project)).toThrow('Missing container')
   })
   it('round-trips deterministically and preserves stable ids', () => {
     const project = createProject('Demo')
@@ -56,7 +56,7 @@ describe('project model', () => {
     const component = makeComponent('button')
     component.events.click = 'missing-flow'
     project.pages.push({ id: crypto.randomUUID(), name: 'Home', path: '/', components: [component] })
-    expect(() => parseProject(project)).toThrow('Flow mancante missing-flow')
+    expect(() => parseProject(project)).toThrow('Missing flow missing-flow')
   })
 
   it('rejects unknown format versions safely', () => {

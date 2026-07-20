@@ -16,9 +16,9 @@ const contrast = (foreground: string, background: string) => {
 test("design system chiaro/scuro è persistente, leggibile e adattabile", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const darkToggle = page.getByRole("button", { name: "Usa tema chiaro" });
+  const darkToggle = page.getByRole("button", { name: "Use light theme" });
   await expect(darkToggle).toBeVisible();
-  const primary = page.getByRole("button", { name: /Progetto vuoto/ });
+  const primary = page.getByRole("button", { name: /Blank project/ });
   const colors = await primary.evaluate((element) => {
     const style = getComputedStyle(element);
     return { color: style.color, background: style.backgroundColor };
@@ -32,11 +32,11 @@ test("design system chiaro/scuro è persistente, leggibile e adattabile", async 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.screenshot({ path: "artifacts/frontend-editor-dashboard-light.png", fullPage: true });
 
-  await page.getByLabel("Nome progetto").fill(`Design system ${Date.now()}`);
-  await page.getByRole("button", { name: "Landing page Hero, feature, CTA e footer" }).click();
-  await expect(page.getByRole("separator", { name: "Ridimensiona pannello elementi" })).toHaveAttribute("aria-valuenow", "240");
-  await expect(page.getByRole("separator", { name: "Ridimensiona pannello proprietà" })).toHaveAttribute("aria-valuenow", "300");
-  await page.getByRole("button", { name: "Usa tema scuro" }).click();
+  await page.getByLabel("Project name").fill(`Design system ${Date.now()}`);
+  await page.getByRole("button", { name: "Landing page Hero, features, CTA, and footer" }).click();
+  await expect(page.getByRole("separator", { name: "Resize elements panel" })).toHaveAttribute("aria-valuenow", "240");
+  await expect(page.getByRole("separator", { name: "Resize properties panel" })).toHaveAttribute("aria-valuenow", "300");
+  await page.getByRole("button", { name: "Use dark theme" }).click();
   await page.screenshot({ path: "artifacts/frontend-editor-workspace-dark.png", fullPage: true });
   await page.setViewportSize({ width: 760, height: 900 });
   await expect(page.getByRole("button", { name: "Design" })).toBeVisible();

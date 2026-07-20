@@ -7,7 +7,7 @@ test("the packaged Kyro app starts independently and exposes visual actions", as
   const executable = process.env.DESKTOP_EXECUTABLE
     ? resolve(process.env.DESKTOP_EXECUTABLE)
     : resolve("desktop-dist/Kyro-win32-x64/kyro.exe");
-  test.skip(!existsSync(executable), "Pacchetto Windows non presente");
+  test.skip(!existsSync(executable), "Windows package is not available");
   const fixture = resolve("e2e/fixtures/desktop-project");
   const application = await electron.launch({
     executablePath: executable,
@@ -16,13 +16,13 @@ test("the packaged Kyro app starts independently and exposes visual actions", as
   try {
     const window = await application.firstWindow();
     await expect(window).toHaveTitle("Kyro — Visual Low-Code Studio");
-    await expect(window.locator(".project-title input")).toHaveValue("desktop-project", { timeout: 15_000 });
+    await expect(window.getByLabel("Project name")).toHaveValue("desktop-project", { timeout: 45_000 });
     await expect(window.getByText("Studio Aurora", { exact: true }).first()).toBeVisible();
     await window.getByRole("button", { name: "Design" }).click();
     const canvasTitle = window.getByTestId("component-title").first();
     await canvasTitle.click();
     await window.getByRole("tab", { name: "Actions 0" }).click();
-    await expect(window.getByText("No actions connected yet.", { exact: true })).toBeVisible();
+    await expect(window.getByText(/This element has no direct interaction events/)).toBeVisible();
     await expect(window.getByRole("button", { name: "Ask Codex" }).first()).toBeVisible();
     await window.screenshot({
       path: process.env.DESKTOP_EXECUTABLE

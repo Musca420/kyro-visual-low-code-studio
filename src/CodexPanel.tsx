@@ -88,7 +88,7 @@ function readOutput(raw: string, git?: { status?: string; diff?: string }) {
       output: item.output,
     }));
   return {
-    text: messages.join("\n\n") || raw || "Codex non ha restituito testo.",
+    text: messages.join("\n\n") || raw || "Codex returned no text.",
     trace: {
       commands,
       tests,
@@ -173,17 +173,17 @@ export function CodexPanel({
         setAuthenticated(Boolean(value.authenticated));
         setStatus(
           value.authenticated
-            ? value.message || "Accesso attivo"
+            ? value.message || "Signed in"
             : value.message || "Connect your ChatGPT account here; no terminal is required.",
         );
         setWorkspace(value.workspace || "");
       })
-      .catch(() => setStatus("Bridge locale non raggiungibile"));
+      .catch(() => setStatus("Local bridge unavailable"));
   }, [open]);
   const refreshAuth = async () => {
     const value = await fetch("/api/codex/status").then((response) => response.json());
     setAuthenticated(Boolean(value.authenticated));
-    setStatus(value.authenticated ? value.message || "Accesso attivo" : "Accesso richiesto");
+    setStatus(value.authenticated ? value.message || "Signed in" : "Sign-in required");
   };
   const login = async (deviceAuth = false) => {
     setAuthBusy(true);
@@ -191,22 +191,22 @@ export function CodexPanel({
     try {
       const response = await fetch("/api/codex/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceAuth }) });
       const value = await response.json();
-      if (!response.ok) throw new Error(value.error || "Accesso non avviato");
+      if (!response.ok) throw new Error(value.error || "Sign-in did not start");
       setLoginSession(value.sessionId);
       let session;
       do {
         await new Promise((resolve) => setTimeout(resolve, 500));
         session = await fetch(`/api/codex/login/${value.sessionId}`).then((result) => result.json());
-        setStatus(session.output || session.errors || "Completa l’accesso nel browser…");
+        setStatus(session.output || session.errors || "Complete sign-in in the browser…");
       } while (session.status === "running");
-      if (session.status !== "completed") throw new Error(session.errors || `Accesso ${session.status}`);
+      if (session.status !== "completed") throw new Error(session.errors || `Sign-in ${session.status}`);
       await refreshAuth();
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setAuthBusy(false); setLoginSession(undefined); }
   };
   const logout = async () => {
     const response = await fetch("/api/codex/logout", { method: "POST" }), value = await response.json();
-    if (!response.ok) return setStatus(value.error || "Logout non riuscito");
+    if (!response.ok) return setStatus(value.error || "Sign-out failed");
     await refreshAuth();
   };
   const execute = async (mode: "plan" | "apply") => {
@@ -218,12 +218,12 @@ export function CodexPanel({
       ? await captureEvidence?.().then((value) => value.dataUrl).catch(() => undefined)
       : undefined;
     let timelineId: string = crypto.randomUUID();
-    setLiveText(mode === "plan" ? "Analysis in corso…" : "Applicazione in corso…");
+    setLiveText(mode === "plan" ? "Analysis in progress…" : "Applying changes…");
     if (mode === "plan")
       setHistory((items) => [
         ...items,
         { role: "user", text: prompt },
-        { role: "system", text: "Analysis in sola lettura avviata…" },
+        { role: "system", text: "Read-only analysis started…" },
       ]);
     try {
       const response = await fetch("/api/codex/jobs", {
@@ -267,7 +267,7 @@ export function CodexPanel({
         await new Promise((resolve) => setTimeout(resolve, 250));
         const update = await fetch(`/api/codex/jobs/${value.jobId}`);
         current = await update.json();
-        if (!update.ok) throw new Error(current.errors || "Stato operazione non disponibile");
+        if (!update.ok) throw new Error(current.errors || "Operation status unavailable");
         setJob(current);
         const progress = readOutput(current.output, current.git);
         setLiveText(progress.text);
@@ -336,7 +336,7 @@ export function CodexPanel({
     if (!job) return;
     const response = await fetch(`/api/codex/jobs/${job.id}/restore`, { method: "POST" });
     const value = await response.json();
-    if (!response.ok) return setHistory((items) => [...items, { role: "system", text: value.error || "Ripristino non riuscito" }]);
+    if (!response.ok) return setHistory((items) => [...items, { role: "system", text: value.error || "Restore failed" }]);
     setJob({ ...job, status: "restored" });
     const entry = timeline.find((item) => item.id === job.id);
     if (entry) {
@@ -344,7 +344,7 @@ export function CodexPanel({
       await saveCodexTimelineEntry(restoredEntry);
       setTimeline((items) => items.map((item) => item.id === job.id ? restoredEntry : item));
     }
-    setHistory((items) => [...items, { role: "system", text: `Operation restored: ${value.restored.length} file riportati allo stato precedente.` }]);
+    setHistory((items) => [...items, { role: "system", text: `Operation restored: ${value.restored.length} files returned to their previous state.` }]);
   };
   if (!open) return null;
   return (
@@ -355,7 +355,7 @@ export function CodexPanel({
           <strong>Codex</strong>
           <small
             className={
-              status.includes("attivo") || status.includes("Logged")
+              status.includes("Signed") || status.includes("Logged")
                 ? "online"
                 : ""
             }
@@ -365,12 +365,12 @@ export function CodexPanel({
         </div>
         <div>
           {job?.status === "completed" && job.changedFiles.length > 0 && (
-            <button className="secondary" data-help="Ripristina tutti e soli i file modificati da questa operazione. Si ferma se rileva modifiche successive." onClick={() => void restore()}>
+            <button className="secondary" data-help="Restore only the files changed by this operation. Kyro stops if it detects later edits." onClick={() => void restore()}>
               Restore
             </button>
           )}
           <button
-            data-help="Interrompe l’operazione Codex attualmente in esecuzione."
+            data-help="Stop the Codex operation currently running."
             className="secondary"
             disabled={!busy || !job}
             onClick={() =>
@@ -479,7 +479,7 @@ export function CodexPanel({
               <button className="secondary" data-help="Signs out through the official codex logout command. Kyro never reads your credentials." onClick={() => void logout()}>Sign out of Codex</button>
             ) : (
               <>
-                <button disabled={authBusy} data-help="Avvia il login ufficiale Codex e apre la pagina Sign in with ChatGPT nel browser." onClick={() => void login(false)}>{authBusy ? "Accesso in corso…" : "Accedi con ChatGPT"}</button>
+                <button disabled={authBusy} data-help="Start the official Codex sign-in and open Sign in with ChatGPT in the browser." onClick={() => void login(false)}>{authBusy ? "Signing in…" : "Sign in with ChatGPT"}</button>
                 <button className="secondary" disabled={authBusy} data-help="Shows the device-code flow when the browser cannot return to the app automatically." onClick={() => void login(true)}>Use device code</button>
               </>
             )}
@@ -536,14 +536,14 @@ export function CodexPanel({
                         <span className={`timeline-status ${entry.status}`}>{entry.status}</span>
                       </header>
                       <p>{entry.prompt}</p>
-                      <small>Revisione {entry.revision} · {new Date(entry.startedAt).toLocaleString()}</small>
+                      <small>Revision {entry.revision} · {new Date(entry.startedAt).toLocaleString()}</small>
                       {(entry.beforeScreenshot || entry.afterScreenshot) && (
                         <div className="timeline-images">
-                          {entry.beforeScreenshot && <figure><img src={entry.beforeScreenshot} alt="Prima della richiesta Codex" /><figcaption>Prima</figcaption></figure>}
-                          {entry.afterScreenshot && <figure><img src={entry.afterScreenshot} alt="Dopo la richiesta Codex" /><figcaption>Dopo</figcaption></figure>}
+                          {entry.beforeScreenshot && <figure><img src={entry.beforeScreenshot} alt="Before the Codex request" /><figcaption>Before</figcaption></figure>}
+                          {entry.afterScreenshot && <figure><img src={entry.afterScreenshot} alt="After the Codex request" /><figcaption>After</figcaption></figure>}
                         </div>
                       )}
-                      <span>{entry.changedFiles.length} file · {entry.tests.filter((item) => item.passed).length}/{entry.tests.length} test superati</span>
+                      <span>{entry.changedFiles.length} files · {entry.tests.filter((item) => item.passed).length}/{entry.tests.length} tests passed</span>
                     </article>
                   ))}
                 </div>
@@ -563,9 +563,9 @@ export function CodexPanel({
             )}
             {view === "tests" && (
               <TraceList
-                empty="Codex non ha ancora eseguito test."
+                empty="Codex has not run tests yet."
                 items={trace.tests.map((item) => ({
-                  title: item.passed ? "✓ Test superato" : "✕ Test fallito",
+                  title: item.passed ? "✓ Test passed" : "✕ Test failed",
                   body: `${item.command}\n${item.output}`,
                 }))}
               />
@@ -652,8 +652,7 @@ function TraceList({
     <div className="codex-welcome">
       <strong>{empty}</strong>
       <p>
-        Questa sezione si aggiorna automaticamente dopo l’analisi o
-        l’applicazione.
+        This section updates automatically after analysis or application.
       </p>
     </div>
   );

@@ -209,8 +209,8 @@ export function resolveCapabilities(
       issues.push({
         id: `state-${state}`,
         kind: "state",
-        title: `Stato ${state} non rappresentato`,
-        explanation: `L'intento richiede lo stato ${state}, ma nella pagina non esiste ancora un elemento visuale adatto.`,
+        title: `${state[0].toUpperCase()}${state.slice(1)} state is not represented`,
+        explanation: `The intent requires a ${state} state, but this page does not yet contain a suitable visual element.`,
         target: "codex",
       });
   }

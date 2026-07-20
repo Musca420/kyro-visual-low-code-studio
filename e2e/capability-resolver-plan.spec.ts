@@ -2,21 +2,22 @@ import { expect, test } from "@playwright/test";
 
 test("spiega un servizio esterno e lascia la scelta all'utente", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Resolver guidato");
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  await page.getByLabel("Project name").fill("Resolver guidato");
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Add page", exact: true }).click();
+  await page.getByRole("button", { name: "Create screen" }).click();
   await page.locator(".palette").getByRole("button").filter({ hasText: "button" }).click();
   await page.getByTestId("component-button").click();
-  await page.getByText("Significato nel programma").click();
-  await page.getByLabel("Risultato atteso", { exact: true }).fill("completa pagamento checkout");
+  await page.getByText("Meaning in the program").click();
+  await page.getByLabel("Expected result", { exact: true }).fill("completa pagamento checkout");
 
-  const issue = page.locator(".capability-issues article").filter({ hasText: "Provider di pagamento necessario" });
+  const issue = page.locator(".capability-issues article").filter({ hasText: "Payment provider required" });
   await expect(issue).toBeVisible();
-  await issue.getByText("Confronta le soluzioni").click();
-  await expect(issue).toContainText("Chiave pubblica nel client e segreto soltanto nel backend");
-  await expect(issue).toContainText("Link di pagamento ospitato: percorso più semplice");
-  await expect(issue).toContainText("commissioni");
-  await expect(issue).toContainText("senza la tua conferma");
+  await issue.getByText("Compare solutions").click();
+  await expect(issue).toContainText("Public key in the client and secret only in the backend");
+  await expect(issue).toContainText("Hosted payment link: simplest path");
+  await expect(issue).toContainText("commissions");
+  await expect(issue).toContainText("without your confirmation");
   await page.mouse.move(600, 700);
   await page.screenshot({ path: "artifacts/frontend-editor-capability-plan.png", fullPage: true });
 });

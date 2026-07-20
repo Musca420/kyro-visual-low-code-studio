@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 const context = await chromium.launchPersistentContext(resolve("artifacts", "nexusfield-browser-profile"), { headless: false, slowMo: 180, viewport: { width: 1600, height: 900 }, acceptDownloads: true, recordVideo: { dir: resolve("artifacts", "nexusfield", "raw-video"), size: { width: 1600, height: 900 } } });
 const page = context.pages()[0] ?? await context.newPage(); page.setDefaultTimeout(60_000);
 try {
-  await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" }); if (!(await page.getByRole("button", { name: "Design" }).count())) await page.getByRole("button", { name: /NexusField Web/ }).click();
+  await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" });
+  if (await page.getByRole("button", { name: "Close project and return to the dashboard" }).count())
+    await page.getByRole("button", { name: "Close project and return to the dashboard" }).click();
+  await page.getByRole("button", { name: /NexusField Web/ }).click();
   await page.getByRole("button", { name: "Publish" }).click();
   await page.getByRole("button", { name: /^PWA/ }).click();
   await page.getByText("Installable PWA ready", { exact: true }).waitFor();

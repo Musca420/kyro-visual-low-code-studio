@@ -172,7 +172,7 @@ export async function insertProjectRecord(sourceId: string, input: unknown): Pro
 
 export async function updateProjectRecord(sourceId: string, id: string, input: unknown): Promise<LocalRecord> {
   const existing = await request<LocalRecord | undefined>('records', 'readonly', (store) => store.get(id))
-  if (!existing || existing.sourceId !== sourceId) throw new Error('Progetto non trovato')
+  if (!existing || existing.sourceId !== sourceId) throw new Error('Project not found')
   const value = projectInputSchema.parse(input)
   const record: LocalRecord = { ...existing, text: value.name, description: value.description, status: value.status, priority: value.priority, dueDate: value.dueDate, date: new Date().toISOString() }
   await request('records', 'readwrite', (store) => store.put(record))
@@ -181,7 +181,7 @@ export async function updateProjectRecord(sourceId: string, id: string, input: u
 
 export async function deleteProjectRecord(sourceId: string, id: string) {
   const existing = await request<LocalRecord | undefined>('records', 'readonly', (store) => store.get(id))
-  if (!existing || existing.sourceId !== sourceId) throw new Error('Progetto non trovato')
+  if (!existing || existing.sourceId !== sourceId) throw new Error('Project not found')
   await request('records', 'readwrite', (store) => store.delete(id))
 }
 

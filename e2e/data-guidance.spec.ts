@@ -4,23 +4,23 @@ test("propone storage locale, API esistente o backend generato in linguaggio sem
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill(`Backend guidato ${Date.now()}`);
-  await page.locator(".template").filter({ hasText: "Lista attività" }).click();
-  await page.getByRole("button", { name: "Dati" }).click();
+  await page.getByLabel("Project name").fill(`Backend guidato ${Date.now()}`);
+  await page.locator(".template").filter({ hasText: "Task list" }).click();
+  await page.getByRole("button", { name: "Data" }).click();
 
-  await expect(page.getByText("Su questo dispositivo")).toBeVisible();
-  await expect(page.getByText("Servizio già esistente")).toBeVisible();
-  await page.getByLabel("Genera anche il backend").check();
+  await expect(page.getByText("On this device")).toBeVisible();
+  await expect(page.getByText("Existing service")).toBeVisible();
+  await page.getByLabel("Generate the backend too").check();
   await expect(
-    page.getByRole("textbox", { name: /Indirizzo API/ }),
+    page.getByRole("textbox", { name: /API address/ }),
   ).toHaveValue("http://127.0.0.1:8787/records");
-  await page.getByLabel("Nome", { exact: true }).fill("Backend attività");
-  await page.getByLabel("Collezione", { exact: true }).fill("records");
+  await page.getByLabel("Name", { exact: true }).fill("Backend attività");
+  await page.getByLabel("Collection", { exact: true }).fill("records");
   await page
-    .getByRole("button", { name: "Configura backend generato" })
+    .getByRole("button", { name: "Configure generated backend" })
     .click();
   await expect(
-    page.getByText("Backend locale configurato: verrà incluso nell’export"),
+    page.getByText("Local backend configured: it will be included in the export"),
   ).toBeVisible();
   await expect(page.locator(".source-card")).toContainText(
     "generated / records",
@@ -30,25 +30,25 @@ test("propone storage locale, API esistente o backend generato in linguaggio sem
 test("crea uno schema dati personalizzato interamente dall'interfaccia", async ({ page }) => {
   const name = `Schema visuale ${Date.now()}`;
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill(name);
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Dati", exact: true }).click();
-  await page.getByRole("button", { name: "+ Aggiungi campo" }).click();
-  const fields = page.getByLabel("Nome campo");
+  await page.getByLabel("Project name").fill(name);
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Data", exact: true }).click();
+  await page.getByRole("button", { name: "+ Add field" }).click();
+  const fields = page.getByLabel("Field name");
   await fields.last().fill("budget");
-  await page.getByLabel("Tipo campo budget").selectOption("number");
-  await page.getByRole("button", { name: "+ Aggiungi campo" }).click();
+  await page.getByLabel("Field type budget").selectOption("number");
+  await page.getByRole("button", { name: "+ Add field" }).click();
   await fields.last().fill("pubblicato");
-  await page.getByLabel("Tipo campo pubblicato").selectOption("boolean");
-  await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
+  await page.getByLabel("Field type pubblicato").selectOption("boolean");
+  await page.getByRole("button", { name: "Create IndexedDB source" }).click();
   const source = page.locator(".source-card");
   await expect(source).toContainText("budget:number");
   await expect(source).toContainText("pubblicato:boolean");
   await page.screenshot({ path: "artifacts/frontend-editor-visual-schema.png", fullPage: true });
-  await expect(page.getByText("Salvato automaticamente")).toBeVisible();
-  await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
+  await expect(page.getByText("Saved automatically")).toBeVisible();
+  await page.getByRole("button", { name: "Close project and return to the dashboard" }).click();
   await page.getByRole("button", { name }).click();
-  await page.getByRole("button", { name: "Dati", exact: true }).click();
+  await page.getByRole("button", { name: "Data", exact: true }).click();
   await expect(page.locator(".source-card")).toContainText("budget:number");
   await expect(page.locator(".source-card")).toContainText("pubblicato:boolean");
 });

@@ -4,14 +4,14 @@ test("terminale locale reale, esplicito e limitato al progetto aperto", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill(`Terminal test ${Date.now()}`);
+  await page.getByLabel("Project name").fill(`Terminal test ${Date.now()}`);
   await page
-    .getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" })
+    .getByRole("button", { name: "Blank project Start with a clean canvas" })
     .click();
   await page.waitForTimeout(250);
-  await page.getByRole("button", { name: "Terminale" }).click();
+  await page.getByRole("button", { name: "Terminal" }).click();
   await expect(
-    page.getByRole("heading", { name: "Terminale del progetto" }),
+    page.getByRole("heading", { name: "Project terminal" }),
   ).toBeVisible();
   await expect(page.locator(".terminal-status")).toContainText("running");
   await expect(page.locator(".terminal-path code")).toContainText(
@@ -19,18 +19,18 @@ test("terminale locale reale, esplicito e limitato al progetto aperto", async ({
   );
 
   await page
-    .getByLabel("Comando")
+    .getByLabel("Command", { exact: true })
     .fill("node -e \"console.log('FE_TERMINAL_OK')\"");
-  await page.getByRole("button", { name: "Esegui" }).click();
-  await expect(page.getByLabel("Output terminale")).toContainText(
+  await page.getByRole("button", { name: "Run" }).click();
+  await expect(page.getByLabel("Terminal output")).toContainText(
     "FE_TERMINAL_OK",
   );
 
-  await page.getByLabel("Comando").fill("Set-Location src");
-  await page.getByRole("button", { name: "Esegui" }).click();
-  await page.getByLabel("Comando").fill('node -e "console.log(process.cwd())"');
-  await page.getByRole("button", { name: "Esegui" }).click();
-  await expect(page.getByLabel("Output terminale")).toContainText(
+  await page.getByLabel("Command", { exact: true }).fill("Set-Location src");
+  await page.getByRole("button", { name: "Run" }).click();
+  await page.getByLabel("Command", { exact: true }).fill('node -e "console.log(process.cwd())"');
+  await page.getByRole("button", { name: "Run" }).click();
+  await expect(page.getByLabel("Terminal output")).toContainText(
     "node editor\\src",
   );
   await page.screenshot({
@@ -38,9 +38,9 @@ test("terminale locale reale, esplicito e limitato al progetto aperto", async ({
     fullPage: true,
   });
 
-  await page.getByRole("button", { name: "Termina sessione" }).click();
+  await page.getByRole("button", { name: "End session" }).click();
   await expect(page.locator(".terminal-status")).toContainText("closed");
-  await expect(page.getByLabel("Comando")).toBeDisabled();
+  await expect(page.getByLabel("Command", { exact: true })).toBeDisabled();
 
   const unauthorized = await page.evaluate(async () => {
     const response = await fetch("/api/terminal/sessions", {

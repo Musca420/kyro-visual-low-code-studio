@@ -268,14 +268,14 @@ export function createLandingProject(name: string): Project {
     { id: crypto.randomUUID(), name: "Landing", path: "/", components },
     {
       id: crypto.randomUUID(),
-      name: "Prezzi",
+      name: "Pricing",
       path: "/pricing",
       components: [
         style(
           component(
             "title",
             "Pricing heading",
-            "Un piano semplice per ogni ambizione.",
+            "A simple plan for every ambition.",
             "pricing-title",
           ),
           { fontSize: "54px", color: "#101528" },
@@ -283,14 +283,14 @@ export function createLandingProject(name: string): Project {
         ),
         style(
           component("input", "Plan search", "", "pricing-search", {
-            placeholder: "Cerca un piano",
+            placeholder: "Search plans",
           }),
           { background: "#ffffff", borderRadius: "12px" },
         ),
         ...[
-          ["Starter", "Per progetti personali e piccoli esperimenti."],
-          ["Team", "Collaborazione completa per squadre in crescita."],
-          ["Scale", "Controllo, sicurezza e supporto per organizzazioni."],
+          ["Starter", "For personal projects and small experiments."],
+          ["Team", "Complete collaboration for growing teams."],
+          ["Scale", "Control, security, and support for organizations."],
         ].map(([title, description], index) =>
           style(
             component(
@@ -314,14 +314,14 @@ export function createLandingProject(name: string): Project {
     },
     {
       id: crypto.randomUUID(),
-      name: "Contatti",
+      name: "Contact",
       path: "/contact",
       components: [
         style(
           component(
             "title",
             "Contact heading",
-            "Costruiamo qualcosa di memorabile.",
+            "Let’s build something memorable.",
             "contact-title",
           ),
           { fontSize: "54px", color: "#101528" },
@@ -337,13 +337,13 @@ export function createLandingProject(name: string): Project {
           },
         ),
         component("input", "Contact name", "", "contact-name", {
-          placeholder: "Il tuo nome",
+          placeholder: "Your name",
         }),
         style(
           component(
             "button",
             "Contact submit",
-            "Invia richiesta",
+            "Send request",
             "contact-submit",
           ),
           { background: "#6d5dfc", color: "#ffffff", borderRadius: "12px" },
@@ -351,7 +351,7 @@ export function createLandingProject(name: string): Project {
         component(
           "list",
           "Contact history",
-          "Richieste inviate",
+          "Sent requests",
           "contact-list",
         ),
       ],
@@ -579,11 +579,11 @@ function genericPage(
   ];
   if ((template === "blog" && lead) || (template === "ecommerce" && lead)) {
     components.push(
-      component("input", "Ricerca", "Cerca", "search", {
+      component("input", "Search", "Search", "search", {
         placeholder:
-          template === "blog" ? "Cerca articoli…" : "Cerca prodotti…",
+          template === "blog" ? "Search articles…" : "Search products…",
       }),
-      component("select", "Filtro", "Tutte le categorie", "filter", {
+      component("select", "Filter", "All categories", "filter", {
         options: "All categories,Featured,New",
       }),
     );
@@ -600,11 +600,11 @@ function genericPage(
         boxShadow: "0 12px 30px #1f293712",
       }),
       component("input", "Email", "Email", "email", {
-        placeholder: "nome@esempio.it",
+        placeholder: "name@example.com",
       }),
       component(
         "button",
-        "Invia",
+        "Submit",
         template === "auth" ? "Continue" : "Submit",
         "submit",
       ),

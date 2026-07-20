@@ -30,7 +30,7 @@ describe('structured editor operations', () => {
     const wrapped = applyEditorOperation(project, 'page', { type: 'wrap_component', args: { componentId: button.id, componentType: 'stack', name: 'Azioni' } })
     const stack = wrapped.pages[0].components.find((item) => item.type === 'stack')!
     expect(wrapped.pages[0].components.find((item) => item.id === button.id)?.parentId).toBe(stack.id)
-    expect(() => applyEditorOperation(wrapped, 'page', { type: 'move_component', args: { componentId: stack.id, parentId: button.id } })).toThrow('creerebbe un ciclo')
+    expect(() => applyEditorOperation(wrapped, 'page', { type: 'move_component', args: { componentId: stack.id, parentId: button.id } })).toThrow('would create a cycle')
     const nestedButton = wrapped.pages[0].components.find((item) => item.id === button.id)!
     nestedButton.styles.desktop.position = 'absolute'
     nestedButton.styles.desktop.left = '96px'

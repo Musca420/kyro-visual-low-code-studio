@@ -32,7 +32,7 @@ export function parseModuleValue(value: string, type: CodeModule["inputType"]): 
     if (type === "record" && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) throw new Error("A JSON object is required");
     return parsed;
   } catch (error) {
-    throw error instanceof SyntaxError ? new Error("JSON non valido") : error;
+    throw error instanceof SyntaxError ? new Error("Invalid JSON") : error;
   }
 }
 

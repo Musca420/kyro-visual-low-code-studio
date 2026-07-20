@@ -65,7 +65,7 @@ test("gli export landing e dashboard mantengono UI e comportamento", async ({
   await professional.getByLabel("Cerca tra i piani").fill("Team");
   await expect(professional.locator("[data-plan]:visible")).toHaveCount(1);
   await professional.getByRole("link", { name: "About" }).click();
-  await professional.getByLabel("Nome").fill("Export User");
+  await professional.getByLabel("Name").fill("Export User");
   await professional.getByLabel("Email").fill("export@example.it");
   await professional
     .getByLabel("Messaggio")

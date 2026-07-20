@@ -7,14 +7,15 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Vertical Slice E2E");
+  await page.getByLabel("Project name").fill("Vertical Slice E2E");
   await page
-    .getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" })
+    .getByRole("button", { name: "Blank project Start with a clean canvas" })
     .click();
 
   await page
-    .getByRole("button", { name: "Aggiungi pagina", exact: true })
+    .getByRole("button", { name: "Add page", exact: true })
     .click();
+  await page.getByRole("button", { name: "Create screen" }).click();
   const palette = page.locator(".palette");
   const canvas = page.locator(".design-canvas");
   await palette.getByRole("button", { name: "⌨ input" }).dragTo(canvas);
@@ -25,51 +26,51 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   await expect(page.getByTestId("component-list")).toBeVisible();
 
   await page.getByTestId("component-input").click();
-  await page.locator(".right-panel").getByRole("button", { name: "Avanzata" }).click();
-  await page.getByLabel("Larghezza").fill("82%");
+  await page.locator(".right-panel").getByRole("button", { name: "Advanced" }).click();
+  await page.getByLabel("Width", { exact: true }).fill("82%");
   await page.getByRole("button", { name: "mobile" }).click();
-  await page.getByLabel("Larghezza").fill("100%");
-  await page.getByLabel("Posizione X").fill("4px");
+  await page.getByLabel("Width", { exact: true }).fill("100%");
+  await page.getByLabel("Position X").fill("4px");
 
-  await page.getByRole("button", { name: "Dati" }).click();
-  await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
+  await page.getByRole("button", { name: "Data" }).click();
+  await page.getByRole("button", { name: "Create IndexedDB source" }).click();
   await expect(
-    page.getByText("Sorgente IndexedDB creata e schema validato"),
+    page.getByText("IndexedDB source created and schema validated"),
   ).toBeVisible();
-  await expect(page.locator(".source-card")).toContainText("Attività locali");
+  await expect(page.locator(".source-card")).toContainText("Local tasks");
 
   await page.getByRole("button", { name: "Flow" }).click();
-  await page.getByRole("button", { name: "Crea flow dati" }).click();
+  await page.getByRole("button", { name: "Create data flow" }).click();
   await expect(
-    page.getByText("Flow collegato al click e lista collegata alla sorgente"),
+    page.getByText("Flow connected to the click and list connected to the source"),
   ).toBeVisible();
-  await expect(page.getByLabel("Editor grafico del flow")).toBeVisible();
+  await expect(page.getByLabel("Visual flow editor")).toBeVisible();
 
   await page.getByRole("button", { name: "Preview" }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
   await preview
-    .getByLabel("Nuova attività")
+    .getByLabel("New task")
     .fill("Completare il vertical slice");
-  await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await preview.getByRole("button", { name: "Add" }).click();
   await expect(preview.getByText("Completare il vertical slice")).toBeVisible();
   await expect(page.locator(".log-console")).toContainText(
-    "Aggiorna lista: completato",
+    "Refresh list: completed",
   );
   await page.screenshot({
     path: "artifacts/vertical-slice-running.png",
     fullPage: true,
   });
 
-  await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await preview.getByRole("button", { name: "Add" }).click();
   await expect(preview.getByRole("alert")).toContainText(
-    "Scrivi un’attività prima di aggiungerla",
+    "Enter a task before adding it",
   );
 
-  await expect(page.getByText("Salvato automaticamente")).toBeVisible({
+  await expect(page.getByText("Saved automatically")).toBeVisible({
     timeout: 5_000,
   });
   await page
-    .getByRole("button", { name: "Chiudi progetto e torna alla dashboard" })
+    .getByRole("button", { name: "Close project and return to the dashboard" })
     .click();
   await page.getByRole("button", { name: /Vertical Slice E2E/ }).click();
   await page.getByRole("button", { name: "Preview" }).click();
@@ -80,7 +81,7 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   ).toBeVisible();
 
   const projectDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Esporta JSON" }).click();
+  await page.getByRole("button", { name: "Export JSON" }).click();
   const projectDownload = await projectDownloadPromise;
   const projectStream = await projectDownload.createReadStream();
   const projectChunks: Buffer[] = [];
@@ -89,10 +90,10 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
     Buffer.concat(projectChunks).toString("utf8"),
   );
   expect(exportedProject.formatVersion).toBe(1);
-  expect(exportedProject.pages[0].components).toHaveLength(3);
+  expect(exportedProject.pages[0].components).toHaveLength(4);
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Esporta app" }).click();
+  await page.getByRole("button", { name: "Export app" }).click();
   const download = await downloadPromise;
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
@@ -119,12 +120,12 @@ test("vertical slice: progetto, builder, flow, IndexedDB, persistenza ed export"
   expect(pageErrors).toEqual([]);
 
   await page
-    .getByRole("button", { name: "Chiudi progetto e torna alla dashboard" })
+    .getByRole("button", { name: "Close project and return to the dashboard" })
     .click();
   exportedProject.id = crypto.randomUUID();
   exportedProject.name = "Progetto importato E2E";
   await page
-    .getByLabel("File progetto da importare")
+    .getByLabel("Project file to import")
     .setInputFiles({
       name: "project.json",
       mimeType: "application/json",
@@ -142,18 +143,18 @@ test("plugin dichiarativo contribuisce componenti, nodi, provider e tema in isol
   const existing = page.getByRole("button", { name: /Vertical Slice E2E/ });
   if (await existing.count()) await existing.click();
   else {
-    await page.getByLabel("Nome progetto").fill("Plugin E2E");
+    await page.getByLabel("Project name").fill("Plugin E2E");
     await page
       .getByRole("button", {
-        name: "Lista attività Vertical slice già configurato",
+        name: "Task list A working vertical slice",
       })
       .click();
   }
-  await page.getByRole("button", { name: "Plugin" }).click();
+  await page.getByRole("button", { name: "Extensions" }).click();
   await page
-    .getByRole("button", { name: "Installa plugin di esempio" })
+    .getByRole("button", { name: "Install example plugin" })
     .click();
-  await expect(page.getByText("Plugin installato e abilitato")).toBeVisible();
+  await expect(page.getByText("Plugin installed and enabled")).toBeVisible();
 
   await page.getByRole("button", { name: "Design" }).click();
   const focusCard = page.locator(".palette").getByRole("button", { name: /Focus card/ });
@@ -161,23 +162,23 @@ test("plugin dichiarativo contribuisce componenti, nodi, provider e tema in isol
   await focusCard.click();
   await expect(page.getByTestId("component-card").last()).toHaveCSS("background-color", "rgb(16, 42, 47)");
 
-  await page.getByRole("button", { name: "Dati" }).click();
-  await page.getByRole("button", { name: "Usa Focus API locale" }).click();
+  await page.getByRole("button", { name: "Data" }).click();
+  await page.getByRole("button", { name: "Use Local Focus API" }).click();
   await expect(page.locator('input[type="url"]')).toHaveValue("http://127.0.0.1:8787/records");
-  await expect(page.getByText("Preset provider caricato: Focus API locale")).toBeVisible();
-  await page.getByRole("button", { name: "Collega API REST" }).click();
-  await expect(page.getByText("Focus API locale").last()).toBeVisible();
+  await expect(page.getByText("Provider preset loaded: Local Focus API")).toBeVisible();
+  await page.getByRole("button", { name: "Connect REST API" }).click();
+  await expect(page.getByText("Local Focus API").last()).toBeVisible();
 
   await page.getByRole("button", { name: "Flow" }).click();
-  await page.getByRole("button", { name: "Crea flow dati" }).click();
-  await expect(page.getByText("Flow collegato al click e lista collegata alla sorgente")).toBeVisible();
-  await expect(page.getByLabel("Nodi forniti dai plugin")).toBeVisible();
-  await page.getByRole("button", { name: "+ Notifica focus" }).click();
-  await expect(page.locator(".flow-node").filter({ hasText: "Notifica focus" })).toBeVisible();
+  await page.getByRole("button", { name: "Create data flow" }).click();
+  await expect(page.getByText("Flow connected to the click and list connected to the source")).toBeVisible();
+  await expect(page.getByLabel("Nodes provided by extensions")).toBeVisible();
+  await page.getByRole("button", { name: "+ Focus notification" }).click();
+  await expect(page.locator(".flow-node").filter({ hasText: "Focus notification" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Plugin" }).click();
-  await page.getByRole("button", { name: "Applica Tema Focus" }).click();
-  await expect(page.getByText("Tema plugin applicato: Tema Focus")).toBeVisible();
+  await page.getByRole("button", { name: "Extensions" }).click();
+  await page.getByRole("button", { name: "Apply Focus Theme" }).click();
+  await expect(page.getByText("Plugin theme applied: Focus Theme")).toBeVisible();
   await page.getByRole("button", { name: "Design" }).click();
   await expect(page.locator(".design-canvas")).toHaveCSS("background-color", "rgb(7, 24, 28)");
   await page.getByTestId("component-card").last().scrollIntoViewIfNeeded();
@@ -185,16 +186,16 @@ test("plugin dichiarativo contribuisce componenti, nodi, provider e tema in isol
   await page.waitForTimeout(100);
   await page.screenshot({ path: "artifacts/frontend-editor-plugin-contributions.png", fullPage: true });
 
-  await page.getByRole("button", { name: "Plugin" }).click();
-  await page.getByRole("button", { name: "Disabilita" }).click();
-  await expect(page.getByText("Plugin disabilitato")).toBeVisible();
+  await page.getByRole("button", { name: "Extensions" }).click();
+  await page.getByRole("button", { name: "Disable" }).click();
+  await expect(page.getByText("Plugin disabled")).toBeVisible();
   await page.getByRole("button", { name: "Design" }).click();
   await expect(page.locator(".palette").getByRole("button", { name: /Focus card/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Plugin" }).click();
-  await page.getByRole("button", { name: "Abilita" }).click();
-  await expect(page.getByText("Plugin abilitato")).toBeVisible();
-  await page.getByRole("button", { name: "Rimuovi" }).click();
-  await expect(page.getByText("Plugin rimosso")).toBeVisible();
+  await page.getByRole("button", { name: "Extensions" }).click();
+  await page.getByRole("button", { name: "Enable" }).click();
+  await expect(page.getByText("Plugin enabled")).toBeVisible();
+  await page.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByText("Plugin removed")).toBeVisible();
   await page.getByRole("button", { name: "Design" }).click();
   await expect(page.getByTestId("component-card").last()).toHaveCSS("background-color", "rgb(16, 42, 47)");
 });

@@ -11,34 +11,35 @@ const luminance = (color: string) => {
 
 test("backup e ripristino conservano progetto, dati e ricerca della home", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Backup Roundtrip");
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
+  await page.getByLabel("Project name").fill("Backup Roundtrip");
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Add page", exact: true }).click();
+  await page.getByRole("button", { name: "Create screen" }).click();
   const palette = page.locator(".palette");
   const canvas = page.locator(".design-canvas");
   await palette.getByRole("button", { name: /input/ }).dragTo(canvas);
   await palette.getByRole("button", { name: /button/ }).dragTo(canvas);
   await palette.getByRole("button", { name: /list/ }).dragTo(canvas);
-  await page.getByRole("button", { name: "Dati" }).click();
-  await page.getByRole("button", { name: "Crea sorgente IndexedDB" }).click();
+  await page.getByRole("button", { name: "Data" }).click();
+  await page.getByRole("button", { name: "Create IndexedDB source" }).click();
   await page.getByRole("button", { name: "Flow" }).click();
-  await page.getByRole("button", { name: "Crea flow dati" }).click();
+  await page.getByRole("button", { name: "Create data flow" }).click();
   await page.getByRole("button", { name: "Preview" }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
-  await preview.getByLabel("Nuova attività").fill("Dato conservato nel backup");
-  await preview.getByRole("button", { name: "Aggiungi" }).click();
+  await preview.getByLabel("New task").fill("Dato conservato nel backup");
+  await preview.getByRole("button", { name: "Add" }).click();
   await expect(preview.getByText("Dato conservato nel backup")).toBeVisible();
-  await expect(page.getByText("Salvato automaticamente")).toBeVisible({ timeout: 5_000 });
-  await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
+  await expect(page.getByText("Saved automatically")).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("button", { name: "Close project and return to the dashboard" }).click();
 
-  await page.getByPlaceholder("Cerca progetti…").fill("nessun risultato");
+  await page.getByPlaceholder("Search projects…").fill("nessun risultato");
   await expect(page.getByRole("button", { name: /Backup Roundtrip/ })).toHaveCount(0);
-  await expect(page.getByText("Nessun progetto trovato")).toBeVisible();
-  await page.getByPlaceholder("Cerca progetti…").fill("backup");
+  await expect(page.getByText("No projects found")).toBeVisible();
+  await page.getByPlaceholder("Search projects…").fill("backup");
   await expect(page.getByRole("button", { name: /Backup Roundtrip/ })).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Crea backup" }).click();
+  await page.getByRole("button", { name: "Create backup" }).click();
   const download = await downloadPromise;
   const backupPath = await download.path();
   expect(backupPath).toBeTruthy();
@@ -53,12 +54,12 @@ test("backup e ripristino conservano progetto, dati e ricerca della home", async
 
   page.once("dialog", (dialog) => dialog.accept());
   const card = page.locator(".project-card").filter({ hasText: "Backup Roundtrip" });
-  await card.getByRole("button", { name: "Elimina" }).click();
+  await card.getByRole("button", { name: "Delete" }).click();
   await expect(card).toHaveCount(0);
 
   await page.locator('.recent input[type="file"]').setInputFiles(backupPath!);
-  await expect(page.getByText(/Ripristino completato: 1 progetti, 1 record/)).toBeVisible();
-  await page.getByPlaceholder("Cerca progetti…").fill("");
+  await expect(page.getByText(/Restore completed: 1 projects, 1 records/)).toBeVisible();
+  await page.getByPlaceholder("Search projects…").fill("");
   const cardColors = await page.locator(".project-open").evaluate((element) => {
     const style = getComputedStyle(element);
     return [style.color, style.backgroundColor];

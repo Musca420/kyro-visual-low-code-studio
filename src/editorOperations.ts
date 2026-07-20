@@ -9,7 +9,7 @@ const object = (value: unknown) => value && typeof value === 'object' && !Array.
 const componentIn = (project: Project, pageId: string, componentId: unknown) => {
   const page = project.pages.find((item) => item.id === pageId)
   const component = page?.components.find((item) => item.id === componentId)
-  if (!page || !component) throw new Error('Componente o pagina non trovato')
+  if (!page || !component) throw new Error('Component or page not found')
   return { page, component }
 }
 
@@ -17,7 +17,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   const args = operation.args ?? {}
   if (operation.type === 'apply_editor_transaction') {
     const operations = args.operations
-    if (!Array.isArray(operations) || operations.length > 50) throw new Error('La transazione richiede da 1 a 50 operazioni')
+    if (!Array.isArray(operations) || operations.length > 50) throw new Error('The transaction requires 1 to 50 operations')
     return parseProject(operations.reduce((value, item) => {
       const next = item as EditorOperation
       return applyEditorOperation(value, next.pageId ?? pageId, next)
@@ -26,7 +26,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   if (operation.type === 'add_page') {
     const name = String(args.name ?? '').trim(), path = String(args.path ?? '').trim(), id = String(args.pageId ?? crypto.randomUUID())
     if (!name || !path.startsWith('/')) throw new Error('Page name and path are required')
-    if (project.pages.some((page) => page.id === id || page.path === path)) throw new Error('ID o percorso pagina gia esistente')
+    if (project.pages.some((page) => page.id === id || page.path === path)) throw new Error('A page with this ID or path already exists')
     return parseProject({ ...project, pages: [...project.pages, { id, name, path, components: [] }] })
   }
   if (operation.type === 'update_page') {
@@ -38,8 +38,8 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'remove_page') {
     const id = String(args.pageId ?? pageId)
-    if (args.confirmed !== true) throw new Error('La rimozione richiede confirmed=true')
-    if (project.pages.length <= 1) throw new Error('Il progetto deve conservare almeno una pagina')
+    if (args.confirmed !== true) throw new Error('Removal requires confirmed=true')
+    if (project.pages.length <= 1) throw new Error('The project must keep at least one page')
     const componentIds = new Set(project.pages.find((item) => item.id === id)?.components.map((item) => item.id) ?? [])
     const flowIds = new Set(project.flows.filter((flow) => flow.nodes.some((node) => componentIds.has(node.config.componentId))).map((flow) => flow.id))
     return parseProject({ ...project, pages: project.pages.filter((item) => item.id !== id), flows: project.flows.filter((flow) => !flowIds.has(flow.id)) })
@@ -50,7 +50,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     return parseProject({ ...project, theme: { tokens: { ...project.theme.tokens, [token]: value } } })
   }
   if (operation.type === 'set_project_property') {
-    if (args.property !== 'name' || !String(args.value ?? '').trim()) throw new Error('Proprieta progetto non supportata')
+    if (args.property !== 'name' || !String(args.value ?? '').trim()) throw new Error('Unsupported project property')
     return parseProject({ ...project, name: String(args.value).trim() })
   }
   if (operation.type === 'set_app_config') {
@@ -77,7 +77,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'add_component') {
     const type = String(args.componentType) as EditorComponent['type']
-    if (!componentTypes.includes(type)) throw new Error(`Tipo componente non valido: ${type}`)
+    if (!componentTypes.includes(type)) throw new Error(`Invalid component type: ${type}`)
     const component = makeComponent(type)
     if (typeof args.componentId === 'string' && args.componentId) component.id = args.componentId
     if (typeof args.name === 'string' && args.name.trim()) component.name = args.name.trim()
@@ -108,12 +108,12 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'update_flow') {
     const flowId = String(args.flowId), name = String(args.name ?? '').trim()
-    if (!name || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Flow non valido')
+    if (!name || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Invalid flow')
     return parseProject({ ...project, flows: project.flows.map((flow) => flow.id === flowId ? { ...flow, name } : flow) })
   }
   if (operation.type === 'remove_flow') {
     const flowId = String(args.flowId)
-    if (args.confirmed !== true) throw new Error('La rimozione richiede confirmed=true')
+    if (args.confirmed !== true) throw new Error('Removal requires confirmed=true')
     return parseProject({ ...project, flows: project.flows.filter((flow) => flow.id !== flowId), pages: project.pages.map((page) => ({ ...page, components: page.components.map((component) => ({ ...component, events: Object.fromEntries(Object.entries(component.events).filter(([, id]) => id !== flowId)) })) })) })
   }
   if (operation.type === 'add_flow_node') {
@@ -147,7 +147,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'remove_data_source') {
     const sourceId = String(args.sourceId)
-    if (args.confirmed !== true) throw new Error('La rimozione richiede confirmed=true')
+    if (args.confirmed !== true) throw new Error('Removal requires confirmed=true')
     return parseProject({ ...project, dataSources: project.dataSources.filter((source) => source.id !== sourceId), pages: project.pages.map((page) => ({ ...page, components: page.components.map((component) => component.binding?.sourceId === sourceId ? { ...component, binding: undefined } : component) })) })
   }
   const { component } = componentIn(project, pageId, args.componentId)
@@ -161,25 +161,25 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   else if (operation.type === 'set_component_style' || operation.type === 'set_responsive_style') {
     const breakpoint = (operation.type === 'set_responsive_style' ? args.breakpoint : 'desktop') as Breakpoint
-    if (!['desktop', 'tablet', 'mobile'].includes(breakpoint)) throw new Error('Breakpoint non valido')
+    if (!['desktop', 'tablet', 'mobile'].includes(breakpoint)) throw new Error('Invalid breakpoint')
     nextComponent = { ...component, styles: { ...component.styles, [breakpoint]: { ...component.styles[breakpoint], [String(args.property)]: String(args.value) } } }
   } else if (operation.type === 'set_component_state_style') {
     const state = String(args.state) as keyof EditorComponent['states']
-    if (!['hover', 'focus', 'active', 'disabled'].includes(state)) throw new Error('Stato componente non valido')
+    if (!['hover', 'focus', 'active', 'disabled'].includes(state)) throw new Error('Invalid component state')
     nextComponent = { ...component, states: { ...component.states, [state]: { ...component.states[state], [String(args.property)]: String(args.value) } } }
   } else if (operation.type === 'set_component_accessibility') {
     const label = String(args.label ?? '').trim()
-    if (!label) throw new Error('Etichetta accessibile obbligatoria')
+    if (!label) throw new Error('An accessible label is required')
     nextComponent = { ...component, accessibility: { label, ...(args.role ? { role: String(args.role) } : {}) } }
   } else if (operation.type === 'set_component_intent') {
     nextComponent = { ...component, intent: { ...component.intent, ...object(args.intent) } as EditorComponent['intent'] }
   } else if (operation.type === 'set_component_event') {
     const event = String(args.event ?? '').trim(), flowId = String(args.flowId ?? '').trim()
-    if (!event || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Evento o flow non valido')
+    if (!event || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Invalid event or flow')
     nextComponent = { ...component, events: { ...component.events, [event]: flowId } }
   } else if (operation.type === 'remove_component_event') {
     const event = String(args.event ?? '').trim()
-    if (!event) throw new Error('Evento obbligatorio')
+    if (!event) throw new Error('An event is required')
     nextComponent = { ...component, events: Object.fromEntries(Object.entries(component.events).filter(([name]) => name !== event)) }
   } else if (operation.type === 'move_component') {
     let parentId = component.parentId
@@ -189,7 +189,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
       reparenting = parentId !== component.parentId
       if (parentId) {
         const parent = componentIn(project, pageId, parentId).component
-        if (parent.id === component.id || descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id).has(parent.id)) throw new Error('Spostamento non valido: creerebbe un ciclo')
+        if (parent.id === component.id || descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id).has(parent.id)) throw new Error('Invalid move: it would create a cycle')
         if (!canContain(parent)) throw new Error(`${parent.name} cannot contain other elements`)
       }
     }
@@ -204,7 +204,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
       const without = page.components.filter((item) => item.id !== component.id)
       const siblings = without.filter((item) => item.parentId === parentId)
       const index = Number(args.index)
-      if (!Number.isInteger(index) || index < 0 || index > siblings.length) throw new Error('Indice non valido')
+      if (!Number.isInteger(index) || index < 0 || index > siblings.length) throw new Error('Invalid index')
       const insertion = index < siblings.length ? without.findIndex((item) => item.id === siblings[index].id) : siblings.length ? without.findIndex((item) => item.id === siblings.at(-1)!.id) + 1 : without.length
       without.splice(insertion, 0, nextComponent)
       return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components: without } : item) })
@@ -214,26 +214,26 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   } else if (operation.type === 'bind_component_data') {
     nextComponent = { ...component, binding: { sourceId: String(args.sourceId), state: args.state === 'loading' || args.state === 'error' || args.state === 'empty' ? args.state : 'data' } }
   } else if (operation.type === 'remove_component') {
-    if (args.confirmed !== true) throw new Error('La rimozione richiede confirmed=true')
+    if (args.confirmed !== true) throw new Error('Removal requires confirmed=true')
     const removed = descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id); removed.add(component.id)
     return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.filter((item) => !removed.has(item.id)) } : page) })
   } else if (operation.type === 'reorder_component') {
     const page = project.pages.find((item) => item.id === pageId)!, siblings = page.components.filter((item) => item.parentId === component.parentId), from = siblings.findIndex((item) => item.id === component.id), to = Number(args.index)
-    if (!Number.isInteger(to) || to < 0 || to >= siblings.length) throw new Error('Indice non valido')
+    if (!Number.isInteger(to) || to < 0 || to >= siblings.length) throw new Error('Invalid index')
     const ordered = [...siblings], [moved] = ordered.splice(from, 1); ordered.splice(to, 0, moved)
     let siblingIndex = 0; const components = page.components.map((item) => item.parentId === component.parentId ? ordered[siblingIndex++] : item)
     return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components } : item) })
   } else if (operation.type === 'wrap_component') {
     const wrapperType = String(args.componentType ?? 'container') as EditorComponent['type']
-    if (!componentTypes.includes(wrapperType)) throw new Error(`Tipo contenitore non valido: ${wrapperType}`)
+    if (!componentTypes.includes(wrapperType)) throw new Error(`Invalid container type: ${wrapperType}`)
     const wrapper = makeComponent(wrapperType)
     if (!canContain(wrapper)) throw new Error(`${wrapperType} cannot contain other elements`)
-    wrapper.name = typeof args.name === 'string' && args.name.trim() ? args.name.trim() : `Gruppo di ${component.name}`
+    wrapper.name = typeof args.name === 'string' && args.name.trim() ? args.name.trim() : `${component.name} group`
     wrapper.parentId = component.parentId
     const wrapped = { ...component, parentId: wrapper.id }
     const page = project.pages.find((item) => item.id === pageId)!, index = page.components.findIndex((item) => item.id === component.id), components = [...page.components]
     components.splice(index, 1, wrapper, wrapped)
     return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components } : item) })
-  } else throw new Error(`Operazione non supportata: ${operation.type}`)
+  } else throw new Error(`Unsupported operation: ${operation.type}`)
   return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.map((item) => item.id === component.id ? nextComponent : item) } : page) })
 }

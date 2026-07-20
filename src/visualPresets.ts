@@ -1,10 +1,10 @@
 export const visualPalettes = [
-  { name: "Viola", background: "#6d5dfc", color: "#ffffff" },
-  { name: "Notte", background: "#111827", color: "#ffffff" },
-  { name: "Menta", background: "#dff9ee", color: "#124b35" },
-  { name: "Sole", background: "#fff0b8", color: "#5b3d00" },
-  { name: "Corallo", background: "#ff725e", color: "#ffffff" },
-  { name: "Neutro", background: "#ffffff", color: "#172033" },
+  { name: "Purple", background: "#6d5dfc", color: "#ffffff" },
+  { name: "Night", background: "#111827", color: "#ffffff" },
+  { name: "Mint", background: "#dff9ee", color: "#124b35" },
+  { name: "Sun", background: "#fff0b8", color: "#5b3d00" },
+  { name: "Coral", background: "#ff725e", color: "#ffffff" },
+  { name: "Neutral", background: "#ffffff", color: "#172033" },
 ];
 
 export const visualGradients = [

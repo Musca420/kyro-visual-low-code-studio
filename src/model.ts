@@ -681,11 +681,11 @@ export function validateReferences(project: Project) {
   for (const page of project.pages) {
     const pageIds = new Set(page.components.map((component) => component.id));
     if (pageIds.size !== page.components.length)
-      throw new Error(`ID componente duplicato nella pagina ${page.id}`);
+      throw new Error(`Duplicate component ID on page ${page.id}`);
     for (const component of page.components) {
       if (component.parentId && !pageIds.has(component.parentId))
         throw new Error(
-          `Contenitore mancante ${component.parentId} in ${component.id}`,
+          `Missing container ${component.parentId} in ${component.id}`,
         );
       if (component.parentId === component.id)
         throw new Error(
@@ -695,7 +695,7 @@ export function validateReferences(project: Project) {
       let parentId = component.parentId;
       while (parentId) {
         if (visited.has(parentId))
-          throw new Error(`Gerarchia ciclica in ${component.id}`);
+          throw new Error(`Cyclic hierarchy in ${component.id}`);
         visited.add(parentId);
         parentId = page.components.find(
           (item) => item.id === parentId,
@@ -703,7 +703,7 @@ export function validateReferences(project: Project) {
       }
       for (const flowId of Object.values(component.events))
         if (!flowIds.has(flowId))
-          throw new Error(`Flow mancante ${flowId} in ${component.id}`);
+          throw new Error(`Missing flow ${flowId} in ${component.id}`);
       if (component.binding && !sourceIds.has(component.binding.sourceId))
         throw new Error(`Missing source ${component.binding.sourceId}`);
     }
@@ -712,15 +712,15 @@ export function validateReferences(project: Project) {
     const nodes = new Set(flow.nodes.map((node) => node.id));
     for (const edge of flow.edges)
       if (!nodes.has(edge.source) || !nodes.has(edge.target))
-        throw new Error(`Collegamento non valido ${edge.id}`);
+        throw new Error(`Invalid connection ${edge.id}`);
     for (const node of flow.nodes)
       if (
         node.type === "readInput" &&
         !componentIds.has(node.config.componentId)
       )
-        throw new Error(`Input mancante ${node.config.componentId}`);
+        throw new Error(`Missing input ${node.config.componentId}`);
       else if (node.type === "module" && node.config.moduleId && !moduleIds.has(node.config.moduleId))
-        throw new Error(`Modulo mancante ${node.config.moduleId}`);
+        throw new Error(`Missing module ${node.config.moduleId}`);
   }
   for (const source of project.dataSources)
     for (const relation of source.relations ?? []) {

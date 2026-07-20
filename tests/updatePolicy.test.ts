@@ -30,14 +30,14 @@ describe('secure desktop update policy', () => {
     })
     expect(verified.version).toBe('1.2.0')
     expect(verifyUpdateArtifact(artifact, verified)).toBe(true)
-    expect(() => verifyUpdateArtifact(Buffer.from('tampered'), verified)).toThrow(/Dimensione|Hash/)
+    expect(() => verifyUpdateArtifact(Buffer.from('tampered'), verified)).toThrow(/size|hash/i)
   })
 
   it('rifiuta firma alterata, canale errato e downgrade', () => {
     const { manifest, publicKey } = fixture()
     const options = { currentVersion: '1.1.9', channel: 'stable', platform: 'win32', arch: 'x64', publicKey, now: Date.parse('2026-07-18T19:00:00.000Z') }
-    expect(() => verifyUpdateManifest({ ...manifest, size: Number(manifest.size) + 1 }, options)).toThrow('Firma aggiornamento non valida')
-    expect(() => verifyUpdateManifest(manifest, { ...options, channel: 'beta' })).toThrow('Canale inatteso')
-    expect(() => verifyUpdateManifest(manifest, { ...options, currentVersion: '1.2.0' })).toThrow('downgrade rifiutato')
+    expect(() => verifyUpdateManifest({ ...manifest, size: Number(manifest.size) + 1 }, options)).toThrow('Invalid update signature')
+    expect(() => verifyUpdateManifest(manifest, { ...options, channel: 'beta' })).toThrow('Unexpected channel')
+    expect(() => verifyUpdateManifest(manifest, { ...options, currentVersion: '1.2.0' })).toThrow('downgrade rejected')
   })
 })

@@ -187,7 +187,7 @@ function Dashboard({
         onOpen(existing.id);
         return;
       }
-      setImportResult(`Importo ${workspace.name} dalla cartella aperta con la CLI…`);
+      setImportResult(`Importing ${workspace.name} from the folder opened with the CLI…`);
       const project = importExistingFolder(workspace.name, workspace.files);
       await saveProject(project);
       localStorage.setItem(storageKey, project.id);
@@ -270,7 +270,7 @@ function Dashboard({
       setError("");
       setImportResult("Analizzo pagine, componenti e configurazione…");
       const originName =
-        input[0].webkitRelativePath.split("/")[0] || "Progetto importato";
+        input[0].webkitRelativePath.split("/")[0] || "Imported project";
       const files = await readFolderFiles(input);
       const project = importExistingFolder(originName, files);
       await saveProject(project);
@@ -282,7 +282,7 @@ function Dashboard({
     } catch (problem) {
       setImportResult("");
       setError(
-        `Import cartella non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`,
+        `Folder import failed: ${problem instanceof Error ? problem.message : String(problem)}`,
       );
     } finally {
       if (folderRef.current) folderRef.current.value = "";
@@ -320,7 +320,7 @@ function Dashboard({
       const result = await restoreBackup(JSON.parse(await file.text()));
       await onRefresh();
       setError("");
-      setImportResult(`Ripristino completato: ${result.projects} progetti, ${result.records} record e ${result.plugins} plugin.`);
+      setImportResult(`Restore completed: ${result.projects} projects, ${result.records} records, and ${result.plugins} plugins.`);
     } catch (problem) {
       setError(`Ripristino non riuscito: ${problem instanceof Error ? problem.message : String(problem)}`);
     } finally {
@@ -338,7 +338,7 @@ function Dashboard({
           className={`desktop-update-status ${updateStatus.state}`}
           role={updateStatus.state === "rejected" ? "alert" : "status"}
         >
-          {updateStatus.state === "available" ? "Aggiornamento sicuro disponibile" : "Aggiornamento rifiutato"}: {updateStatus.message}
+          {updateStatus.state === "available" ? "Secure update available" : "Update rejected"}: {updateStatus.message}
         </p>
       )}
       <header className="hero">
@@ -701,6 +701,17 @@ function Editor({
   useEffect(() => {
     projectRef.current = project;
   }, [project]);
+  useEffect(() => {
+    const clearSelection = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      setSelected([]);
+      setContextMenu(undefined);
+    };
+    window.addEventListener("keydown", clearSelection);
+    return () => window.removeEventListener("keydown", clearSelection);
+  }, []);
   useEffect(() => {
     void refreshPlugins();
   }, [refreshPlugins]);
@@ -1070,7 +1081,7 @@ function Editor({
         return void finishBridgeCommand(
           captureCommand.id,
           undefined,
-          new Error("Canvas non disponibile"),
+          new Error("Canvas is unavailable"),
         );
       void captureElement(canvas)
         .then((result) => finishBridgeCommand(captureCommand.id, result))
@@ -1164,7 +1175,7 @@ function Editor({
     component.accessibility.label = contribution.label;
     patchPage((components) => [...components, component]);
     setSelected([component.id]);
-    setFeedback(`Componente plugin aggiunto: ${contribution.label}`);
+    setFeedback(`Plugin component added: ${contribution.label}`);
   };
   const saveReusableComponent = () => {
     if (!currentPage || !selected.length)
@@ -1174,7 +1185,7 @@ function Editor({
       included.add(id);
       descendantIds(currentPage.components, id).forEach((childId) => included.add(childId));
     });
-    const name = reusableName.trim() || activeComponent?.name || "Blocco riutilizzabile";
+    const name = reusableName.trim() || activeComponent?.name || "Reusable block";
     const definition = createReusableComponent(
       name,
       currentPage.components.filter((component) => included.has(component.id)),
@@ -1184,7 +1195,7 @@ function Editor({
       reusableComponents: [...project.reusableComponents, definition],
     });
     setReusableName("");
-    setFeedback(`${name} salvato nei tuoi blocchi`);
+    setFeedback(`${name} saved to your blocks`);
   };
   const addReusableComponent = (definitionId: string) => {
     const definition = project.reusableComponents.find((item) => item.id === definitionId);
@@ -1192,7 +1203,7 @@ function Editor({
     const instance = instantiateReusableComponent(definition);
     patchPage((components) => [...components, instance.wrapper, ...instance.components]);
     setSelected([instance.wrapper.id]);
-    setFeedback(`${definition.name} aggiunto come gruppo completamente modificabile`);
+    setFeedback(`${definition.name} added as a fully editable group`);
   };
   const updateComponent = (
     update: (component: EditorComponent) => EditorComponent,
@@ -1373,7 +1384,18 @@ function Editor({
     );
   };
   const startMarquee = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.target !== event.currentTarget) return;
+    const target = event.target as HTMLElement;
+    const rootScreen = target.closest<HTMLElement>('[data-testid="component-section"]');
+    const rootScreenBackground = Boolean(
+      rootScreen?.parentElement?.classList.contains("design-canvas") &&
+      !target.closest("button, input, textarea, select, .component-tools, .resize-handle, [data-testid]:not([data-testid='component-section'])"),
+    );
+    const blankCanvasArea =
+      event.target === event.currentTarget ||
+      target.classList.contains("component-children") ||
+      target.classList.contains("drop-hint") ||
+      rootScreenBackground;
+    if (event.button !== 0 || !blankCanvasArea) return;
     event.preventDefault();
     const canvas = event.currentTarget;
     const canvasBox = canvas.getBoundingClientRect();
@@ -1516,7 +1538,7 @@ function Editor({
     if (assets.length) {
       change({ ...project, assets: [...project.assets, ...assets] });
       setFeedback(
-        `${assets.length} asset ${assets.length === 1 ? "caricato" : "caricati"} e salvato nel progetto`,
+        `${assets.length} ${assets.length === 1 ? "asset" : "assets"} uploaded and saved in the project`,
       );
     }
     if (assetInput.current) assetInput.current.value = "";
@@ -1535,7 +1557,7 @@ function Editor({
         new URL(sourceEndpoint);
       } catch {
         return setFeedback(
-          "Inserisci un indirizzo API completo, per esempio https://api.esempio.it/progetti",
+          "Enter a complete API address, for example https://api.example.com/projects",
         );
       }
     }
@@ -1679,8 +1701,8 @@ function Editor({
       setFlowId(flows.flows[0].id);
       setFeedback(
         flows.flows.length === 2
-          ? "Due flow collegati: navigazione alle feature e notifica"
-          : "Tre flow collegati: navigazione, notifica e richiesta contatto persistente",
+          ? "Two flows connected: feature navigation and notification"
+          : "Three flows connected: navigation, notification, and persistent contact request",
       );
       return;
     }
@@ -1691,7 +1713,7 @@ function Editor({
       change({ ...project, flows: flows.flows, pages: flows.pages });
       setFlowId(flows.flows[0].id);
       setFeedback(
-        "Flow CRUD, caricamento, ricerca, filtro, ordinamento e KPI collegati",
+        "CRUD, loading, search, filter, sort, and KPI flows connected",
       );
       return;
     }
@@ -1706,7 +1728,7 @@ function Editor({
     );
     const source = project.dataSources[0];
     if (!input || !button || !list || !source)
-      return setFeedback("Servono input, pulsante, lista e sorgente locale");
+      return setFeedback("Add an input, button, list, and local data source first");
     const ids = Array.from({ length: 6 }, () => crypto.randomUUID());
     const newFlow: Flow = {
       id: crypto.randomUUID(),
@@ -1715,14 +1737,14 @@ function Editor({
         {
           id: ids[0],
           type: "event",
-          label: "Click pulsante",
+          label: "Button click",
           position: { x: 0, y: 80 },
           config: { componentId: button.id },
         },
         {
           id: ids[1],
           type: "readInput",
-          label: "Leggi input",
+          label: "Read input",
           position: { x: 190, y: 80 },
           config: { componentId: input.id },
         },
@@ -1736,21 +1758,21 @@ function Editor({
         {
           id: ids[3],
           type: "insert",
-          label: "Inserisci record",
+          label: "Create record",
           position: { x: 570, y: 40 },
           config: { sourceId: source.id },
         },
         {
           id: ids[4],
           type: "refresh",
-          label: "Aggiorna lista",
+          label: "Refresh list",
           position: { x: 760, y: 40 },
           config: { componentId: list.id },
         },
         {
           id: ids[5],
           type: "notify",
-          label: "Mostra errore",
+          label: "Show error",
           position: { x: 570, y: 180 },
           config: { level: "error" },
         },
@@ -1819,7 +1841,7 @@ function Editor({
       ),
     });
     setFlowId(newFlow.id);
-    setFeedback("Flow collegato al click e lista collegata alla sorgente");
+    setFeedback("Flow connected to the click and list connected to the source");
   };
   const createReusableFlow = () => {
     const id = crypto.randomUUID(), startId = crypto.randomUUID();
@@ -1873,10 +1895,10 @@ function Editor({
       return queryRecords(source.id);
     const response = await fetch(source.endpoint!);
     if (!response.ok)
-      throw new Error(`API non disponibile (${response.status})`);
+      throw new Error(`API is unavailable (${response.status})`);
     const value = await response.json();
     if (!Array.isArray(value))
-      throw new Error("L’API deve restituire un elenco JSON");
+      throw new Error("The API must return a JSON list");
     return value.map((record, index) => ({
       id: String(record.id ?? index),
       sourceId: source.id,
@@ -1922,7 +1944,7 @@ function Editor({
         ) ?? project.flows[0];
       const source = project.dataSources[0];
       if (!activeFlow || !source)
-        throw new Error("Configura prima sorgente e flow");
+        throw new Error("Configure the data source and flow first");
       if (source.provider === "rest") {
         const response = await fetch(source.endpoint!, {
           method: "POST",
@@ -1953,7 +1975,7 @@ function Editor({
         resetState: (key) => { delete runtimeState.current[key]; },
         request: async (url, method, body) => {
           const response = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : undefined, body });
-          if (!response.ok) throw new Error(`API non disponibile (${response.status})`);
+          if (!response.ok) throw new Error(`API is unavailable (${response.status})`);
           return response.status === 204 ? undefined : response.headers.get("content-type")?.includes("json") ? response.json() : response.text();
         },
         onLog: (log) => setLogs((current) => [...current, log]),
@@ -2017,7 +2039,7 @@ function Editor({
       resetState: (key) => { delete runtimeState.current[key]; },
       request: async (url, method, body) => {
         const response = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : undefined, body });
-        if (!response.ok) throw new Error(`API non disponibile (${response.status})`);
+        if (!response.ok) throw new Error(`API is unavailable (${response.status})`);
         return response.status === 204 ? undefined : response.headers.get("content-type")?.includes("json") ? response.json() : response.text();
       },
       onLog: (log) => setLogs((current) => [...current, log]),
@@ -2036,7 +2058,7 @@ function Editor({
   const dashboardAction = useCallback(
     async (action: string, payload?: Record<string, string>) => {
       const source = project.dataSources[0];
-      if (!source) throw new Error("Configura prima la sorgente locale");
+      if (!source) throw new Error("Configure the local data source first");
       if (source.provider === "rest") {
         const endpoint =
           action === "create"
@@ -2072,7 +2094,7 @@ function Editor({
 
   const recordAction = useCallback(async (action: "update" | "delete" | "undo", payload?: Record<string, unknown>, sourceId?: string) => {
     const source = project.dataSources.find((item) => item.id === sourceId) ?? project.dataSources[0];
-    if (!source) throw new Error("Configura prima la sorgente locale");
+    if (!source) throw new Error("Configure the local data source first");
     if (action === "update") await updateGenericRecord(source.id, String(payload?.id ?? ""), payload ?? {});
     if (action === "delete") await deleteGenericRecord(source.id, String(payload?.id ?? ""));
     if (action === "undo") await insertGenericRecord(source.id, payload ?? {});
@@ -2107,7 +2129,7 @@ function Editor({
       const content = path === "project.kyro.json" || path === "project.frontend-editor.json"
         ? serializeProject(project)
         : path.endsWith("/")
-          ? `Cartella generata durante la build: ${path}`
+          ? `Folder generated during the build: ${path}`
           : (await import("./generator")).generateFiles(project)[path];
       if (!content) throw new Error(`The file ${path} is not produced by this configuration`);
       setGeneratedFile({ path, content });
@@ -2172,7 +2194,7 @@ function Editor({
       args: { componentId, parentId: parentId || null, index: targetIndex + (after ? 1 : 0) },
     }));
     setSelected([componentId]);
-    setFeedback(after ? "Elemento spostato dopo" : "Elemento spostato prima");
+    setFeedback(after ? "Element moved after" : "Element moved before");
   };
   const wrap = (componentId: string) =>
     change((value) =>
@@ -2186,12 +2208,12 @@ function Editor({
     ...([
       ["Open Design", "componenti canvas", () => setTab("design")],
       ["Open Flow", "interazioni nodi", () => setTab("flow")],
-      ["Open Dati", "database sorgenti", () => setTab("data")],
+      ["Open Data", "database sources", () => setTab("data")],
       ["Open Preview", "prova anteprima", () => setTab("preview")],
       ["Open Pubblica", "export web pwa android", () => setTab("settings")],
       ["Add page", "new screen", addPage],
       ["Undo last change", "undo history", undo],
-      ["Ripristina modifica", "redo cronologia", redo],
+      ["Redo change", "redo history", redo],
     ] as Array<[string, string, () => void]>),
     ...componentTypes.map(
       (type) =>
@@ -2542,7 +2564,7 @@ function Editor({
               {pluginComponents.map((contribution) => (
                 <button
                   key={`plugin-${contribution.id}`}
-                  data-help={`Componente isolato fornito dal plugin: ${contribution.label}`}
+                  data-help={`Isolated component provided by the plugin: ${contribution.label}`}
                   onClick={() => addPluginComponent(contribution)}
                 >
                   <span>PL</span>
@@ -2579,7 +2601,7 @@ function Editor({
                   {[1, 2, 3, 4].map((count) => (
                     <button
                       key={count}
-                      aria-label={`${["Una", "Due", "Tre", "Quattro"][count - 1]} ${count === 1 ? "colonna" : "colonne"}`}
+                      aria-label={`${["One", "Two", "Three", "Four"][count - 1]} ${count === 1 ? "column" : "columns"}`}
                       onClick={() =>
                         updateComponent((component) => ({
                           ...component,
@@ -2599,7 +2621,7 @@ function Editor({
                     </button>
                   ))}
                   <button
-                    aria-label="Meno colonne"
+                    aria-label="Fewer columns"
                     disabled={gridFractions(componentStyle(activeComponent).gridTemplateColumns).length <= 1}
                     onClick={() => {
                       const count = gridFractions(componentStyle(activeComponent).gridTemplateColumns).length;
@@ -2644,30 +2666,30 @@ function Editor({
               {selected.length > 1 && (
                 <div
                   className="canvas-arrange-tools"
-                  aria-label={`Disponi ${selected.length} elements selezionati`}
+                  aria-label={`Arrange ${selected.length} selected elements`}
                 >
-                  <span>{selected.length} selezionati</span>
-                  <button aria-label="Allinea a sinistra" onClick={() => arrangeSelection("left")}>&#8676;</button>
-                  <button aria-label="Allinea al centro" onClick={() => arrangeSelection("center")}>&#8596;</button>
-                  <button aria-label="Allinea a destra" onClick={() => arrangeSelection("right")}>&#8678;</button>
-                  <button aria-label="Allinea in alto" onClick={() => arrangeSelection("top")}>&#8613;</button>
-                  <button aria-label="Allinea al centro verticale" onClick={() => arrangeSelection("middle")}>&#8597;</button>
-                  <button aria-label="Allinea in basso" onClick={() => arrangeSelection("bottom")}>&#8615;</button>
-                  <button aria-label="Distribuisci orizzontalmente" onClick={() => arrangeSelection("distribute-x")}>&#8943;</button>
-                  <button aria-label="Distribuisci verticalmente" onClick={() => arrangeSelection("distribute-y")}>&#8942;</button>
+                  <span>{selected.length} selected</span>
+                  <button aria-label="Align left" onClick={() => arrangeSelection("left")}>&#8676;</button>
+                  <button aria-label="Align center" onClick={() => arrangeSelection("center")}>&#8596;</button>
+                  <button aria-label="Align right" onClick={() => arrangeSelection("right")}>&#8678;</button>
+                  <button aria-label="Align top" onClick={() => arrangeSelection("top")}>&#8613;</button>
+                  <button aria-label="Align vertical center" onClick={() => arrangeSelection("middle")}>&#8597;</button>
+                  <button aria-label="Align bottom" onClick={() => arrangeSelection("bottom")}>&#8615;</button>
+                  <button aria-label="Distribute horizontally" onClick={() => arrangeSelection("distribute-x")}>&#8943;</button>
+                  <button aria-label="Distribute vertically" onClick={() => arrangeSelection("distribute-y")}>&#8942;</button>
                 </div>
               )}
               <div className="zoom">
                 <button
                   onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-                  aria-label="Riduci zoom"
+                  aria-label="Zoom out"
                 >
                   −
                 </button>
                 <output>{Math.round(zoom * 100)}%</output>
                 <button
                   onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-                  aria-label="Aumenta zoom"
+                  aria-label="Zoom in"
                 >
                   ＋
                 </button>
@@ -3019,8 +3041,8 @@ function Editor({
         <main className="wide-workspace">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Dati reali, senza scelte oscure</p>
-              <h1>Dati & integrazioni</h1>
+              <p className="eyebrow">Real data, without obscure choices</p>
+              <h1>Data & integrations</h1>
               <p>
                 Choose where data should live. Kyro configures the
                 collegamento e non salva mai password o token nel progetto.
@@ -3232,14 +3254,14 @@ function Editor({
               <div className="asset-manager">
                 <div className="section-heading">
                   <div>
-                    <p className="eyebrow">File del progetto</p>
+                    <p className="eyebrow">Project files</p>
                     <h2>Asset</h2>
                   </div>
                   <button
                     type="button"
                     onClick={() => assetInput.current?.click()}
                   >
-                    Carica file
+                    Upload files
                   </button>
                 </div>
                 <input
@@ -3254,7 +3276,7 @@ function Editor({
                 {project.assets.length === 0 ? (
                   <div className="empty-panel compact">
                     <strong>No assets</strong>
-                    <span>Carica immagini, audio o video fino a 2 MB.</span>
+                    <span>Upload images, audio, or video up to 2 MB.</span>
                   </div>
                 ) : (
                   <div className="asset-grid">
@@ -3442,7 +3464,7 @@ function Editor({
         suggestedPrompt={codexRequest?.prompt ?? ""}
         captureEvidence={async () => {
           const canvas = document.querySelector<HTMLElement>(".design-canvas");
-          if (!canvas) throw new Error("Canvas non disponibile per la prova visuale");
+          if (!canvas) throw new Error("Canvas is unavailable for visual verification");
           const nativeCapture = window.frontendEditorDesktop?.captureRegion;
           if (nativeCapture) {
             const rect = canvas.getBoundingClientRect();
@@ -3514,7 +3536,7 @@ function PageAppearance({
       </label>
       {assets.length > 0 && (
         <label>
-          Immagine pagina
+          Page image
           <select value={image.startsWith("url(") ? image : "none"} onChange={(event) => onChange({ pageBackgroundImage: event.target.value })}>
             <option value="none">None</option>
             {assets.map((asset) => <option key={asset.id} value={`url(${JSON.stringify(asset.url)})`}>{asset.name}</option>)}
@@ -3607,9 +3629,9 @@ function FlowNodeConnections({
   onOpenFile: (path: string) => void;
 }) {
   return (
-    <section className="flow-node-connections" aria-label="Dipendenze del nodo">
+    <section className="flow-node-connections" aria-label="Node dependencies">
       <div>
-        <p className="eyebrow">Grafo unificato</p>
+        <p className="eyebrow">Unified graph</p>
         <h2>{view.nodeLabel}</h2>
         <span>
           {view.incoming.length} inputs · {view.outgoing.length} outputs · {view.components.length} elements · {view.dataSources.length} data sources
@@ -3629,7 +3651,7 @@ function FlowNodeConnections({
         {view.errors.map((error) => <span className="requirement-warning" key={error}>{error}</span>)}
       </div>
       <details>
-        <summary>Impatto nel codice generato</summary>
+        <summary>Generated code impact</summary>
         {view.generatedFiles.map((file) => <button type="button" className="generated-file-link" key={file} onClick={() => onOpenFile(file)}>{file}</button>)}
       </details>
     </section>
@@ -3647,26 +3669,26 @@ function DataSourceConnections({
   onOpenFlow: (flowId: string) => void;
   onOpenFile: (path: string) => void;
 }) {
-  const provider = view.provider === "indexeddb" ? "Sul dispositivo" : view.provider === "generated" ? "Backend incluso" : "Servizio esterno";
+  const provider = view.provider === "indexeddb" ? "On device" : view.provider === "generated" ? "Included backend" : "External service";
   const capabilityNames: Record<string, string> = {
-    get: "legge un record",
-    query: "carica elenchi",
-    insert: "crea",
-    update: "modifica",
-    delete: "elimina",
-    subscribe: "aggiorna in tempo reale",
+    get: "reads one record",
+    query: "loads lists",
+    insert: "creates",
+    update: "updates",
+    delete: "deletes",
+    subscribe: "updates in real time",
   };
   return (
-    <section className="data-source-connections" aria-label="Impatto sorgente data sources">
+    <section className="data-source-connections" aria-label="Data source impact">
       <div>
-        <p className="eyebrow">Grafo unificato</p>
+        <p className="eyebrow">Unified graph</p>
         <h3>{view.name}</h3>
-        <span>{provider} · archivio {view.collection}</span>
+        <span>{provider} · collection {view.collection}</span>
       </div>
       <div className="data-impact-counts">
         <span><strong>{view.components.length}</strong> elements</span>
         <span><strong>{view.flows.length}</strong> flow</span>
-        <span><strong>{view.fields.length}</strong> campi</span>
+        <span><strong>{view.fields.length}</strong> fields</span>
       </div>
       <div className="capability-chips">
         {view.capabilities.map((item) => <span key={item}>{capabilityNames[item] ?? item}</span>)}
@@ -3684,7 +3706,7 @@ function DataSourceConnections({
       {!view.components.length && !view.flows.length && <p className="property-help">This source is ready but is not connected to any elements or flows yet.</p>}
       {view.warnings.map((warning) => <span className="requirement-warning" key={warning}>{warning}</span>)}
       <details>
-        <summary>Campi e file generati</summary>
+        <summary>Fields and generated files</summary>
         <p>{view.fields.map((field) => `${field.name}: ${field.type}`).join(" · ")}</p>
         {view.generatedFiles.map((file) => <button type="button" className="generated-file-link" key={file} onClick={() => onOpenFile(file)}>{file}</button>)}
       </details>
@@ -3707,14 +3729,14 @@ const componentAliases: Partial<Record<EditorComponent["type"], string>> = {
   navbar: "navigazione intestazione",
   form: "modulo campi inserimento",
   input: "campo testo",
-  select: "scelta tendina filtro",
+  select: "dropdown filter choice",
   upload: "caricamento file allegato",
   image: "immagine foto visuale",
   loader: "caricamento attesa",
   progress: "avanzamento progresso",
   toast: "notifica messaggio",
   modal: "finestra dialogo",
-  table: "tabella elenco data sources",
+  table: "data-source list table",
   card: "scheda riquadro",
   carousel: "carosello scorrimento",
   accordion: "fisarmonica domande",
@@ -4079,7 +4101,7 @@ function designContent(component: EditorComponent) {
     return (
       <ul>
         <li>Elemento dinamico</li>
-        <li>Stato vuoto e loading collegati</li>
+        <li>Empty and loading states connected</li>
       </ul>
     );
   if (component.type === "title") return <h2>{label}</h2>;
@@ -4452,7 +4474,7 @@ function DesignComponent({
                 key={index}
                 className="grid-divider-handle"
                 style={{ left: `${position}%` }}
-                aria-label={`Ridimensiona colonne ${index + 1} e ${index + 2}`}
+                aria-label={`Resize columns ${index + 1} and ${index + 2}`}
                 title="Trascina per cambiare la larghezza delle colonne"
                 onPointerDown={(event) => resizeColumn(index, event)}
                 onClick={(event) => event.stopPropagation()}
@@ -4629,7 +4651,7 @@ function Properties({
         </label>
       )}
       <label data-help="Choose the visual container for this element. Page moves it back to the top level.">
-        Dentro
+        Inside
         <select
           value={component.parentId ?? ""}
           onChange={(event) => onReparent(event.target.value || undefined)}
@@ -4646,14 +4668,14 @@ function Properties({
       </label>
       <div className="field-pair">
         <label>
-          Larghezza
+          Width
           <input
             value={style.width}
             onChange={(event) => setStyle("width", event.target.value)}
           />
         </label>
         <label>
-          Altezza min.
+          Min. height
           <input
             value={style.minHeight}
             onChange={(event) => setStyle("minHeight", event.target.value)}
@@ -4662,14 +4684,14 @@ function Properties({
       </div>
       <div className="field-pair">
         <label>
-          Posizione X
+          Position X
           <input
             value={style.marginLeft}
             onChange={(event) => setStyle("marginLeft", event.target.value)}
           />
         </label>
         <label>
-          Posizione Y
+          Position Y
           <input
             value={style.marginTop}
             onChange={(event) => setStyle("marginTop", event.target.value)}
@@ -4777,13 +4799,13 @@ function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; pau
 function FlowRunHistory({ runs, flows, onOpen }: { runs: Project["flowRuns"]; flows: Project["flows"]; onOpen: (logs: FlowLog[]) => void }) {
   return (
     <details className="flow-run-history">
-      <summary>Cronologia esecuzioni <span>{runs.length}</span></summary>
+      <summary>Run history <span>{runs.length}</span></summary>
       <div>
-        {runs.length === 0 ? <p>None esecuzione registrata.</p> : [...runs].reverse().map((run) => (
+        {runs.length === 0 ? <p>No runs recorded.</p> : [...runs].reverse().map((run) => (
           <button key={run.id} type="button" className="secondary" onClick={() => onOpen(run.logs)}>
-            <strong>{flows.find((flow) => flow.id === run.flowId)?.name ?? "Flow rimosso"}</strong>
-            <span>{run.logs.length} passi · {run.durationMs.toFixed(1)} ms</span>
-            <time>{new Date(run.startedAt).toLocaleString("it")}</time>
+            <strong>{flows.find((flow) => flow.id === run.flowId)?.name ?? "Removed flow"}</strong>
+            <span>{run.logs.length} steps · {run.durationMs.toFixed(1)} ms</span>
+            <time>{new Date(run.startedAt).toLocaleString("en")}</time>
           </button>
         ))}
       </div>
@@ -4872,8 +4894,8 @@ function landingFlows(project: Project): {
     };
   };
   const flows = [
-    build("Esplora feature", primary.id, "navigate", { target: "features" }),
-    build("Demo interattiva", secondary.id, "notify", {
+    build("Explore features", primary.id, "navigate", { target: "features" }),
+    build("Interactive demo", secondary.id, "notify", {
       message: "Interactive demo enabled",
     }),
   ];
@@ -4891,28 +4913,28 @@ function landingFlows(project: Project): {
     const ids = Array.from({ length: 6 }, () => crypto.randomUUID());
     flows.push({
       id: crypto.randomUUID(),
-      name: "Invia richiesta contatto",
+      name: "Send contact request",
       nodes: [
         {
           id: ids[0],
           type: "event",
-          label: "Invia form",
+          label: "Submit form",
           position: { x: 0, y: 100 },
           config: { componentId: contactSubmit.id },
         },
         {
           id: ids[1],
           type: "readInput",
-          label: "Leggi contatto",
+          label: "Read contact",
           position: { x: 180, y: 100 },
           config: { componentId: contactName.id },
         },
         {
           id: ids[2],
           type: "validate",
-          label: "Valida richiesta",
+          label: "Validate request",
           position: { x: 360, y: 100 },
-          config: { message: "Completa i campi obbligatori" },
+          config: { message: "Complete the required fields" },
         },
         {
           id: ids[3],
@@ -4924,14 +4946,14 @@ function landingFlows(project: Project): {
         {
           id: ids[4],
           type: "refresh",
-          label: "Aggiorna richieste",
+          label: "Refresh requests",
           position: { x: 720, y: 60 },
           config: { componentId: contactList.id },
         },
         {
           id: ids[5],
           type: "notify",
-          label: "Mostra errore",
+          label: "Show error",
           position: { x: 540, y: 190 },
           config: { level: "error" },
         },
@@ -5009,7 +5031,7 @@ function dashboardFlows(project: Project): {
     withValidation = false,
   ): Flow => {
     if (!eventComponent)
-      throw new Error(`Componente dashboard mancante per ${name}`);
+      throw new Error(`Missing dashboard component for ${name}`);
     const event = crypto.randomUUID(),
       validate = crypto.randomUUID(),
       operation = crypto.randomUUID(),
@@ -5030,14 +5052,14 @@ function dashboardFlows(project: Project): {
       nodes.push({
         id: validate,
         type: "validate",
-        label: "Valida campi",
+        label: "Validate fields",
         position: { x: 180, y: 90 },
-        config: { message: "Controlla i campi obbligatori" },
+        config: { message: "Check the required fields" },
       });
     nodes.push({
       id: operation,
       type: action,
-      label: action === "query" ? "Carica progetti" : `${name} record`,
+      label: action === "query" ? "Load projects" : `${name} record`,
       position: { x: withValidation ? 360 : 180, y: 70 },
       config: { sourceId: source.id },
     });
@@ -5046,28 +5068,28 @@ function dashboardFlows(project: Project): {
         {
           id: kpi,
           type: "kpi",
-          label: "Aggiorna KPI",
+          label: "Refresh KPIs",
           position: { x: withValidation ? 550 : 370, y: 50 },
           config: {},
         },
         {
           id: refresh,
           type: "refresh",
-          label: "Aggiorna tabella",
+          label: "Refresh table",
           position: { x: withValidation ? 730 : 550, y: 50 },
           config: {},
         },
         {
           id: success,
           type: "notify",
-          label: "Toast successo",
+          label: "Success toast",
           position: { x: withValidation ? 910 : 730, y: 50 },
           config: { level: "success" },
         },
         {
           id: error,
           type: "notify",
-          label: "Toast errore",
+          label: "Error toast",
           position: { x: withValidation ? 550 : 370, y: 180 },
           config: { level: "error" },
         },
@@ -5127,13 +5149,13 @@ function dashboardFlows(project: Project): {
     return { id: crypto.randomUUID(), name, nodes, edges };
   };
   const flows = [
-    make("Carica progetti", bySlot("projects-table"), "query"),
+    make("Load projects", bySlot("projects-table"), "query"),
     make("Create project", bySlot("create"), "insert", true),
-    make("Aggiorna progetto", bySlot("project-form"), "update", true),
-    make("Delete progetto", bySlot("detail-modal"), "delete"),
-    make("Cerca progetti", bySlot("search"), "filter"),
-    make("Filtra stato", bySlot("filter"), "filter"),
-    make("Ordina progetti", bySlot("sort"), "sort"),
+    make("Update project", bySlot("project-form"), "update", true),
+    make("Delete project", bySlot("detail-modal"), "delete"),
+    make("Search projects", bySlot("search"), "filter"),
+    make("Filter status", bySlot("filter"), "filter"),
+    make("Sort projects", bySlot("sort"), "sort"),
   ];
   const eventMap = new Map<string, string>([
     ["projects-table", flows[0].id],

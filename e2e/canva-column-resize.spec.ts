@@ -2,14 +2,15 @@ import { expect, test } from "@playwright/test";
 
 test("utente Canva aggiunge e ridimensiona colonne direttamente sul canvas", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Nome progetto").fill("Canva Flexible Columns");
-  await page.getByRole("button", { name: "Progetto vuoto Parti da una tela pulita" }).click();
-  await page.getByRole("button", { name: "Aggiungi pagina", exact: true }).click();
-  await page.locator(".palette").getByRole("button").filter({ hasText: "Colonne" }).click();
+  await page.getByLabel("Project name").fill("Canva Flexible Columns");
+  await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
+  await page.getByRole("button", { name: "Add page", exact: true }).click();
+  await page.getByRole("button", { name: "Create screen" }).click();
+  await page.locator(".palette").getByRole("button").filter({ hasText: "Columns" }).click();
 
-  await page.getByRole("button", { name: "Quattro colonne" }).click();
-  await page.getByRole("button", { name: "Più colonne" }).click();
-  await expect(page.getByLabel("Numero colonne")).toHaveText("5");
+  await page.getByRole("button", { name: "Four columns" }).click();
+  await page.getByRole("button", { name: "More columns" }).click();
+  await expect(page.getByLabel("Column count")).toHaveText("5");
 
   const grid = page.getByTestId("component-grid");
   const zone = grid.locator(":scope > .component-children");
@@ -21,10 +22,10 @@ test("utente Canva aggiunge e ridimensiona colonne direttamente sul canvas", asy
   }
   await grid.locator(":scope > .component-tag").click();
   await expect(zone.locator(":scope > [data-component-id]")).toHaveCount(5);
-  await expect(page.getByLabel("Numero colonne")).toHaveText("5");
+  await expect(page.getByLabel("Column count")).toHaveText("5");
   await zone.hover();
-  await expect(zone.getByRole("button", { name: /Ridimensiona colonne/ })).toHaveCount(4);
-  const firstDivider = zone.getByRole("button", { name: "Ridimensiona colonne 1 e 2" });
+  await expect(zone.getByRole("button", { name: /Resize columns/ })).toHaveCount(4);
+  const firstDivider = zone.getByRole("button", { name: "Resize columns 1 and 2" });
   const dividerBox = await firstDivider.boundingBox();
   expect(dividerBox).toBeTruthy();
   const dividerCenter = {
@@ -43,16 +44,16 @@ test("utente Canva aggiunge e ridimensiona colonne direttamente sul canvas", asy
   await page.keyboard.press("ArrowLeft");
   const keyboardColumns = await zone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns);
   expect(keyboardColumns).not.toBe(customColumns);
-  await page.getByRole("button", { name: "Annulla" }).click();
+  await page.getByRole("button", { name: "Undo" }).click();
   expect(await zone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toBe(customColumns);
-  await page.getByRole("button", { name: "Ripristina" }).click();
+  await page.getByRole("button", { name: "Redo" }).click();
   expect(await zone.evaluate((element) => (element as HTMLElement).style.gridTemplateColumns)).toBe(keyboardColumns);
 
   await page.getByRole("button", { name: "mobile" }).click();
-  await page.getByRole("button", { name: "Due colonne" }).click();
-  await expect(page.getByLabel("Numero colonne")).toHaveText("2");
+  await page.getByRole("button", { name: "Two columns" }).click();
+  await expect(page.getByLabel("Column count")).toHaveText("2");
   await page.getByRole("button", { name: "desktop" }).click();
-  await expect(page.getByLabel("Numero colonne")).toHaveText("5");
+  await expect(page.getByLabel("Column count")).toHaveText("5");
   await zone.hover();
   await page.screenshot({ path: "artifacts/frontend-editor-canva-flexible-columns.png", fullPage: true });
 
@@ -64,10 +65,10 @@ test("utente Canva aggiunge e ridimensiona colonne direttamente sul canvas", asy
   expect((await previewGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns)).split(" ")).toHaveLength(2);
 
   await page.getByRole("button", { name: "Design" }).click();
-  await expect(page.getByText("Salvato automaticamente")).toBeVisible();
-  await page.getByRole("button", { name: "Chiudi progetto e torna alla dashboard" }).click();
+  await expect(page.getByText("Saved automatically")).toBeVisible();
+  await page.getByRole("button", { name: "Close project and return to the dashboard" }).click();
   await page.getByRole("button", { name: /Canva Flexible Columns/ }).click();
   await page.getByTestId("component-grid").locator(":scope > .component-tag").click();
   await page.getByRole("button", { name: "desktop" }).click();
-  await expect(page.getByLabel("Numero colonne")).toHaveText("5");
+  await expect(page.getByLabel("Column count")).toHaveText("5");
 });

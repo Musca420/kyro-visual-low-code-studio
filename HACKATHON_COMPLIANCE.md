@@ -7,11 +7,11 @@ Kyro targets the **Developer Tools** track of OpenAI Build Week. This checklist 
 - [x] Public source repository with an MIT license.
 - [x] English installation and testing entry point in `README.md`.
 - [x] Dated Git history distinguishing pre-existing work from Build Week extensions.
-- [ ] Public working demo or unrestricted test build available through the judging period.
+- [ ] Public working demo or unrestricted test build available through the judging period (release assets are prepared; public release upload follows the final commit).
 - [ ] Public YouTube demonstration with audio, shorter than three minutes.
-- [ ] Devpost English project description and testing instructions.
-- [ ] `/feedback` Codex Session ID for the main project thread.
-- [ ] Final evidence that Codex and GPT-5.6 were used during the submission period.
+- [x] Devpost English project description and testing instructions in `DEVPOST_SUBMISSION.md`.
+- [x] `/feedback` Codex Session ID for the main project thread: `019f7465-48aa-78e3-8531-1e4b6342b31e`.
+- [x] Final evidence that Codex and GPT-5.6 were used during the submission period in `CODEX_SESSION_EVIDENCE.md`.
 
 ## Existing work and Build Week extension
 
@@ -35,8 +35,8 @@ npm link
 kyro
 ```
 
-Supported local judge platform for the submitted build: Windows with Node.js 20 or newer and a Chromium-based browser. Generated web/PWA projects run independently on any platform supported by Node/Vite. Android export uses Capacitor and the Android SDK.
+Supported local judge platforms: Windows, macOS, and Linux with Node.js 20 or newer and a Chromium-based browser. The final device build was verified on Windows and a physical Android device. Generated web/PWA projects run independently on any platform supported by Node/Vite. Android export uses Capacitor and the Android SDK.
 
 ## Safety and data
 
-The validation uses only local IndexedDB, generated local backends, mock/sandbox services, browsers, and Android emulators. No private server, private-server address, credential, or configuration is accessed or distributed. Secrets are excluded from the visual project and source repository.
+The validation uses only local IndexedDB, generated local backends, mock/sandbox services, browsers, and a physical Android test device. No private server, private-server address, credential, or configuration is accessed or distributed. Secrets are excluded from the visual project and source repository.

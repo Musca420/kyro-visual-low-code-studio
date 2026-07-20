@@ -43,8 +43,8 @@ test("home ed editor hanno nomi accessibili, focus visibile e percorso tastiera"
   }
   expect(new Set(focused).size).toBeGreaterThan(5);
 
-  await page.getByLabel("Nome progetto").fill("Accessibility Visual Path");
-  await page.getByRole("button", { name: "Landing page Hero, feature, CTA e footer" }).click();
+  await page.getByLabel("Project name").fill("Accessibility Visual Path");
+  await page.getByRole("button", { name: "Landing page Hero, features, CTA, and footer" }).click();
   expect(await auditInteractiveNames(page)).toEqual([]);
   const canvasTitle = page.getByTestId("component-title").first();
   await canvasTitle.focus();

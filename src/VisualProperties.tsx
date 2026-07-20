@@ -246,7 +246,7 @@ export function VisualProperties({
             ))}
           </fieldset>
           <label>
-            Permessi richiesti
+            Required permissions
             <input
               value={component.intent.permissions.join(", ")}
               placeholder="Example: camera, notifications"
@@ -268,7 +268,7 @@ export function VisualProperties({
       </details>
       {["image", "audio", "video"].includes(component.type) && (
         <label>
-          File del progetto
+          Project file
           <select
             value={String(component.props.src ?? "")}
             onChange={(event) =>
@@ -278,7 +278,7 @@ export function VisualProperties({
               }))
             }
           >
-            <option value="">Segnaposto</option>
+            <option value="">Placeholder</option>
             {assets.map((asset) => (
               <option key={asset.id} value={asset.url}>
                 {asset.name}
@@ -294,18 +294,18 @@ export function VisualProperties({
           onChange={(event) => setState(event.target.value as State)}
         >
           <option value="base">Default</option>
-          <option value="hover">Passaggio cursore</option>
-          <option value="focus">Focus da tastiera</option>
-          <option value="active">Durante il clic</option>
-          <option value="disabled">Disabilitato</option>
+          <option value="hover">Hover</option>
+          <option value="focus">Keyboard focus</option>
+          <option value="active">While pressed</option>
+          <option value="disabled">Disabled</option>
         </select>
       </label>
       <section className="quick-style" aria-label="Quick appearance">
         <div>
           <strong>Quick appearance</strong>
-          <small>Fai clic: il risultato appare subito sul canvas.</small>
+          <small>Click once to see the result immediately on the canvas.</small>
         </div>
-        <div className="palette-swatches" aria-label="Palette pronte">
+        <div className="palette-swatches" aria-label="Ready palettes">
           {visualPalettes.map((palette) => (
             <button
               key={palette.name}
@@ -329,7 +329,7 @@ export function VisualProperties({
           {color("Text color", "color")}
         </div>
         <label>
-          Gradiente pronto
+          Ready gradient
           <select
             value={visualGradients.some(([, value]) => value === style.backgroundImage) ? style.backgroundImage : "none"}
             onChange={(event) => setStyle("backgroundImage", event.target.value)}
@@ -340,7 +340,7 @@ export function VisualProperties({
         </label>
         {assets.length > 0 && (
           <label>
-            Immagine di sfondo
+            Background image
             <select
               value={style.backgroundImage.startsWith("url(") ? style.backgroundImage : ""}
               onChange={(event) => setStyle("backgroundImage", event.target.value)}
@@ -353,26 +353,26 @@ export function VisualProperties({
         <div className="field-pair">
           <label>
             Font
-            <select aria-label="Font rapido" value={style.fontFamily} onChange={(event) => setStyle("fontFamily", event.target.value)}>
-              <option value="Inter, system-ui, sans-serif">Moderno</option>
+            <select aria-label="Quick font" value={style.fontFamily} onChange={(event) => setStyle("fontFamily", event.target.value)}>
+              <option value="Inter, system-ui, sans-serif">Modern</option>
               <option value="Arial, sans-serif">Essential</option>
-              <option value="Georgia, serif">Editoriale</option>
-              <option value="ui-monospace, monospace">Tecnico</option>
+              <option value="Georgia, serif">Editorial</option>
+              <option value="ui-monospace, monospace">Technical</option>
             </select>
           </label>
           <label>
-            Peso
-            <select aria-label="Peso rapido" value={style.fontWeight} onChange={(event) => setStyle("fontWeight", event.target.value)}>
+            Weight
+            <select aria-label="Quick weight" value={style.fontWeight} onChange={(event) => setStyle("fontWeight", event.target.value)}>
               <option value="400">Regular</option>
-              <option value="600">Deciso</option>
-              <option value="800">Forte</option>
+              <option value="600">Bold</option>
+              <option value="800">Heavy</option>
             </select>
           </label>
         </div>
-        <div className="quick-align" aria-label="Allineamento testo">
+        <div className="quick-align" aria-label="Text alignment">
           {(["left", "center", "right"] as const).map((value) => (
             <button
-              aria-label={`Allinea ${value === "left" ? "a sinistra" : value === "center" ? "al centro" : "a destra"}`}
+              aria-label={`Align ${value === "left" ? "left" : value === "center" ? "center" : "right"}`}
               className={style.textAlign === value ? "active" : ""}
               key={value}
               onClick={() => setStyle("textAlign", value)}
@@ -382,7 +382,7 @@ export function VisualProperties({
           ))}
         </div>
         <label>
-          Angoli <output>{Number.parseInt(style.borderRadius) || 0}px</output>
+          Corners <output>{Number.parseInt(style.borderRadius) || 0}px</output>
           <input
             type="range"
             aria-label="Quick corners"
@@ -412,43 +412,43 @@ export function VisualProperties({
         <div className="field-pair">
           <label>
             Shadow
-            <select aria-label="Shadow rapida" value={Object.values(shadows).includes(style.boxShadow) ? style.boxShadow : ""} onChange={(event) => setStyle("boxShadow", event.target.value)}>
+            <select aria-label="Quick shadow" value={Object.values(shadows).includes(style.boxShadow) ? style.boxShadow : ""} onChange={(event) => setStyle("boxShadow", event.target.value)}>
               {Object.entries(shadows).map(([name, value]) => <option key={name} value={value}>{name}</option>)}
             </select>
           </label>
           <label>
-            Animazione
-            <select aria-label="Animazione rapida" value={Object.values(animations).includes(style.animation) ? style.animation : ""} onChange={(event) => setStyle("animation", event.target.value)}>
+            Animation
+            <select aria-label="Quick animation" value={Object.values(animations).includes(style.animation) ? style.animation : ""} onChange={(event) => setStyle("animation", event.target.value)}>
               {Object.entries(animations).map(([name, value]) => <option key={name} value={value}>{name}</option>)}
             </select>
           </label>
         </div>
       </section>
       {canContain(component) && (
-        <section className="quick-layout" aria-label="Disposizione del contenuto">
+        <section className="quick-layout" aria-label="Content layout">
           <div>
-            <strong>Disponi il contenuto</strong>
+            <strong>Arrange content</strong>
             <small>Choose a structure, then adjust spacing and alignment.</small>
           </div>
           <div className="layout-presets" role="group" aria-label="Content layout">
             <button
               className={style.display === "flex" && style.flexDirection === "column" ? "active" : ""}
-              aria-label="Contenuto in colonna"
+              aria-label="Content in a column"
               onClick={() => setBaseStyles({ display: "flex", flexDirection: "column", flexWrap: "nowrap" })}
-            ><span className="layout-direction vertical" aria-hidden="true"><i /><i /><i /></span><span>Colonna</span></button>
+            ><span className="layout-direction vertical" aria-hidden="true"><i /><i /><i /></span><span>Column</span></button>
             <button
               className={style.display === "flex" && style.flexDirection === "row" ? "active" : ""}
-              aria-label="Contenuto in riga"
+              aria-label="Content in a row"
               onClick={() => setBaseStyles({ display: "flex", flexDirection: "row", flexWrap: "nowrap" })}
-            ><span className="layout-direction horizontal" aria-hidden="true"><i /><i /><i /></span><span>Riga</span></button>
+            ><span className="layout-direction horizontal" aria-hidden="true"><i /><i /><i /></span><span>Row</span></button>
             {[2, 3].map((count) => {
               const columns = `repeat(${count}, minmax(0, 1fr))`;
               return <button
                 key={count}
                 className={style.display === "grid" && style.gridTemplateColumns === columns ? "active" : ""}
-                aria-label={`Griglia rapida ${count}`}
+                aria-label={`Quick grid ${count}`}
                 onClick={() => setBaseStyles({ display: "grid", gridTemplateColumns: columns })}
-              ><span className="layout-columns" aria-hidden="true">{Array.from({ length: count }, (_, index) => <i key={index} />)}</span><span>{count} colonne</span></button>;
+              ><span className="layout-columns" aria-hidden="true">{Array.from({ length: count }, (_, index) => <i key={index} />)}</span><span>{count} columns</span></button>;
             })}
           </div>
           <label>
@@ -464,25 +464,25 @@ export function VisualProperties({
             />
           </label>
           <div className="layout-control-row">
-            <span>Allinea</span>
-            <div role="group" aria-label="Allinea contenuto">
+            <span>Align</span>
+            <div role="group" aria-label="Align content">
               {([
-                ["flex-start", "Inizio", "I"],
-                ["center", "Centro", "C"],
-                ["flex-end", "Fine", "F"],
-                ["stretch", "Allarga", "A"],
-              ] as const).map(([value, label, symbol]) => <button key={value} className={style.alignItems === value ? "active" : ""} aria-label={`Allinea contenuto: ${label}`} onClick={() => setBaseStyles({ alignItems: value })}>{symbol}</button>)}
+                ["flex-start", "Start", "S"],
+                ["center", "Center", "C"],
+                ["flex-end", "End", "E"],
+                ["stretch", "Stretch", "T"],
+              ] as const).map(([value, label, symbol]) => <button key={value} className={style.alignItems === value ? "active" : ""} aria-label={`Align content: ${label}`} onClick={() => setBaseStyles({ alignItems: value })}>{symbol}</button>)}
             </div>
           </div>
           <div className="layout-control-row">
-            <span>Distribuisci</span>
-            <div role="group" aria-label="Distribuisci contenuto">
+            <span>Distribute</span>
+            <div role="group" aria-label="Distribute content">
               {([
-                ["flex-start", "Inizio", "I"],
-                ["center", "Centro", "C"],
+                ["flex-start", "Start", "S"],
+                ["center", "Center", "C"],
                 ["space-between", "Space between", "S"],
-                ["flex-end", "Fine", "F"],
-              ] as const).map(([value, label, symbol]) => <button key={value} className={style.justifyContent === value ? "active" : ""} aria-label={`Distribuisci contenuto: ${label}`} onClick={() => setBaseStyles({ justifyContent: value })}>{symbol}</button>)}
+                ["flex-end", "End", "E"],
+              ] as const).map(([value, label, symbol]) => <button key={value} className={style.justifyContent === value ? "active" : ""} aria-label={`Distribute content: ${label}`} onClick={() => setBaseStyles({ justifyContent: value })}>{symbol}</button>)}
             </div>
           </div>
           {style.display === "flex" && (
@@ -490,12 +490,12 @@ export function VisualProperties({
               className={`quick-wrap secondary ${style.flexWrap === "wrap" ? "active" : ""}`}
               aria-pressed={style.flexWrap === "wrap"}
               onClick={() => setBaseStyles({ flexWrap: style.flexWrap === "wrap" ? "nowrap" : "wrap" })}
-            >Vai a capo quando manca spazio</button>
+            >Wrap when space runs out</button>
           )}
         </section>
       )}
       <label data-help="Choose the visual container. Page moves the element to the top level.">
-        Dentro
+        Inside
         <select
           value={component.parentId ?? ""}
           onChange={(event) => onReparent(event.target.value || undefined)}
@@ -516,23 +516,23 @@ export function VisualProperties({
         <div className="property-section">
           <div className="field-pair">
             {field(
-              "Larghezza",
+              "Width",
               "width",
-              "Puoi usare px, %, rem, vw oppure auto.",
+              "You can use px, %, rem, vw, or auto.",
             )}
-            {field("Altezza", "height")}
+            {field("Height", "height")}
           </div>
           <div className="field-pair">
-            {field("Min. orizzontale", "minWidth")}
-            {field("Max. orizzontale", "maxWidth")}
+            {field("Minimum width", "minWidth")}
+            {field("Maximum width", "maxWidth")}
           </div>
           <div className="field-pair">
-            {field("Altezza min.", "minHeight")}
-            {field("Altezza max.", "maxHeight")}
+            {field("Minimum height", "minHeight")}
+            {field("Maximum height", "maxHeight")}
           </div>
           <div className="field-pair">
-            {field("Posizione X", "marginLeft")}
-            {field("Posizione Y", "marginTop")}
+            {field("Position X", "marginLeft")}
+            {field("Position Y", "marginTop")}
           </div>
           <div className="field-pair">
             {select(
@@ -551,7 +551,7 @@ export function VisualProperties({
       </details>
 
       <details open>
-        <summary>Allineamento e griglia</summary>
+        <summary>Alignment and grid</summary>
         <div className="property-section">
           <div className="field-pair">
             {select("Direction", "flexDirection", [
@@ -560,17 +560,17 @@ export function VisualProperties({
               "row-reverse",
               "column-reverse",
             ])}
-            {select("A capo", "flexWrap", ["nowrap", "wrap"])}
+            {select("Wrap", "flexWrap", ["nowrap", "wrap"])}
           </div>
           <div className="field-pair">
-            {select("Allinea", "alignItems", [
+            {select("Align", "alignItems", [
               "stretch",
               "flex-start",
               "center",
               "flex-end",
               "baseline",
             ])}
-            {select("Distribuisci", "justifyContent", [
+            {select("Distribute", "justifyContent", [
               "flex-start",
               "center",
               "flex-end",
@@ -584,7 +584,7 @@ export function VisualProperties({
             {field(
               "Grid columns",
               "gridTemplateColumns",
-              "Esempio semplice: repeat(3, 1fr).",
+              "Simple example: repeat(3, 1fr).",
             )}
           </div>
         </div>
@@ -593,25 +593,25 @@ export function VisualProperties({
       <details>
         <summary>Spacing</summary>
         <div className="property-section">
-          <strong>Margini esterni</strong>
+          <strong>Outer margins</strong>
           <div className="field-grid-4">
-            {field("Alto", "marginTop")}
-            {field("Destra", "marginRight")}
-            {field("Basso", "marginBottom")}
-            {field("Sinistra", "marginLeft")}
+            {field("Top", "marginTop")}
+            {field("Right", "marginRight")}
+            {field("Bottom", "marginBottom")}
+            {field("Left", "marginLeft")}
           </div>
           <strong>Inner spacing</strong>
           <div className="field-grid-4">
-            {field("Alto", "paddingTop")}
-            {field("Destra", "paddingRight")}
-            {field("Basso", "paddingBottom")}
-            {field("Sinistra", "paddingLeft")}
+            {field("Top", "paddingTop")}
+            {field("Right", "paddingRight")}
+            {field("Bottom", "paddingBottom")}
+            {field("Left", "paddingLeft")}
           </div>
         </div>
       </details>
 
       <details>
-        <summary>Text e font</summary>
+        <summary>Text and font</summary>
         <div className="property-section">
           <label>
             Font
@@ -620,7 +620,7 @@ export function VisualProperties({
               onChange={(event) => setStyle("fontFamily", event.target.value)}
             >
               <option value="Inter, system-ui, sans-serif">
-                Inter / sistema
+                Inter / system
               </option>
               <option value="Arial, sans-serif">Arial</option>
               <option value="Georgia, serif">Georgia</option>
@@ -629,7 +629,7 @@ export function VisualProperties({
           </label>
           <div className="field-pair">
             {field("Size", "fontSize")}
-            {select("Peso", "fontWeight", [
+            {select("Weight", "fontWeight", [
               "300",
               "400",
               "500",
@@ -640,8 +640,8 @@ export function VisualProperties({
             ])}
           </div>
           <div className="field-pair">
-            {field("Altezza riga", "lineHeight")}
-            {select("Allineamento testo", "textAlign", [
+            {field("Line height", "lineHeight")}
+            {select("Text alignment", "textAlign", [
               "left",
               "center",
               "right",
@@ -657,18 +657,18 @@ export function VisualProperties({
         <div className="property-section">
           {color("Background", "background")}
           {field(
-            "Immagine o gradiente",
+            "Image or gradient",
             "backgroundImage",
             "Esempi: url(https://...), linear-gradient(135deg, #6d5dfc, #21c8a4).",
           )}
           <div className="field-pair">
-            {select("Adatta sfondo", "backgroundSize", [
+            {select("Background size", "backgroundSize", [
               "cover",
               "contain",
               "auto",
               "100% 100%",
             ])}
-            {select("Posizione sfondo", "backgroundPosition", [
+            {select("Background position", "backgroundPosition", [
               "center",
               "top",
               "bottom",
@@ -677,8 +677,8 @@ export function VisualProperties({
             ])}
           </div>
           <div className="field-pair">
-            {field("Spessore bordo", "borderWidth")}
-            {select("Stile bordo", "borderStyle", [
+            {field("Border width", "borderWidth")}
+            {select("Border style", "borderStyle", [
               "none",
               "solid",
               "dashed",
@@ -687,7 +687,7 @@ export function VisualProperties({
             ])}
           </div>
           {color("Border color", "borderColor")}
-          <strong>Raggio per angolo</strong>
+          <strong>Radius per corner</strong>
           <div className="field-grid-4">
             {field("↖", "borderTopLeftRadius")}
             {field("↗", "borderTopRightRadius")}
@@ -698,7 +698,7 @@ export function VisualProperties({
       </details>
 
       <details>
-        <summary>Effetti e animazioni</summary>
+        <summary>Effects and animations</summary>
         <div className="property-section">
           <label>
             Shadow preset
@@ -710,7 +710,7 @@ export function VisualProperties({
               }
               onChange={(event) => setStyle("boxShadow", event.target.value)}
             >
-              <option value="">Personalizzata</option>
+              <option value="">Custom</option>
               {Object.entries(shadows).map(([name, value]) => (
                 <option key={name} value={value}>
                   {name}
@@ -720,7 +720,7 @@ export function VisualProperties({
           </label>
           {field("Custom shadow", "boxShadow")}
           <label>
-            Opacita <output>{style.opacity}</output>
+            Opacity <output>{style.opacity}</output>
             <input
               type="range"
               min="0"
@@ -732,20 +732,20 @@ export function VisualProperties({
           </label>
           <div className="field-pair">
             {field(
-              "Filtro",
+              "Filter",
               "filter",
-              "Esempi: blur(4px), grayscale(1), brightness(1.2).",
+              "Examples: blur(4px), grayscale(1), brightness(1.2).",
             )}
-            {field("Sfocatura sfondo", "backdropFilter")}
+            {field("Backdrop blur", "backdropFilter")}
           </div>
           {field(
-            "Trasformazione",
+            "Transform",
             "transform",
-            "Esempio: rotate(3deg) scale(1.05).",
+            "Example: rotate(3deg) scale(1.05).",
           )}
-          {field("Transizione", "transition")}
+          {field("Transition", "transition")}
           <label>
-            Animazione pronta
+            Animation preset
             <select
               value={
                 Object.values(animations).includes(style.animation)
@@ -754,7 +754,7 @@ export function VisualProperties({
               }
               onChange={(event) => setStyle("animation", event.target.value)}
             >
-              <option value="">Personalizzata</option>
+              <option value="">Custom</option>
               {Object.entries(animations).map(([name, value]) => (
                 <option key={name} value={value}>
                   {name}
@@ -762,14 +762,14 @@ export function VisualProperties({
               ))}
             </select>
           </label>
-          {field("Animazione precisa", "animation")}
+          {field("Precise animation", "animation")}
         </div>
       </details>
 
       <details>
-        <summary>Posizione e sovrapposizione</summary>
+        <summary>Position and overlap</summary>
         <div className="property-section">
-          {select("Posizione", "position", [
+          {select("Position", "position", [
             "static",
             "relative",
             "absolute",
@@ -777,14 +777,14 @@ export function VisualProperties({
             "fixed",
           ])}
           <div className="field-grid-4">
-            {field("Alto", "top")}
-            {field("Destra", "right")}
-            {field("Basso", "bottom")}
-            {field("Sinistra", "left")}
+            {field("Top", "top")}
+            {field("Right", "right")}
+            {field("Bottom", "bottom")}
+            {field("Left", "left")}
           </div>
           <div className="field-pair">
-            {field("Livello", "zIndex")}
-            {select("Contenuto in eccesso", "overflow", [
+            {field("Layer", "zIndex")}
+            {select("Overflow", "overflow", [
               "visible",
               "hidden",
               "auto",
@@ -792,7 +792,7 @@ export function VisualProperties({
               "clip",
             ])}
           </div>
-          {select("Cursore", "cursor", [
+          {select("Cursor", "cursor", [
             "auto",
             "default",
             "pointer",
@@ -805,7 +805,7 @@ export function VisualProperties({
       </details>
 
       <details>
-        <summary>Accessibilita e aiuti</summary>
+        <summary>Accessibility and help</summary>
         <div className="property-section">
           <label>
             Accessible name
@@ -845,7 +845,7 @@ export function VisualProperties({
                 }))
               }
             />
-            Disabilitato
+            Disabled
           </label>
         </div>
       </details>
