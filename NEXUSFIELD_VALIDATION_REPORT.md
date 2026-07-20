@@ -110,4 +110,4 @@ All release assets are public at https://github.com/Musca420/kyro-visual-low-cod
 
 ## Observed external limitations
 
-Remote push registration requires a provider project and credentials (for example FCM/APNs); the Android permission and local notifications are fully verified, while remote push is not simulated. Production APK/store signing and a publicly trusted desktop installer require release certificates. Publishing the final MP4 to a public YouTube URL and submitting the Devpost form require the entrant's external accounts.
+Remote push registration requires a provider project and credentials (for example FCM/APNs); the Android permission and local notifications are fully verified, while remote push is not simulated. Production APK/store signing and a publicly trusted desktop installer require release certificates. GitHub-hosted runners are currently unavailable on the repository account, so the optional desktop workflow is manual-only and the published packages use the documented local test/build evidence. Publishing the final MP4 to a public YouTube URL and submitting the Devpost form require the entrant's external accounts.
