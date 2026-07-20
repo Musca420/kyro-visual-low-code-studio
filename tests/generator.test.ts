@@ -315,6 +315,8 @@ describe("web generator", () => {
     expect(source).toContain("const graphNavigate");
     expect(source).toContain("history.back()");
     expect(source).toContain("location.assign(url.toString())");
+    expect(source).toContain("const routeMatches");
+    expect(source).toContain("part.startsWith(':')");
   });
 
   it("esporta apertura e chiusura modal dal medesimo nodo", () => {
@@ -596,6 +598,9 @@ describe("web generator", () => {
     expect(files["index.html"]).toContain('id="auth-gate"');
     expect(files["src/main.ts"]).toContain("await validateSession()")
     expect(files["server/index.mjs"]).toContain("url.pathname === '/auth/session'")
+    expect(files["src/main.ts"]).toContain("kyro-offline-mutations")
+    expect(files["src/main.ts"]).toContain("replayOfflineMutations")
+    expect(files["src/main.ts"]).toContain("Saved offline. Changes will sync")
     expect(files["server/index.mjs"]).toContain("scryptSync");
     expect(files["src/main.ts"]).toContain("new EventSource");
     expect(files["server/index.mjs"]).toContain("text/event-stream");

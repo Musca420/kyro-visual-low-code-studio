@@ -29,7 +29,7 @@ Supported editor hosts: Windows, macOS, and Linux with Node.js. Generated Web/PW
 - Configure camera, location, QR/barcode, local notifications, deep links, files, sharing, haptics, network, and platform conditions through visual nodes.
 - Export a standalone Web/PWA ZIP or prepare and build a Capacitor Android APK.
 
-The public [v0.1.13 GitHub Release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.13) contains an APK, Web/PWA ZIP, Windows package, trace, and the narrated demo so judges can test without rebuilding the generated projects.
+The public [v0.1.14 GitHub Release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.14) contains an APK, Web/PWA ZIP, Windows package, traces, and the narrated demo so judges can test without rebuilding the generated projects.
 
 ## Codex and GPT-5.6
 
@@ -51,7 +51,7 @@ npm --prefix generated-app run build
 npm run test:generated
 ```
 
-The final live validation also builds through Kyro's visible Publish UI, runs the Web export independently, installs the generated APK with `adb install -r`, and checks authentication, shared backend mutations, offline recovery, keyboard resize, back navigation, camera, geolocation, local notifications, and persistence on a physical Android device.
+The final live validation also builds through Kyro's visible Publish UI, runs the Web export independently, installs the generated APK with `adb install -r`, and checks authentication, shared backend mutations, queued offline writes and synchronization, keyboard resize, back navigation, camera, geolocation, local notifications, and persistence on a physical Android device.
 
 ## Architecture
 

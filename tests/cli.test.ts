@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 const repo = resolve(import.meta.dirname, "..");
+const packageVersion = JSON.parse(readFileSync(resolve(repo, "package.json"), "utf8")).version as string;
 const empty = mkdtempSync(resolve(tmpdir(), "kyro-home-"));
 afterAll(() => rmSync(empty, { recursive: true, force: true }));
 
@@ -30,6 +31,6 @@ describe("Kyro CLI", () => {
   it("documents the repository-first command and reports its version", () => {
     expect(run("--help")).toContain("Usage: kyro [folder] [options]");
     expect(run("--help")).toContain("kyro --check");
-    expect(run("--version")).toBe("0.1.13");
+    expect(run("--version")).toBe(packageVersion);
   });
 });

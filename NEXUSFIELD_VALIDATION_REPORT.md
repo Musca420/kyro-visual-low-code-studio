@@ -11,7 +11,7 @@ Date: 20 July 2026. Environment: local Windows host, headed Chromium/Playwright,
 | Web export | ZIP generated through Publish, installed, built, and run independently |
 | Android export | Capacitor project generated through Publish, APK built and installed with `adb install -r` |
 | Shared data | Web and Android protected flows created records in the same generated local backend |
-| Visual evidence | Headed recordings, screenshots 01–102, final Playwright trace, and narrated MP4 |
+| Visual evidence | Headed recordings, screenshots 01–108, final/offline Playwright traces, and narrated MP4 |
 
 ## Mobile/Web parity
 
@@ -25,7 +25,7 @@ Date: 20 July 2026. Environment: local Windows host, headed Chromium/Playwright,
 | Completion/signature/review | Completion, signature, invoice/review surfaces and flows | Touch signature and completion flow; camera evidence capture |
 | Dispute/refund/admin | Dispute, admin, guarded refund/payment nodes | Equivalent routes and role-aware flows |
 | Data states | Loading, empty, error, list/table, KPI and binding states | Loading, empty, error, list/card and binding states |
-| Offline | Installable PWA service worker; offline reload verified | Bundled UI stays available with backend stopped; reconnect and persisted data verified |
+| Offline | Installable PWA service worker; an offline protected mutation queues, synchronizes on reconnect, and persists after reload | Bundled UI stays available; an offline protected mutation queues on-device and synchronizes to the shared backend after reconnect |
 | Native | Web fallbacks/capability explanations | Camera, geolocation, QR/barcode extension, local notifications, deep link, safe area, keyboard resize |
 
 ## Final browser path
@@ -37,7 +37,7 @@ Date: 20 July 2026. Environment: local Windows host, headed Chromium/Playwright,
 5. Register/login, run the protected sandbox payment and assigned-team shared-data flows, refresh, tab through navigation, resize to desktop/tablet/mobile, then reload offline.
 6. Prepare Android from Publish, build the APK, install with `-r`, and use the physical device as a user.
 
-Final Web result: login passed; protected mutation passed; shared backend mutation passed; session persisted after refresh; keyboard focus landed on the Dashboard link; offline title remained `NexusField Web`; zero blocking console errors or failed responses before the intentional offline phase.
+Final Web result: login passed; protected mutation passed; shared backend mutation passed; session persisted after refresh; keyboard focus landed on the Dashboard link; offline title remained `NexusField Web`; zero blocking console errors. The dedicated offline verifier recorded backend count `0 -> 1`, queue length `1 -> 0`, and the synchronized record still present after reload.
 
 ## Final Android path
 
@@ -51,12 +51,18 @@ Final Web result: login passed; protected mutation passed; shared backend mutati
 8. Trigger Complete job, grant camera permission, and observe the system camera.
 9. Trigger Use my current location, grant precise foreground location, and verify the native Geolocation callback in the device log.
 10. Enable notifications and schedule Add appointment; observe “Reminder scheduled” and the real Android “Appointment reminder” notification.
+11. Disable Wi-Fi and mobile data, tap the visible Urgent job action, verify one queued mutation, reconnect, then verify queue drain and shared backend count `1 -> 2`.
 
-Final Android result: cold launch about 1.5 seconds; zero matched fatal/runtime errors after recovery; camera, location, local notification, keyboard resize, back navigation, auth persistence, and shared backend mutation verified on physical hardware. The release APK was updated in place with `adb install -r`; `101-android-login-result.png` records authenticated Home and `102-android-session-persisted.png` records the same session after force-stop and relaunch.
+Final Android result: cold launch about 1.5 seconds; zero matched fatal/runtime errors after recovery; camera, location, local notification, keyboard resize, back navigation, auth persistence, offline queue/replay, and shared backend mutation verified on physical hardware. The release APK was updated in place with `adb install -r`; `106-android-offline-mutation-queued.png`, `107-android-offline-mutation-synced.png`, and `108-android-offline-sync-final.png` record the offline transaction and authenticated force-stop/relaunch.
+
+## Unified graph evidence
+
+The final projects remain editable visual graphs rather than handwritten demo applications. NexusField Web contains 17 pages, 187 components, 14 flows, 68 nodes, 16 sources, 26 bindings, and 11 event-bearing components at revision 1336. NexusField Mobile contains 19 pages, 178 components, 20 flows, 93 nodes, 16 sources, 27 bindings, 14 event-bearing components, and 9 native nodes at revision 1394. Product runtime and generator source contain no NexusField-specific branch.
 
 ## Responsive and accessibility evidence
 
 - Web export screenshots: `55-final-web-export-desktop.png`, `56-final-web-export-tablet.png`, `57-final-web-export-mobile.png`, `58-final-web-export-offline.png`.
+- Offline synchronization: `103-web-offline-mutation-synced.png`, `106-android-offline-mutation-queued.png`, `107-android-offline-mutation-synced.png`, and `108-android-offline-sync-final.png`.
 - Android keyboard resize: `67-android-keyboard-resize.png`.
 - Android back/persistence: `77-android-back-home.png`, `80-android-session-persisted.png`.
 - Keyboard navigation in the Web export moved focus to an accessible page link.
@@ -80,6 +86,8 @@ Final Android result: cold launch about 1.5 seconds; zero matched fatal/runtime 
 | Export script could publish the wrong active project | Visual export automation returns to Home and explicitly opens NexusField Web | Repeated headed export |
 | Loading, empty, and error surfaces could render at the same time | Generated routes now register mutually exclusive view-state markers and activate exactly one state | Generic generator test plus final Android screenshots |
 | A persisted client token could outlive a restarted local backend | Generated clients validate the stored token against `/auth/session`, clear stale state, and guide the user to sign in again | Generic generator/backend tests, independent Web export, and physical Android sign-in/relaunch |
+| Offline mode kept the shell available but could not preserve a user mutation | Generated remote data clients queue only offline mutations, never credentials, replay serially on `online`, keep failed entries, refresh bindings, and expose plain-language queued/synchronized feedback | Generic generator tests plus headed Web and physical Android queue/replay verifiers |
+| Dynamic routes such as `/bookings/:id` were emitted but matched as literal strings | Generated routing now matches equal-length path segments and treats named parameters as wildcards for visibility and bound-data refresh | Generic generator assertion and independent `/bookings/offline-test` export verification |
 
 No fix checks project names, test data, or Playwright state. All fixes operate in the shared generator/runtime.
 
@@ -91,6 +99,8 @@ npx playwright test --workers=1 --max-failures=10
 npm run desktop:package
 $env:RUN_PACKAGED_DESKTOP='1'; npx playwright test e2e/desktop-packaged.spec.ts --workers=1
 node scripts/nexusfield-verify-final-export.mjs
+node scripts/nexusfield-verify-offline-sync.mjs
+node scripts/nexusfield-verify-android-offline-sync.mjs
 adb install -r app-debug.apk
 ```
 
@@ -98,11 +108,12 @@ Final results: 131/131 Vitest tests passed; 48/48 enabled Playwright tests passe
 
 ## Evidence package
 
-All release assets are public at https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.13 and carry GitHub-verified SHA-256 digests.
+All release assets are public at https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.14 and carry GitHub-verified SHA-256 digests.
 
 - `artifacts/nexusfield/NexusField-Web-export.zip`
 - `artifacts/nexusfield/NexusField-Mobile-debug.apk`
 - `artifacts/nexusfield/NexusField-Web-final-trace.zip`
+- `artifacts/nexusfield/NexusField-Web-offline-sync-trace.zip`
 - `artifacts/nexusfield/Kyro-Windows-x64.zip`
 - `artifacts/nexusfield/raw-video/`
 - `artifacts/nexusfield/Kyro-Hackathon-Demo.mp4` (about 74 seconds, 1920×1080, narrated audio)

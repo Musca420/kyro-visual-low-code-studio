@@ -3,7 +3,7 @@
   "description": "Kyro is a local-first visual low-code studio with an integrated Codex agent.",
   "author": "Kyro contributors",
   "private": true,
-  "version": "0.1.13",
+  "version": "0.1.14",
   "main": "electron/main.cjs",
   "bin": {
     "kyro": "bin/frontend-editor.mjs"
