@@ -63,7 +63,7 @@ Requirements: **Node.js 20+**, npm, Git, and a Chromium-based browser.
 ```bash
 git clone https://github.com/Musca420/kyro-visual-low-code-studio.git
 cd kyro-visual-low-code-studio
-npm ci
+npm ci --omit=dev
 npm link
 kyro
 ```
@@ -104,6 +104,8 @@ Inside Kyro, Live Bridge supplies only the relevant project, page, stable select
 Kyro began as a pre-existing local visual-editor prototype. Commit [`38a72eb`](https://github.com/Musca420/kyro-visual-low-code-studio/commit/38a72eb3467d28371a9c3d0894753a3c2bcf9321) is the imported baseline snapshot dated **18 July 2026**; judges should evaluate the subsequent dated commits as the Build Week extension. Those commits add or substantially extend the unified graph, stable contextual selection, Live Bridge, agent transactions and undo, visual flows, data bindings/generated backend, native capability nodes, folder import, CLI, Web/PWA/Android export, and real browser/device verification. See [HACKATHON_COMPLIANCE.md](./HACKATHON_COMPLIANCE.md) for the submission checklist.
 
 ## Verification
+
+Contributors who want to run the repository test suite should install development dependencies with `npm ci`, then run:
 
 ```bash
 npm run check
