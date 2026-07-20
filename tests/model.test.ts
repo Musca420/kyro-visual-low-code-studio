@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { createProject, makeComponent, parseProject, pluginManifestSchema, serializeProject } from '../src/model'
 
 describe('project model', () => {
+  it('supports safe project-specific roles without a closed role list', () => {
+    const project = createProject('Role based portal')
+    project.appConfig.authentication.roles = ['customer', 'field-technician', 'manager', 'admin']
+    expect(parseProject(project).appConfig.authentication.roles).toEqual(project.appConfig.authentication.roles)
+    project.appConfig.authentication.roles = ['Customer Admin']
+    expect(() => parseProject(project)).toThrow()
+  })
   it('assegna una revisione iniziale e migra i documenti senza revisione', () => {
     const project = createProject('Revision')
     expect(project.revision).toBe(0)

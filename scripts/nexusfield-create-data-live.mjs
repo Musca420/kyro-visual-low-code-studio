@@ -18,13 +18,15 @@ const sources = [
   ["Audit trail", "audit", [["actorId","string"],["action","string"],["entity","string"],["entityId","string"],["createdAt","datetime"],["details","string"]]],
   ["Offline queue", "offlineQueue", [["operation","string"],["entity","string"],["payload","string"],["status","string"],["createdAt","datetime"]]],
 ];
+const projectName = process.env.KYRO_PROJECT ?? "NexusField Mobile";
+const artifactSuffix = projectName.toLowerCase().includes("web") ? "web" : "mobile";
 
 const context = await chromium.launchPersistentContext(resolve("artifacts", "nexusfield-browser-profile"), { headless: false, slowMo: 80, viewport: { width: 1600, height: 900 }, recordVideo: { dir: resolve("artifacts", "nexusfield", "raw-video"), size: { width: 1600, height: 900 } } });
 const page = context.pages()[0] ?? await context.newPage();
 page.setDefaultTimeout(45_000);
 try {
   await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" });
-  if (!(await page.getByRole("button", { name: "Design" }).count())) await page.getByRole("button", { name: /NexusField Mobile/ }).click();
+  if (!(await page.getByRole("button", { name: "Design" }).count())) await page.getByRole("button", { name: new RegExp(projectName, "i") }).click();
   await page.getByRole("button", { name: "Data" }).click();
   const form = page.locator(".data-layout form.settings-card");
   for (const [sourceName, collection, fields] of sources) {
@@ -43,7 +45,7 @@ try {
     await page.locator(".source-card").filter({ hasText: sourceName }).waitFor();
   }
   await page.waitForTimeout(1200);
-  await page.screenshot({ path: resolve("artifacts", "nexusfield", "16-data-sources-created.png"), fullPage: true });
+  await page.screenshot({ path: resolve("artifacts", "nexusfield", `30-${artifactSuffix}-data-sources.png`), fullPage: true });
   console.log(JSON.stringify({ sources: await page.locator(".source-card").count(), names: await page.locator(".source-card strong").allTextContents() }, null, 2));
   await page.waitForTimeout(5000);
 } catch (error) {

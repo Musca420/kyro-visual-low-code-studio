@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { makeComponent } from '../src/model'
-import { buildBottomNavigation, renderComponent } from '../src/PreviewFrame'
+import { buildBottomNavigation, previewExperienceForPage, renderComponent } from '../src/PreviewFrame'
 import { createProject } from '../src/model'
 
 describe('preview component markup', () => {
@@ -70,5 +70,12 @@ describe('preview component markup', () => {
     expect(html).toContain('[data-flow-status]')
     expect(html).toContain('class="app-nav-more"')
     expect(html).toContain('data-fe-page="/settings"')
+  })
+
+  it('usa il renderer dashboard solo sulla pagina che conserva gli slot del template', () => {
+    const dashboard = makeComponent('section'); dashboard.props.slot = 'dashboard-title'
+    const quote = makeComponent('form'); quote.props.label = 'Quote form'
+    expect(previewExperienceForPage('dashboard', [dashboard])).toBe('dashboard')
+    expect(previewExperienceForPage('dashboard', [quote])).toBeUndefined()
   })
 })

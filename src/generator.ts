@@ -221,7 +221,7 @@ function platformFiles(
     files["public/app-icon.svg"] =
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${htmlEscape(themeColor)}"/><text x="256" y="310" text-anchor="middle" font-family="system-ui" font-size="190" font-weight="800" fill="white">${htmlEscape(project.name.slice(0, 1).toUpperCase())}</text></svg>`;
     files["public/service-worker.js"] =
-      `const CACHE='frontend-editor-v1';const CORE=['/','/app.webmanifest','/app-icon.svg'];self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE))));self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response}).catch(()=>caches.match(event.request).then(value=>value||caches.match('/'))))})`;
+      `const CACHE='kyro-pwa-v2',CORE=['/app.webmanifest','/app-icon.svg'];self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE),response=await fetch('/'),html=await response.clone().text(),assets=[...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(match=>match[1]).filter(url=>url.startsWith('/assets/'));await cache.put('/',response);await cache.addAll([...CORE,...assets])})()));self.addEventListener('activate',event=>event.waitUntil((async()=>{await Promise.all((await caches.keys()).filter(key=>key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim()})()));self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();void caches.open(CACHE).then(cache=>cache.put(event.request,copy))}return response}).catch(async()=>await caches.match(event.request)||(event.request.mode==='navigate'?await caches.match('/'):new Response('Offline resource unavailable',{status:503}))))})`;
     return files;
   }
   const android = project.exportConfig.android ?? {
@@ -485,6 +485,8 @@ const saveUsers = async (users) => writeFile(usersFile, JSON.stringify(users, nu
 const body = async (request) => { let value = ''; for await (const chunk of request) value += chunk; return value ? JSON.parse(value) : {} }
 const authEnabled = ${JSON.stringify(project.appConfig.authentication.mode === "generated")}
 const allowedRoles = ${JSON.stringify(project.appConfig.authentication.roles)}
+const readOnlyRoles = new Set(['viewer'])
+const canWrite = (role) => role === 'admin' || (allowedRoles.includes(role) && !readOnlyRoles.has(role))
 const authSecret = process.env.AUTH_SECRET || ''
 if (authEnabled && !authSecret) throw new Error('AUTH_SECRET is required: copy .env.example and configure a secure value')
 const sign = (user) => { const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, exp: Date.now() + 8 * 60 * 60 * 1000 })).toString('base64url'); return payload + '.' + createHmac('sha256', authSecret).update(payload).digest('base64url') }
@@ -506,10 +508,10 @@ createServer(async (request, response) => {
     if (authEnabled && !current) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Accedi per continuare' })) }
     const records = await read(), id = url.pathname.split('/')[2]
     if (url.pathname === '/records' && request.method === 'GET') return response.end(JSON.stringify(records))
-    if (url.pathname === '/records' && request.method === 'POST') { if (!['admin', 'editor'].includes(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'Ruolo senza permesso di creazione' })) } const input = await body(request), record = { ...input, id: crypto.randomUUID(), date: new Date().toISOString() }; records.push(record); await save(records); broadcast(); response.writeHead(201); return response.end(JSON.stringify(record)) }
+    if (url.pathname === '/records' && request.method === 'POST') { if (!canWrite(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'This role has read-only access' })) } const input = await body(request), record = { ...input, id: crypto.randomUUID(), date: new Date().toISOString() }; records.push(record); await save(records); broadcast(); response.writeHead(201); return response.end(JSON.stringify(record)) }
     const index = records.findIndex((record) => record.id === id)
     if (index < 0) { response.writeHead(404); return response.end(JSON.stringify({ error: 'Record non trovato' })) }
-    if (request.method === 'PUT') { if (!['admin', 'editor'].includes(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'Ruolo senza permesso di modifica' })) } records[index] = { ...records[index], ...(await body(request)), id }; await save(records); broadcast(); return response.end(JSON.stringify(records[index])) }
+    if (request.method === 'PUT') { if (!canWrite(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'This role has read-only access' })) } records[index] = { ...records[index], ...(await body(request)), id }; await save(records); broadcast(); return response.end(JSON.stringify(records[index])) }
     if (request.method === 'DELETE') { if (current.role !== 'admin') { response.writeHead(403); return response.end(JSON.stringify({ error: 'Only an administrator can delete records' })) } records.splice(index, 1); await save(records); broadcast(); response.writeHead(204); return response.end() }
     response.writeHead(404); response.end(JSON.stringify({ error: 'Percorso non trovato' }))
   } catch (error) { response.writeHead(500); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })) }
@@ -531,19 +533,18 @@ export function generateFiles(input: Project): Record<string, string> {
     throw new Error(
       "Il login richiede il backend: apri Dati e scegli Genera anche il backend",
     );
-  if (
-    project.state.experience === "landing" ||
-    project.state.experience === "dashboard"
-  ) {
+  const standaloneDashboard = project.state.experience === "dashboard" && project.pages.length === 1 && page.components.some((component) => component.props.slot === "sidebar" || component.props.slot === "dashboard-title");
+  if (project.state.experience === "landing" || standaloneDashboard) {
+    const experience = project.state.experience === "landing" ? "landing" : "dashboard";
     if (!project.flows.length)
       throw new Error("Configura i flow prima dell’export");
-    if (project.state.experience === "dashboard" && !project.dataSources.length)
+    if (standaloneDashboard && !project.dataSources.length)
       throw new Error("Configura la sorgente dati prima dell’export");
     const files = withGeneratedBackend(
       project,
       platformFiles(
         project,
-        generateExperienceFiles(project, project.state.experience),
+        generateExperienceFiles(project, experience),
       ),
     );
     return withCodeModules(project, files);

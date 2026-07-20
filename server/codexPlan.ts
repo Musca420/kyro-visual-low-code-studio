@@ -142,6 +142,26 @@ export function quickLocalNotificationPlan(prompt: string, context: Record<strin
   return `Immediate plan: connect ${String(context.componentName ?? componentId)} to a reusable, verifiable, undoable local notification.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
+export function quickDeepLinkPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/(?:deep link|app link|collegamento profondo)/i.test(prompt)) return undefined;
+  const pageId = String(context.pageId ?? "");
+  if (!pageId) return undefined;
+  const pages = Array.isArray(context.pages) ? context.pages as IndexedPage[] : [];
+  const page = pages.find((item) => item.id === pageId);
+  const flowId = `deep-link-${slug(page?.name ?? pageId)}`.slice(0, 80);
+  const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  const operations: { type: string; args: Record<string, unknown> }[] = [];
+  if (!exists) operations.push(
+    { type: "add_flow", args: { flowId, name: `Open ${page?.name ?? "page"} from deep link` } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-event`, type: "event", label: "Deep link opened", position: { x: 0, y: 0 }, config: { trigger: "deepLink", pageId } } } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-navigate`, type: "navigate", label: `Open ${page?.name ?? "page"}`, position: { x: 240, y: 0 }, config: { mode: "page", path: page?.path ?? "/" } } } },
+    { type: "add_flow_node", args: { flowId, node: { id: `${flowId}-success`, type: "notify", label: "Opened", position: { x: 480, y: 0 }, config: { message: "Link opened", level: "success" } } } },
+    { type: "connect_nodes", args: { flowId, source: `${flowId}-event`, target: `${flowId}-navigate`, path: "success" } },
+    { type: "connect_nodes", args: { flowId, source: `${flowId}-navigate`, target: `${flowId}-success`, path: "success" } },
+  );
+  return `Immediate plan: add a reusable page-level deep-link flow for ${page?.name ?? pageId}, with navigation and visible feedback.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
 type IndexedSource = { id: string; name?: string; schema?: Record<string, unknown> };
 
 const semanticTokens = (value: unknown) => String(value ?? "")
@@ -237,6 +257,36 @@ export function quickRecordCrudPlan(prompt: string, context: Record<string, unkn
   return `Immediate plan: connect ${String(context.componentName ?? componentId)} to a reusable ${action} flow for ${best.source.name ?? best.source.id}, with refresh, success, error, and the runtime confirmation/undo path.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 
+export function quickActionMutationPlan(prompt: string, context: Record<string, unknown>) {
+  if (!/(?:create|record|save|submit|charge|refund|assign|crea|registra|salva|rimborsa|assegna).{0,70}(?:record|data|source|payment|refund|assignment|audit|dato|sorgente|pagamento|rimborso|assegnazione)/i.test(prompt)) return undefined;
+  const pageId = String(context.pageId ?? ""), componentId = String(context.componentId ?? ""), componentType = String(context.componentType ?? "");
+  if (!pageId || !componentId || !["button", "link", "card", "icon"].includes(componentType)) return undefined;
+  const sources = Array.isArray(context.dataSources) ? context.dataSources.filter((item): item is IndexedSource & { collection?: string } => Boolean(item && typeof item.id === "string")) : [];
+  const wanted = new Set(semanticTokens(`${context.componentName ?? ""} ${prompt}`));
+  const ranked = sources.map((source) => ({ source, score: semanticTokens(`${source.id} ${source.name ?? ""} ${source.collection ?? ""}`).filter((token) => wanted.has(token)).length })).sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  if (!best || best.score === 0 || (ranked[1] && ranked[1].score === best.score)) return undefined;
+  const mentionedRoles = ["admin", "manager", "employee", "professional", "customer", "editor", "viewer"].filter((role) => new RegExp(`\\b${role}\\b`, "i").test(prompt));
+  const flowId = `create-${slug(best.source.collection ?? best.source.name ?? best.source.id)}-${slug(String(context.componentName ?? componentId))}`.slice(0, 80);
+  const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
+  const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = [];
+  if (!exists) {
+    const node = (id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => operations.push({ type: "add_flow_node", args: { flowId, node: { id, type, label, position: { x, y }, config } } });
+    const edge = (source: string, target: string, path = "success") => operations.push({ type: "connect_nodes", args: { flowId, source, target, path } });
+    operations.push({ type: "add_flow", args: { flowId, name: `Create ${best.source.name ?? "record"} from ${String(context.componentName ?? "action")}` } });
+    node(`${flowId}-event`, "event", "Click / tap", 0, 0, { trigger: "click", componentId });
+    if (mentionedRoles.length) node(`${flowId}-role`, "requireRole", "Check access", 220, 0, { roles: mentionedRoles.join(","), previewRole: mentionedRoles[0], message: "You do not have permission for this action" });
+    node(`${flowId}-insert`, "insert", `Create ${best.source.name ?? "record"}`, mentionedRoles.length ? 440 : 220, 0, { sourceId: best.source.id });
+    node(`${flowId}-success`, "notify", "Completed", mentionedRoles.length ? 660 : 440, 0, { message: `${String(context.componentName ?? "Action")} completed`, level: "success" });
+    node(`${flowId}-error`, "notify", "Operation failed", mentionedRoles.length ? 440 : 220, 160, { message: "The action could not be completed", level: "error" });
+    edge(`${flowId}-event`, mentionedRoles.length ? `${flowId}-role` : `${flowId}-insert`);
+    if (mentionedRoles.length) { edge(`${flowId}-role`, `${flowId}-insert`); edge(`${flowId}-role`, `${flowId}-error`, "error"); }
+    edge(`${flowId}-insert`, `${flowId}-success`); edge(`${flowId}-insert`, `${flowId}-error`, "error");
+  }
+  operations.push({ type: "set_component_event", pageId, args: { componentId, event: "click", flowId } });
+  return `Immediate plan: connect ${String(context.componentName ?? componentId)} to a reusable data mutation for ${best.source.name ?? best.source.id}, with access control and explicit success/error paths.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
+}
+
 export function quickNativeActionPlan(prompt: string, context: Record<string, unknown>) {
   const matches = [
     { test: /(?:qr|barcode|codice a barre)/i, capability: "barcode", action: /\bqr\b/i.test(prompt) ? "scanQr" : "scanBarcode", permission: "camera", label: "Scan code" },
@@ -248,7 +298,9 @@ export function quickNativeActionPlan(prompt: string, context: Record<string, un
   ].find((item) => item.test.test(prompt));
   if (!matches) return undefined;
   const pageId = String(context.pageId ?? ""), componentId = String(context.componentId ?? "");
-  if (!pageId || !componentId || !["button", "link", "icon", "card", "image"].includes(String(context.componentType ?? ""))) return undefined;
+  const componentType = String(context.componentType ?? "");
+  if (!pageId || !componentId || !["button", "link", "icon", "card", "image", "checkbox", "switch"].includes(componentType)) return undefined;
+  const trigger = ["checkbox", "switch"].includes(componentType) ? "change" : "click";
   const flowId = `${matches.capability}-${matches.action}-${slug(String(context.componentName ?? componentId))}`.slice(0, 80);
   const exists = Array.isArray(context.flowIndex) && context.flowIndex.some((flow) => flow && typeof flow === "object" && (flow as { id?: string }).id === flowId);
   const operations: { type: string; pageId?: string; args: Record<string, unknown> }[] = [];
@@ -256,7 +308,7 @@ export function quickNativeActionPlan(prompt: string, context: Record<string, un
     const node = (id: string, type: string, label: string, x: number, y: number, config: Record<string, string> = {}) => operations.push({ type: "add_flow_node", args: { flowId, node: { id, type, label, position: { x, y }, config } } });
     const edge = (source: string, target: string, path = "success") => operations.push({ type: "connect_nodes", args: { flowId, source, target, path } });
     operations.push({ type: "add_flow", args: { flowId, name: matches.label } });
-    node(`${flowId}-event`, "event", "Click / tap", 0, 0, { trigger: "click", componentId });
+    node(`${flowId}-event`, "event", trigger === "change" ? "Setting changed" : "Click / tap", 0, 0, { trigger, componentId });
     if (matches.permission) node(`${flowId}-permission`, "requestPermission", `Request ${matches.permission}`, 220, 0, { permission: matches.permission, rationale: `${matches.label} needs this permission` });
     node(`${flowId}-native`, "nativeAction", matches.label, matches.permission ? 440 : 220, 0, { capability: matches.capability, action: matches.action });
     node(`${flowId}-success`, "notify", "Capability completed", matches.permission ? 660 : 440, 0, { message: `${matches.label} completed`, level: "success" });
@@ -265,7 +317,7 @@ export function quickNativeActionPlan(prompt: string, context: Record<string, un
     if (matches.permission) { edge(`${flowId}-permission`, `${flowId}-native`); edge(`${flowId}-permission`, `${flowId}-error`, "error"); }
     edge(`${flowId}-native`, `${flowId}-success`); edge(`${flowId}-native`, `${flowId}-error`, "error");
   }
-  operations.push({ type: "set_component_event", pageId, args: { componentId, event: "click", flowId } });
+  operations.push({ type: "set_component_event", pageId, args: { componentId, event: trigger, flowId } });
   return `Immediate plan: connect ${String(context.componentName ?? componentId)} to the typed ${matches.label} capability with explicit permission, success, and error paths. Any reviewed external package remains pending in Extensions until approved.\nFRONTEND_EDITOR_OPERATIONS=${JSON.stringify(operations)}`;
 }
 

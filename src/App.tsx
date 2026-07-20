@@ -64,6 +64,7 @@ import { VisualProperties } from "./VisualProperties";
 import { ComponentActions } from "./ComponentActions";
 import { isComponentEvent, type ActionEventDefinition } from "./actionCatalog";
 import { runNativeWeb } from "./nativeCapabilities";
+import { clampContextMenuPosition } from "./contextMenu";
 import { visualGradients, visualPalettes } from "./visualPresets";
 import { importExistingFolder, readFolderFiles } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
@@ -2963,6 +2964,7 @@ function Editor({
               components={project.pages.flatMap((page) => page.components)}
               sources={project.dataSources}
               modules={project.codeModules}
+              roles={project.appConfig.authentication.roles}
               selectedNodeId={selectedFlowNodeId}
               onNodeSelect={setSelectedFlowNodeId}
               onModulesChange={(codeModules) => change({ ...project, codeModules })}
@@ -3394,7 +3396,10 @@ function Editor({
           className="component-menu"
           role="menu"
           aria-label={`Actions for ${contextMenu.component.name}`}
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={{
+            left: clampContextMenuPosition(contextMenu.x, contextMenu.y, window.innerWidth, window.innerHeight).x,
+            top: clampContextMenuPosition(contextMenu.x, contextMenu.y, window.innerWidth, window.innerHeight).y,
+          }}
         >
           {[
             "Ask Codex",

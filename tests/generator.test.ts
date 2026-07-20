@@ -409,6 +409,8 @@ describe("web generator", () => {
       display: "standalone",
     });
     expect(files["public/service-worker.js"]).toContain("caches.open");
+    expect(files["public/service-worker.js"]).toContain("url.startsWith('/assets/')");
+    expect(files["public/service-worker.js"]).toContain("event.request.mode==='navigate'");
   });
 
   it("exports semantic multipage templates instead of empty component placeholders", () => {
@@ -438,6 +440,19 @@ describe("web generator", () => {
       expect(files["index.html"]).toContain(`data-component="${button.id}"`);
       expect(files["src/main.ts"]).toContain("const graphElement");
     }
+  });
+
+  it("esporta come applicazione multipagina un dashboard esteso con nuove route e sorgenti", () => {
+    const project = createTemplateProject("dashboard", "Operations suite");
+    const form = makeComponent("form"); form.id = "quote-form"; form.events.submit = "create-quotes";
+    project.pages.push({ id: "quotes", name: "Quotes", path: "/quotes", components: [form] });
+    project.dataSources.push({ id: "quotes", name: "Quotes", provider: "indexeddb", collection: "quotes", schema: { id: "string", description: "string" }, capabilities: ["get", "query", "insert", "update", "delete"], secretStrategy: "none" });
+    project.flows.push({ id: "create-quotes", name: "Create quotes", nodes: [{ id: "event", type: "event", label: "Submit", position: { x: 0, y: 0 }, config: { trigger: "submit", componentId: form.id } }], edges: [] });
+    const files = generateFiles(project);
+    expect(files["index.html"]).toContain('href="#/quotes"');
+    expect(files["index.html"]).toContain('data-route="/quotes"');
+    expect(files["src/main.ts"]).toContain("async function query(selectedSourceId = sourceId)");
+    expect(files["src/main.ts"]).toContain("async function insert(value: unknown, selectedSourceId = sourceId)");
   });
 
   it("generates a Capacitor 8 Android configuration and guided scripts", () => {
@@ -523,7 +538,7 @@ describe("web generator", () => {
     project.appConfig = {
       authentication: {
         mode: "generated",
-        roles: ["admin", "editor", "viewer"],
+        roles: ["admin", "customer", "field-technician", "viewer"],
       },
       realtime: { mode: "sse", url: "http://127.0.0.1:8787/events" },
       offline: true,
@@ -538,6 +553,8 @@ describe("web generator", () => {
     expect(files["server/index.mjs"]).toContain("request.method === 'DELETE'");
     expect(files["src/main.ts"]).toContain("fetch(endpoint");
     expect(files["src/main.ts"]).toContain("let authToken");
+    expect(files["server/index.mjs"]).toContain("allowedRoles.includes(role) && !readOnlyRoles.has(role)");
+    expect(files["server/index.mjs"]).toContain('["admin","customer","field-technician","viewer"]');
     expect(files["index.html"]).toContain('id="auth-gate"');
     expect(files["server/index.mjs"]).toContain("scryptSync");
     expect(files["src/main.ts"]).toContain("new EventSource");

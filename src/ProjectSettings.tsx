@@ -20,6 +20,7 @@ export function ProjectSettings({
   const [environment, setEnvironment] = useState<AndroidStatus>();
   const [preparing, setPreparing] = useState(false);
   const [result, setResult] = useState("");
+  const [newRole, setNewRole] = useState("");
   const target = project.exportConfig.target;
   const app = project.appConfig;
   const extensionRequests = nativeExtensionRequests(project);
@@ -276,6 +277,67 @@ export function ProjectSettings({
                   {label}
                 </label>
               ))}
+              {app.authentication.roles
+                .filter((role) => !["admin", "editor", "viewer"].includes(role))
+                .map((role) => (
+                  <label className="check-row" key={role}>
+                    <input
+                      type="checkbox"
+                      checked
+                      onChange={() =>
+                        onChange({
+                          ...project,
+                          appConfig: {
+                            ...app,
+                            authentication: {
+                              ...app.authentication,
+                              roles: app.authentication.roles.filter((item) => item !== role),
+                            },
+                          },
+                        })
+                      }
+                    />
+                    {role.replaceAll("-", " ")}
+                  </label>
+                ))}
+              <div className="inline-field">
+                <label>
+                  Add a role
+                  <input
+                    value={newRole}
+                    placeholder="Example: customer"
+                    pattern="[a-z][a-z0-9_-]*"
+                    maxLength={48}
+                    onChange={(event) =>
+                      setNewRole(
+                        event.target.value
+                          .toLowerCase()
+                          .replace(/\s+/g, "-")
+                          .replace(/[^a-z0-9_-]/g, ""),
+                      )
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={!newRole || app.authentication.roles.includes(newRole)}
+                  onClick={() => {
+                    onChange({
+                      ...project,
+                      appConfig: {
+                        ...app,
+                        authentication: {
+                          ...app.authentication,
+                          roles: [...app.authentication.roles, newRole],
+                        },
+                      },
+                    });
+                    setNewRole("");
+                  }}
+                >
+                  Add role
+                </button>
+              </div>
             </fieldset>
           )}
         </div>

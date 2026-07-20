@@ -438,7 +438,9 @@ export const projectSchema = z.object({
     .object({
       authentication: z.object({
         mode: z.enum(["none", "generated", "oidc"]),
-        roles: z.array(z.enum(["admin", "editor", "viewer"])),
+        roles: z
+          .array(z.string().trim().min(1).max(48).regex(/^[a-z][a-z0-9_-]*$/))
+          .max(24),
         issuer: z.string().url().optional(),
         clientId: z.string().optional(),
       }),

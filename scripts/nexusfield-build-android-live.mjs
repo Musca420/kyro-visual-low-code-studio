@@ -10,8 +10,9 @@ const page = context.pages()[0] ?? await context.newPage();
 page.setDefaultTimeout(60_000);
 try {
   await page.goto("http://127.0.0.1:43127/", { waitUntil: "networkidle" });
-  if (!(await page.getByRole("button", { name: "Design" }).count()))
-    await page.getByRole("button", { name: /NexusField Mobile/ }).click();
+  if (await page.getByRole("button", { name: "Close project and return to the dashboard" }).count())
+    await page.getByRole("button", { name: "Close project and return to the dashboard" }).click();
+  await page.getByRole("button", { name: /NexusField Mobile/ }).click();
   await page.getByRole("button", { name: "Publish" }).click();
   await page.getByRole("button", { name: /^Android/ }).click();
   await page.getByRole("button", { name: "Check tools" }).click();

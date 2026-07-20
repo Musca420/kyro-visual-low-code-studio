@@ -15,7 +15,7 @@ import {
   snapshotWorkspace,
   type WorkspaceSnapshot,
 } from "./server/workspaceTransactions";
-import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
+import { approvedOperations, quickActionMutationPlan, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickDeepLinkPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "./server/codexPlan";
 import { readJsonBody } from "./server/httpBody";
 
 const workspaceRoot = resolve(process.env.KYRO_WORKSPACE ?? process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
@@ -931,7 +931,9 @@ function liveBridge() {
                 ?? quickBindingPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickFormCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickRecordCrudPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickActionMutationPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickNativeActionPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
+                ?? quickDeepLinkPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickLocalNotificationPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickDataViewsPlan(prompt, (input.context ?? {}) as Record<string, unknown>)
                 ?? quickNavigationFlowPlan(prompt, (input.context ?? {}) as Record<string, unknown>)

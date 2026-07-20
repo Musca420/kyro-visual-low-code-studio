@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { approvedOperations, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
+import { approvedOperations, quickActionMutationPlan, quickBindingPlan, quickCrudFlowsPlan, quickCrudSurfacePlan, quickDailyFlowScreenPlan, quickDashboardPlan, quickDataViewsPlan, quickDeepLinkPlan, quickFormCrudPlan, quickHabitsPlan, quickLocalNotificationPlan, quickNativeActionPlan, quickNavigationFlowPlan, quickRecordCrudPlan, quickStructurePlan, quickVisualPlan } from "../server/codexPlan";
 
 describe("approved Codex plan", () => {
+  it("creates a guarded button mutation against the best matching source", () => {
+    const operations = approvedOperations(quickActionMutationPlan("Record a sandbox payment, only customer or admin", {
+      pageId: "checkout", componentId: "pay", componentType: "button", componentName: "Pay securely",
+      dataSources: [{ id: "payments", name: "Sandbox payments", collection: "payments", schema: { id: "string", amount: "number" } }, { id: "users", name: "Users", collection: "users", schema: { id: "string" } }], flowIndex: [],
+    })) ?? [];
+    expect(operations.some((item) => item.type === "add_flow_node" && (item.args?.node as { type?: string })?.type === "insert")).toBe(true);
+    expect(JSON.stringify(operations)).toContain('"roles":"admin,customer"');
+    expect(operations.at(-1)?.type).toBe("set_component_event");
+  });
   it("collega una vista alla sorgente semanticamente corrispondente", () => {
     const operations = approvedOperations(quickBindingPlan("Connect Booking list to the data it needs", {
       pageId: "bookings-page", componentId: "booking-list", componentName: "Booking list", componentType: "list",
@@ -42,6 +51,12 @@ describe("approved Codex plan", () => {
     expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "requestPermission", config: expect.objectContaining({ permission: "camera" }) }) }) }));
     expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "nativeAction", config: { capability: "barcode", action: "scanQr" } }) }) }));
     expect(operations?.some((operation) => operation.type === "approve_dependency")).toBe(false);
+  });
+
+  it("collega la registrazione push a uno switch tramite change", () => {
+    const operations = approvedOperations(quickNativeActionPlan("Register for push notifications and request permission", { pageId: "settings", componentId: "push", componentName: "Push notifications", componentType: "checkbox", flowIndex: [] }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "set_component_event", args: expect.objectContaining({ componentId: "push", event: "change" }) }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "nativeAction", config: { capability: "push", action: "register" } }) }) }));
   });
 
   it("collega grafici e KPI alle sorgenti in base allo schema, non al nome del progetto", () => {
@@ -85,6 +100,13 @@ describe("approved Codex plan", () => {
       expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "localNotification", config: expect.objectContaining({ delayMs: "2000" }) }) }) }),
       expect.objectContaining({ type: "set_component_event", args: expect.objectContaining({ componentId: "notifications-toggle", event: "change" }) }),
     ]));
+  });
+  it("crea un ingresso deep link riutilizzabile a livello pagina", () => {
+    const operations = approvedOperations(quickDeepLinkPlan("Open this booking page from a deep link", {
+      pageId: "booking", pages: [{ id: "booking", name: "Booking detail", path: "/bookings/:id" }], flowIndex: [],
+    }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "event", config: { trigger: "deepLink", pageId: "booking" } }) }) }));
+    expect(operations).toContainEqual(expect.objectContaining({ type: "add_flow_node", args: expect.objectContaining({ node: expect.objectContaining({ type: "navigate", config: { mode: "page", path: "/bookings/:id" } }) }) }));
   });
   it("estrae solo una lista compatta di operazioni tipizzate", () => {
     expect(approvedOperations('Piano\nFRONTEND_EDITOR_OPERATIONS=[{"type":"set_responsive_style","args":{"componentId":"title","breakpoint":"mobile","property":"lineHeight","value":"1.1"}}]')).toHaveLength(1);
