@@ -34,7 +34,7 @@ Kyro existed as an early local visual-editor prototype. From 13 July 2026 onward
 
 1. Install Node.js 20+.
 2. Clone the public repository.
-3. Run `npm install`, `npm link`, then `kyro`.
+3. Run `npm ci`, `npm link`, then `kyro`.
 4. Create a project or import a folder.
 5. Add a page and components, style them, then use Actions or Ask Codex.
 6. Open Preview and Publish to export Web/PWA or prepare Android.

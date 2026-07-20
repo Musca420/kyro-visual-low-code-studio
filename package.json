@@ -64,5 +64,24 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.41.0",
     "vitest": "^3.2.4"
-  }
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Musca420/kyro-visual-low-code-studio.git"
+  },
+  "keywords": [
+    "visual-programming",
+    "low-code",
+    "codex",
+    "pwa",
+    "android"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Musca420/kyro-visual-low-code-studio/issues"
+  },
+  "homepage": "https://github.com/Musca420/kyro-visual-low-code-studio#readme"
 }
