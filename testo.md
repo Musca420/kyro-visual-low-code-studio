@@ -12,7 +12,7 @@ The Design workspace feels like a familiar creative tool. I can add real interfa
 
 ## 00:51–01:16 — Ask Codex
 
-Now I select a component and open Ask Codex from its context menu. I ask for search, booking, accessibility, and complete data states. Kyro sends only the selected element, stable ID, nearby structure, flows, data, screenshot, errors, and revision. I review the plan before applying it, and can undo the whole transaction.
+Now I select a component and open Ask Codex from its context menu. Kyro sends the selected element, graph context, screenshot, errors, and revision. I inspect the plan before applying it, and can undo the whole transaction. On repeated data-binding work, this cut median planning from eighteen seconds to under point three: about sixty-two times faster.
 
 ## 01:16–01:30 — Flow editor
 
