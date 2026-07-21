@@ -1,46 +1,56 @@
-# Kyro demo — narration script
+# Kyro demo — voice recording script
 
-Target: about 2 minutes 40 seconds. Read calmly and leave a short pause when the scene changes.
+Target: **2 minutes 47 seconds**. Speak conversationally, around 125 words per minute. The pauses are intentional; do not rush to fill them.
 
-## 00:00–00:16 — Introduction and new project
+## 00:00–00:16 — The problem
 
-Kyro is a visual low-code studio for people who think in layouts before code. Start from a template, a blank canvas, or an existing project folder, while keeping the result open and editable.
+Kyro started from a simple frustration. Visual tools are easy until an app needs real behavior, while coding agents spend time rediscovering the project. Kyro joins both in one open visual graph.
 
-## 00:16–00:51 — Design canvas
+## 00:16–00:53 — Start and Design
 
-The Design workspace feels like a familiar creative tool. Add real interface elements, select and nest layers, resize them directly, use alignment guides, and control colors, typography, spacing, states, animation, and responsive rules. Desktop, tablet, and mobile remain views of the same component, not separate mock-ups.
+I can start from a blank canvas, a template, or an existing folder. In Design, I add real interface elements, organize layers, create columns, resize directly, and control color, typography, spacing, states, animation, and accessibility. Desktop, tablet, and mobile are responsive views of the same editable components. This is not a mock-up. Every element already knows its intent, events, data, dependencies, and generated files.
 
-## 00:51–01:16 — Ask Codex
+## 00:53–01:13 — Ask Codex and a difficult request
 
-Select a component and open Ask Codex from its context menu. Kyro sends the selected element, compact graph context, screenshot, connected flows and data, errors, and revision. GPT-5.6 returns a typed plan that can be inspected, approved, verified, and undone. In one recorded same-context check, atomic apply and verification reduced time from 41.7 to 22.6 seconds, and tokens from about 153 thousand to about 78 thousand. This is one measured scenario, not a universal speed claim.
+Now I select a button and open Ask Codex from the context menu. Kyro sends GPT‑5.6 the stable element, a compact graph slice, connected flows and data, errors, screenshot, and revision. For this PDF, QR code, digital signature, and SMTP request, Codex does not pretend the feature exists. It proposes a reusable global capability with typed inputs, permissions, dependencies, tests, and an explicit review gate.
 
-## 01:16–01:30 — Flow editor
+## 01:13–01:23 — Measured context advantage
 
-Behavior stays visual. This flow validates a form, saves the record, refreshes the interface, then separates success and error handling. Every node can be configured, traced, and reused without code.
+In matched three-run tests, Kyro planning was just over three times faster and used about ninety-two percent fewer tokens than repository-first Codex CLI. The exact prompts, raw values, and limitations are public in the repository.
 
-## 01:30–01:48 — Data
+## 01:23–01:36 — Flow
 
-The Data workspace creates local or generated REST sources, schemas, relationships, permissions, and bindings. When a feature needs storage, a backend, a device permission, an external provider, or a package, the Capability Resolver advises Codex before anything is installed.
+Behavior remains visual. An event enters this Node-RED-style flow, validation branches, data is updated, the interface refreshes, and success and error paths stay visible, traceable, and reusable.
 
-## 01:48–02:04 — Preview
+## 01:36–01:52 — Data and capability resolution
 
-Preview runs the same graph used by export. NexusField Web and Mobile were created through Kyro and tested with real authentication, role guards, data mutations, responsive layouts, offline queue and replay, and shared local data.
+Data creates local IndexedDB or REST sources, schemas, relationships, permissions, and bindings. If an idea needs a backend, device permission, external provider, or package, the Capability Resolver advises Codex. Nothing is installed, connected, or activated without the required review.
 
-## 02:04–02:16 — Publish
+## 01:52–02:08 — Preview
 
-From Publish, the project becomes readable TypeScript and Vite, an offline PWA, or a Capacitor Android application. The generated project runs independently and remains editable outside Kyro.
+Preview runs the same verified graph used by export. NexusField Web and Mobile were built through Kyro and tested with authentication, role guards, real data mutations, responsive layouts, empty and error states, and offline queue and replay.
 
-## 02:16–02:36 — Android device
+## 02:08–02:20 — Publish
 
-This is the generated Android application on a physical phone. Authentication persists, camera and notifications use native permission flows, and offline writes synchronize after reconnection.
+Publish generates readable TypeScript and Vite, an offline PWA, or a Capacitor Android project. The result runs independently and remains editable outside Kyro, so there is no platform lock-in.
 
-## 02:36–02:44 — Closing
+## 02:20–02:39 — Physical Android result
 
-Kyro turns visual intent into interface, logic, data, and native capability: local-first, inspectable, undoable, open, and powered by Codex and GPT-5.6.
+Here the generated Android app is running on a physical phone. Authentication persists, native camera and notification permissions use the operating system flow, and an offline mutation is queued and synchronized after reconnection. The APK was built and updated with a real Android toolchain.
 
-## Recording notes
+## 02:39–02:47 — Close
 
-- Use a conversational English voice.
-- Pause briefly when the scene changes.
-- Stress “selected element”, “inspect the plan”, “undo”, and “runs independently”.
-- No background music is required.
+Codex and GPT‑5.6 helped us build, test, visually verify, and deploy Kyro. Kyro gives that same power to visual creators: inspectable, undoable, local-first, and open.
+
+## Recording checklist
+
+- Record in English in a quiet room, ideally as WAV, 48 kHz, mono or stereo.
+- Keep the microphone 15–20 cm away and do one complete natural take.
+- Leave half a second of silence at the beginning and end.
+- Say “Codex” and “GPT‑5.6” clearly; do not replace them with “AI”.
+- No background music is needed.
+- Save the file as `kyro-voice.wav` or `kyro-voice.mp3`; it can be inserted with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-hackathon-video.ps1 -NarrationPath kyro-voice.wav
+```

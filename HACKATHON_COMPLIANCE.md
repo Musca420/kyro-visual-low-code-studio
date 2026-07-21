@@ -1,6 +1,6 @@
 # OpenAI Build Week compliance
 
-Kyro targets the **Developer Tools** track of OpenAI Build Week. This checklist follows the [official rules](https://openai.devpost.com/rules), last reviewed on 20 July 2026.
+Kyro targets the **Developer Tools** track of OpenAI Build Week. This checklist follows the [official rules](https://openai.devpost.com/rules), last reviewed on 21 July 2026.
 
 ## Required submission material
 
@@ -28,16 +28,15 @@ The entrant retains product and engineering decisions: frontend-first visual pro
 ## Judge setup
 
 ```bash
-git clone https://github.com/Musca420/kyro-visual-low-code-studio.git
-cd kyro-visual-low-code-studio
-npm ci --omit=dev
-npm link
-kyro
+npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.0.0/kyro-studio-2.0.0.tgz
+kyro --home
 ```
 
 Supported local judge platforms: Windows, macOS, and Linux with Node.js 20 or newer and a Chromium-based browser. The final device build was verified on Windows and a physical Android device. Generated web/PWA projects run independently on any platform supported by Node/Vite. Android export uses Capacitor and the Android SDK.
 
-The supported editor route is the repository-first CLI. The unsigned Windows desktop archive was removed from the public release because asking judges to bypass operating-system trust warnings would not be a consistent installation experience. Desktop source and packaging tests remain in the repository for future signed distribution.
+This prebuilt CLI tarball is the supported no-rebuild judge route. The unsigned Windows desktop archive was removed from the public release because asking judges to bypass operating-system trust warnings would not be a consistent installation experience. Desktop source and packaging tests remain in the repository for future signed distribution.
+
+The public repository needs no Devpost reviewer invitation. The no-rebuild NexusField Web/PWA and Android test builds remain available from the linked release throughout judging.
 
 ## Safety and data
 

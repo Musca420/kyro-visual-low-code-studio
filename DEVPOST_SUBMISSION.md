@@ -2,7 +2,7 @@
 
 ## Tagline
 
-Design like Canva. Program anything visually. Call Codex exactly where you need it.
+Design visually. Program through a graph. Give Codex the exact context it needs.
 
 ## Track
 
@@ -24,6 +24,8 @@ Projects use an open versioned graph and export readable TypeScript/Vite, instal
 
 Kyro uses React, TypeScript, Vite, IndexedDB, Playwright, a local Live Bridge, and Capacitor. Codex with GPT-5.6 was the primary engineering and verification collaborator. The main Codex Session ID is `019f7465-48aa-78e3-8531-1e4b6342b31e`.
 
+We also measured the embedded approach against repository-first Codex CLI using the same two prompts, model, reasoning effort, machine, and three read-only planning runs per path. For a selected-button task, median planning fell from 47.5 to 15.6 seconds and from 229.8k to 18.4k tokens. For a missing signed-PDF, QR, and SMTP capability, it fell from 71.7 to 22.2 seconds and from 253.6k to 18.9k tokens. The repository includes exact prompts, raw values, limitations, and the runner; this is a local engineering benchmark, not a universal claim.
+
 We validated the system by creating two separate visual projects entirely through Kyro: NexusField Web and NexusField Mobile. They model a multi-role marketplace with 17 screens, local/generated data, authentication, reusable flows, protected mutations, payment/refund actions, signature, offline behavior, and native Android capabilities. The exported PWA and APK were built and run independently and share the same local backend during the final test.
 
 ## What changed during Build Week
@@ -33,8 +35,8 @@ Kyro existed as an early local visual-editor prototype. From 13 July 2026 onward
 ## Testing instructions
 
 1. Install Node.js 20+.
-2. Clone the public repository.
-3. Run `npm ci --omit=dev`, `npm link`, then `kyro`.
+2. Run `npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.0.0/kyro-studio-2.0.0.tgz`.
+3. Run `kyro --home`.
 4. Create a project or import a folder.
 5. Add a page and components, style them, then use Actions or Ask Codex.
 6. Open Preview and Publish to export Web/PWA or prepare Android.
@@ -61,5 +63,5 @@ Production signing and store distribution, hosted collaboration, additional revi
 
 - Source: https://github.com/Musca420/kyro-visual-low-code-studio
 - Public test build: https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15
-- Public YouTube demo: upload `Kyro-Hackathon-Demo-Final.mp4` and paste the URL
+- Public YouTube demo: add the recorded voice to `Kyro-Hackathon-Demo-2m47-Silent.mp4`, upload the final video, and paste the URL
 - Codex feedback session: `019f7465-48aa-78e3-8531-1e4b6342b31e`

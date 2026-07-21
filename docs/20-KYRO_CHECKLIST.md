@@ -580,6 +580,9 @@ Notes
 - `ROLLBACK.md` mantiene intatto il checkout corrente, usa il precedente tag v0.1.15 in un checkout separato e richiede backup/hash degli artefatti.
 - Regressione finale: `npm run check` 161/161; Playwright principale 58/58 eseguiti con 3 skip espliciti; export generico 1/1, specializzati 2/2 e desktop packaged 1/1 eseguiti separatamente.
 - Export Android sorgente rigenerato e coperto da generator/security test; una nuova installazione di dipendenze native non è stata avviata implicitamente, in conformità alla Dependency Policy. Restano valide le prove APK/device già registrate.
+- Benchmark ripetuto graph-context vs repository-first: due prompt identici, stesso GPT-5.6/reasoning/machine, 3 prove read-only per cella. Kyro registra mediane 3,05× e 3,23× più rapide e 92,0%/92,6% token in meno; prompt, valori e limiti sono pubblicati senza claim universali.
+- Corretto il difetto UX per cui un Job `running` con output non ancora disponibile mostrava “Codex returned no text.”: ora resta “Analysis in progress…” e solo un completamento realmente vuoto genera un errore ritentabile. Test Playwright 1/1 e richiesta autenticata live con apply/Preview/undo PASS.
+- README, submission copy e copione umano aggiornati secondo le regole Devpost; nuovo montaggio verificato di 167,5 secondi pronto per la registrazione vocale dell'entrante.
 
 ---
 
@@ -635,7 +638,7 @@ File modificati
 
 Test
 
-- `npm run check`: PASS, typecheck, lint, 161 test in 39 file e build.
+- `npm run check`: PASS, typecheck, lint, 162 test in 39 file e build.
 - `npm run test:e2e`: PASS, 58 scenari eseguiti; 3 skip espliciti. `npm run desktop:test:packaged`: 1/1 PASS.
 - Export: typecheck Web generico e specializzati PASS; `npm run test:generated` 1/1 e `npm run test:specialized` 2/2 PASS; Android source generation PASS.
 - `npm run release:verify`: 2/2 PASS; CLI `--version` = 2.0.0, `--check --home` PASS; `npm pack --dry-run` PASS.
@@ -653,6 +656,8 @@ Compatibilità
 Problemi
 
 - Trovati e corretti: test export non aggiornato ai default English-first; preview specializzata senza build `dist`; firme TypeScript incompatibili tra runtime flow e adapter specializzati. Il typecheck Android isolato richiede moduli Capacitor non installati e resta deliberatamente non eseguito senza approvazione dependency/network.
+- Submission hardening: corretto il placeholder live Codex durante il polling; confermato che il resolver non usa parole del prompt per il routing, ma domini, capability ID, tipi ed effetti dichiarati. Un test di non-regressione dimostra che prompt semanticamente opposti producono la stessa risoluzione a parità di contesto tipizzato. `npm run check` 162/162, resolver 5/5, test UX 1/1, suite browser 58 PASS con 3 skip espliciti e smoke Codex autentico live PASS.
+- Evidenza aggiunta: benchmark a 12 run, grafico accessibile, runner riproducibile, README judge-first e cut video silenzioso da 167,5 secondi. L'audio umano e l'upload YouTube restano azioni esterne dell'entrante e non sono dichiarati completati.
 
 ---
 

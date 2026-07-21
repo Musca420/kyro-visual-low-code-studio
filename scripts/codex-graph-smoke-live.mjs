@@ -33,6 +33,9 @@ try {
 
   const planStarted = Date.now();
   await assistant.getByRole("button", { name: "Analyze request" }).click();
+  await page.waitForTimeout(600);
+  if (await assistant.getByText("Codex returned no text.", { exact: true }).count())
+    throw new Error("Running Codex job displayed the empty-response fallback");
   const approve = assistant.getByRole("button", { name: "Approve and apply" });
   await approve.waitFor({ timeout: 180_000 });
   evidence.planMs = Date.now() - planStarted;

@@ -23,7 +23,16 @@ The headed live smoke test uses the editor as a user: create a blank project, ad
 
 Observed reduction: **45.7% elapsed time** and **49.1% total tokens**. This is a single-scenario engineering A/B, not a general Kyro-versus-repository performance claim. The artifact set is `artifacts/codex-graph-smoke/` and includes the approved plan, applied preview, undo screenshot, and `evidence.json`.
 
-The comparison intentionally measures orchestration while holding the indexed graph context constant. A classic repository scan is not a matched substitute for an active visual graph stored in local project state, so the repository makes no broader speed-up or token-saving claim. Any future general benchmark must use an equivalent serialized fixture, repeated task families, raw telemetry, failures, and confidence limits.
+## Matched graph-context versus repository-first benchmark
+
+On 21 July 2026 we added a separate repeated comparison that intentionally tests the context difference Kyro introduces. Both paths used the same machine, `gpt-5.6-sol`, low reasoning effort, identical user prompts, read-only planning, and three fresh trials per cell. Kyro received the selected component and an approximately 5.2 KB indexed graph slice. Repository CLI ran at the same repository root with Kyro project skills disabled and no Live Bridge.
+
+| Prompt | Kyro median | Repository CLI median | Observed difference |
+| --- | ---: | ---: | ---: |
+| Selected button label, stable ID/styles, Preview check | 15.6 s / 18.4k tokens | 47.5 s / 229.8k tokens | 3.05× faster / 92.0% fewer tokens |
+| Signed PDF + QR + SMTP reusable capability | 22.2 s / 18.9k tokens | 71.7 s / 253.6k tokens | 3.23× faster / 92.6% fewer tokens |
+
+Kyro produced a typed, stable-ID grounded plan in all three button trials and a schema-valid global capability proposal in all three complex trials. Repository CLI produced useful conceptual reasoning, but could not bind a verified transaction to the active visual selection because that state does not live in source files. Exact prompts, trial values, method, and limitations are in [`docs/benchmarks/2026-07-21-kyro-vs-repo.json`](./docs/benchmarks/2026-07-21-kyro-vs-repo.json). This remains a local engineering benchmark, not an independent or universal performance claim.
 
 ## Fresh Kyro 2.0 release acceptance
 
