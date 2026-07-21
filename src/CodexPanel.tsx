@@ -111,7 +111,7 @@ function readOutput(raw: string, git?: { status?: string; diff?: string }) {
       output: item.output,
     }));
   return {
-    text: messages.at(-1) || raw || "Codex returned no text.",
+    text: messages.at(-1) || raw,
     trace: {
       commands,
       tests,
@@ -242,15 +242,17 @@ export function CodexPanel({
       void fetch(`/api/codex/jobs/${activeJobId}`).then((response) => response.json()).then((value: CodexJob) => {
         setJob(value);
         const progress = readOutput(value.output, value.git);
-        setLiveText(progress.text);
+        if (progress.text) setLiveText(progress.text);
         setTrace(progress.trace);
         if (value.status !== "running") {
           setBusy(false);
           setLiveText("");
           if (value.status === "completed" && value.mode === "plan") {
             const text = readOutput(value.output, value.git).text;
-            setPlan(text);
-            setPlanThreadId(value.threadId ?? "");
+            if (text) {
+              setPlan(text);
+              setPlanThreadId(value.threadId ?? "");
+            }
           }
         }
       }).catch(() => undefined);
@@ -300,7 +302,6 @@ export function CodexPanel({
       setHistory((items) => [
         ...items,
         { role: "user", text: prompt },
-        { role: "system", text: "Read-only analysis started…" },
       ]);
     try {
       const response = await fetch("/api/codex/jobs", {
@@ -350,13 +351,14 @@ export function CodexPanel({
         if (!update.ok) throw new Error(current.errors || "Operation status unavailable");
         setJob(current);
         const progress = readOutput(current.output, current.git);
-        setLiveText(progress.text);
+        if (progress.text) setLiveText(progress.text);
         setTrace(progress.trace);
       } while (current.status === "running");
       if (current.status !== "completed") throw new Error(current.errors || `Operazione ${current.status}`);
       value = current;
       const parsed = readOutput(value.output, value.git);
       const text = parsed.text;
+      if (!text.trim()) throw new Error("Codex completed without a response. Retry the request.");
       const completedPlan = mode === "plan" ? parseAgentPlan(text) : undefined;
       const capabilityProposal = completedPlan?.capabilityProposal ?? undefined;
       const afterScreenshot = mode === "apply"
@@ -408,7 +410,7 @@ export function CodexPanel({
           ? `${appliedResult.summary}\n${appliedResult.visualResult}`
           : text;
       setHistory((items) => [
-        ...items.filter((item) => !item.text.endsWith("avviata…")),
+        ...items,
         { role: "codex", text: `${plainResult}${evidenceWarning}` },
       ]);
     } catch (error) {
@@ -434,7 +436,7 @@ export function CodexPanel({
         setTimeline((items) => [failedEntry, ...items.filter((item) => item.id !== timelineId)]);
       }
       setHistory((items) => [
-        ...items.filter((item) => !item.text.endsWith("avviata…")),
+        ...items,
         {
           role: "system",
           text: error instanceof Error ? error.message : String(error),

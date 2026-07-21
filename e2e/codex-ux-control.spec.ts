@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("a non-technical user can review, reject, approve, verify and undo a Codex change", async ({ page }) => {
   const jobs = new Map<string, "plan" | "apply">();
+  const polls = new Map<string, number>();
   let sequence = 0;
   await page.route("**/api/codex/**", async (route) => {
     const request = route.request(), url = new URL(request.url());
@@ -14,7 +15,10 @@ test("a non-technical user can review, reject, approve, verify and undo a Codex 
     }
     const match = url.pathname.match(/^\/api\/codex\/jobs\/([^/]+)$/);
     if (match && request.method() === "GET") {
+      const poll = (polls.get(match[1]) ?? 0) + 1;
+      polls.set(match[1], poll);
       const mode = jobs.get(match[1]) ?? "plan";
+      if (poll <= 3) return route.fulfill({ json: { id: match[1], projectId: "project", mode, status: "running", output: "", errors: "", changedFiles: [] } });
       const message = mode === "plan"
         ? { summary: "Make the selected button clearer", skill: "kyro-design", operations: [{ type: "set_component_property", pageId: null, argsJson: JSON.stringify({ componentId: "button", property: "label", value: "Continue" }) }, { type: "set_component_state_style", pageId: null, argsJson: JSON.stringify({ componentId: "button", state: "focus", property: "outline", value: "3px solid #22d3ee" }) }], checks: ["Button label is clear", "Keyboard focus is visible"], confirmations: [], alreadySatisfied: false, capabilityProposal: null }
         : { status: "completed", summary: "Visual change applied", transactionId: "ux-transaction", validation: [], visualResult: "Preview captured", learningCandidate: null };
@@ -51,6 +55,9 @@ test("a non-technical user can review, reject, approve, verify and undo a Codex 
   const request = panel.getByLabel("Request in plain language");
   await request.fill("Make this action clearer and keyboard accessible.");
   await panel.getByRole("button", { name: "Analyze request" }).click();
+  await expect.poll(() => [...polls.values()].reduce((total, value) => total + value, 0)).toBeGreaterThan(0);
+  await expect(panel.getByText("Analysis in progress…", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Codex returned no text.", { exact: true })).toHaveCount(0);
 
   const dialog = panel.getByRole("dialog", { name: "Make the selected button clearer" });
   await expect(dialog).toBeVisible();

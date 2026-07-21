@@ -22,6 +22,7 @@ test("Agent Jobs persist audit and support idempotent retry, restart, resume and
   const response = await request.post("/api/codex/jobs", { data: {
     mode: "apply", prompt: "Rename the selected button", approvedPlan,
     projectId: live.projectId, revision: live.revision,
+    clientId: live.clientId,
     focus: { kind: "component", pageId: live.pageId, componentId: live.selectedComponentIds[0] },
   } });
   expect(response.status()).toBe(202);
@@ -51,6 +52,7 @@ test("Agent Jobs persist audit and support idempotent retry, restart, resume and
   const invalid = await request.post("/api/codex/jobs", { data: {
     mode: "apply", prompt: "Invalid operation for recovery test", approvedPlan: "{}",
     projectId: current.projectId, revision: current.revision,
+    clientId: current.clientId,
   } });
   const failed = await invalid.json();
   await expect.poll(async () => (await (await request.get(`/api/codex/jobs/${failed.jobId}`)).json()).status).toBe("error");
@@ -73,6 +75,7 @@ test("Agent Jobs persist audit and support idempotent retry, restart, resume and
   const pendingRequest = request.post("/api/codex/jobs", { data: {
     mode: "apply", prompt: "Cancel a pending visual operation", approvedPlan,
     projectId: current.projectId, revision: current.revision,
+    clientId: current.clientId,
   } });
   let pendingId = "";
   await expect.poll(async () => {

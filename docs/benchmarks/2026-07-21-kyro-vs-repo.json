@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-21T06:45:00.000Z",
+  "method": {
+    "machine": "same local Windows workstation",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "low",
+    "trialsPerPathAndTask": 3,
+    "mutation": "none; planning only",
+    "kyro": "authenticated Codex through the installed Kyro CLI and Live Bridge, with a selected button and indexed graph slice",
+    "repositoryCli": "Codex CLI at the same repository root and commit, with Kyro project skills disabled and no Live Bridge",
+    "tokenDefinition": "Codex turn input_tokens + output_tokens; cached input is included in input_tokens",
+    "runner": "node scripts/benchmark-codex-context.mjs <kyro|cli> <button|capability> <trial>"
+  },
+  "tasks": [
+    {
+      "id": "selected-button-label",
+      "prompt": "Change only this selected button label to Continue securely. Preserve its stable ID and all existing styles. Verify the result in preview.",
+      "kyro": {
+        "elapsedMs": [13970, 15562, 18641],
+        "totalTokens": [18449, 18380, 18781],
+        "contextBytes": [5218, 5218, 5218],
+        "medianElapsedMs": 15562,
+        "medianTotalTokens": 18449,
+        "groundedPlans": 3
+      },
+      "repositoryCli": {
+        "elapsedMs": [95507, 47486, 35565],
+        "totalTokens": [543631, 229797, 149877],
+        "toolCalls": [15, 10, 4],
+        "medianElapsedMs": 47486,
+        "medianTotalTokens": 229797,
+        "groundedPlans": 0
+      },
+      "comparison": {
+        "latencyReductionPercent": 67.2,
+        "tokenReductionPercent": 92.0,
+        "speedup": 3.05,
+        "tokenRatio": 12.46
+      },
+      "qualityNote": "All Kyro runs returned a typed operation for the selected stable component ID. Repository CLI runs could inspect source, but could not establish the active visual selection or verify Preview."
+    },
+    {
+      "id": "signed-pdf-qr-smtp",
+      "prompt": "When this button is clicked, generate a digitally signed PDF invoice with a QR code and send it through SMTP. If Kyro lacks this capability, derive a safe reusable capability rather than hard-coding this project.",
+      "kyro": {
+        "elapsedMs": [22228, 22738, 20695],
+        "totalTokens": [18730, 18856, 18964],
+        "contextBytes": [5226, 5226, 5226],
+        "medianElapsedMs": 22228,
+        "medianTotalTokens": 18856,
+        "groundedPlans": 3
+      },
+      "repositoryCli": {
+        "elapsedMs": [101764, 49772, 71696],
+        "totalTokens": [253634, 199050, 307488],
+        "toolCalls": [9, 10, 10],
+        "medianElapsedMs": 71696,
+        "medianTotalTokens": 253634,
+        "groundedPlans": 0
+      },
+      "comparison": {
+        "latencyReductionPercent": 69.0,
+        "tokenReductionPercent": 92.6,
+        "speedup": 3.23,
+        "tokenRatio": 13.45
+      },
+      "qualityNote": "All Kyro runs returned a schema-valid global capability proposal tied to the selected component and explicit review gate. Repository CLI produced useful conceptual proposals, but no typed transaction bound to the live graph."
+    }
+  ],
+  "limitations": [
+    "This is a local engineering benchmark with three trials per cell, not an independent industry benchmark.",
+    "The paths intentionally differ in available context: that difference is the feature under test.",
+    "Latency includes local orchestration and model time; token counts come from Codex turn telemetry.",
+    "No benchmark run applied a mutation, installed a dependency, accessed credentials, or sent email."
+  ]
+}

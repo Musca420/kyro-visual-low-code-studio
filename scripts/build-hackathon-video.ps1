@@ -1,5 +1,7 @@
 param(
-  [string]$Output = "artifacts/nexusfield/Kyro-Hackathon-Demo-2m40.mp4"
+  [string]$Output = "artifacts/nexusfield/Kyro-Hackathon-Demo-2m47.mp4",
+  [string]$NarrationPath = "",
+  [switch]$Silent
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,38 +58,53 @@ function New-CardSegment([string]$Name, [double]$Duration, [string]$Headline, [s
 $segments = @()
 $segments += New-CardSegment "00-title" 6 "KYRO" "Visual Low-Code Studio - Design first. Program anything."
 $segments += New-VideoSegment "01-new-project" (Join-Path $raw "page@b139e3b57be7409c53ac4979dfcafeae.webm") 9.5
-$segments += New-VideoSegment "02-design-live" (Join-Path $raw "page@bc357f3cd4ce36ed00308d275e3cdbd5.webm") 35
-$segments += New-StillSegment "03-responsive-result" (Join-Path $shots "25-mobile-core-authored.png") 8
-$segments += New-StillSegment "04-ask-codex" (Join-Path $shots "04-codex-home-plan.png") 17
-$segments += New-VideoSegment "05-flow" (Join-Path $raw "page@1ea74b5cd2eb77cc89d024702c15b590.webm") 13.5
-$segments += New-VideoSegment "06-data" (Join-Path $raw "page@0a460d33323f00b988077d4a66775b5d.webm") 18 4
-$segments += New-StillSegment "07-preview-quote" (Join-Path $shots "35-preview-quote.png") 4
-$segments += New-StillSegment "08-preview-review" (Join-Path $shots "36-preview-review.png") 4
-$segments += New-StillSegment "09-preview-tablet" (Join-Path $shots "39-web-tablet.png") 4
-$segments += New-StillSegment "10-preview-mobile" (Join-Path $shots "40-web-mobile.png") 4
-$segments += New-StillSegment "11-publish" (Join-Path $shots "41-web-pwa-export.png") 11.5
-$segments += New-StillSegment "12-android-camera" (Join-Path $shots "85-android-camera-permission.png") 4
-$segments += New-StillSegment "13-android-notification" (Join-Path $shots "88-android-notification-permission.png") 4
-$segments += New-StillSegment "14-android-queued" (Join-Path $shots "106-android-offline-mutation-queued.png") 4
-$segments += New-StillSegment "15-android-synced" (Join-Path $shots "107-android-offline-mutation-synced.png") 4
-$segments += New-StillSegment "16-android-final" (Join-Path $shots "113-android-five-tab-final.png") 4
-$segments += New-CardSegment "17-end" 8 "DESIGN TO WORKING SOFTWARE" "Local-first | Inspectable | Undoable | Open"
+$segments += New-VideoSegment "02-design-live" (Join-Path $raw "page@bc357f3cd4ce36ed00308d275e3cdbd5.webm") 31
+$segments += New-StillSegment "03-responsive-result" (Join-Path $shots "25-mobile-core-authored.png") 7
+$segments += New-StillSegment "04-ask-codex" (Join-Path $repo "docs/images/kyro-live-codex-plan.png") 9
+$segments += New-StillSegment "05-capability" (Join-Path $repo "docs/images/kyro-global-capability-draft.png") 10
+$segments += New-StillSegment "06-benchmark" (Join-Path $repo "docs/images/kyro-vs-repository-benchmark.png") 10
+$segments += New-VideoSegment "07-flow" (Join-Path $raw "page@1ea74b5cd2eb77cc89d024702c15b590.webm") 13.5
+$segments += New-VideoSegment "08-data" (Join-Path $raw "page@0a460d33323f00b988077d4a66775b5d.webm") 16 4
+$segments += New-StillSegment "09-preview-quote" (Join-Path $shots "35-preview-quote.png") 4
+$segments += New-StillSegment "10-preview-review" (Join-Path $shots "36-preview-review.png") 4
+$segments += New-StillSegment "11-preview-tablet" (Join-Path $shots "39-web-tablet.png") 4
+$segments += New-StillSegment "12-preview-mobile" (Join-Path $shots "40-web-mobile.png") 4
+$segments += New-StillSegment "13-publish" (Join-Path $shots "41-web-pwa-export.png") 11.5
+$segments += New-StillSegment "14-android-camera" (Join-Path $shots "85-android-camera-permission.png") 4
+$segments += New-StillSegment "15-android-notification" (Join-Path $shots "88-android-notification-permission.png") 4
+$segments += New-StillSegment "16-android-queued" (Join-Path $shots "106-android-offline-mutation-queued.png") 4
+$segments += New-StillSegment "17-android-synced" (Join-Path $shots "107-android-offline-mutation-synced.png") 4
+$segments += New-StillSegment "18-android-final" (Join-Path $shots "113-android-five-tab-final.png") 4
+$segments += New-CardSegment "19-end" 8 "DESIGN TO WORKING SOFTWARE" "Local-first | Inspectable | Undoable | Open"
 
 $concat = Join-Path $build "segments.txt"
 $segments | ForEach-Object { "file '$($_.Replace("'", "''"))'" } | Set-Content -Encoding ascii $concat
-$silent = Join-Path $build "silent.mp4"
-Invoke-Ffmpeg @("-f", "concat", "-safe", "0", "-i", $concat, "-c", "copy", $silent)
+$silentVideo = Join-Path $build "silent.mp4"
+Invoke-Ffmpeg @("-f", "concat", "-safe", "0", "-i", $concat, "-c", "copy", $silentVideo)
 
-$scriptText = Get-Content (Join-Path $repo "DEMO_SCRIPT.md") -Raw -Encoding UTF8
-$narration = [regex]::Match($scriptText, "(?s)## Narration\s+(.*?)\s+## Recording acceptance").Groups[1].Value
-$narration = ($narration -replace "\*\*", "" -replace "`r?`n+", " ").Trim()
-$narrationText = Join-Path $build "narration.txt"
-$narration | Set-Content -Encoding UTF8 $narrationText
-$audio = Join-Path $build "narration-neural.mp3"
-& python -m edge_tts --file $narrationText --voice "en-US-AndrewMultilingualNeural" --rate=-2% --write-media $audio
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path $audio)) { throw "Neural narration generation failed. Install edge-tts with: python -m pip install edge-tts" }
+$outputPath = Join-Path $repo $Output
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputPath) | Out-Null
+if ($Silent) {
+  Copy-Item -LiteralPath $silentVideo -Destination $outputPath -Force
+  $resultDuration = & $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $outputPath
+  Write-Host "Created silent cut $outputPath"
+  Write-Host "Video duration: $resultDuration seconds"
+  exit 0
+}
 
-$videoDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $silent)
+$audio = if ($NarrationPath) { (Resolve-Path $NarrationPath).Path } else {
+  $scriptText = Get-Content (Join-Path $repo "DEMO_SCRIPT.md") -Raw -Encoding UTF8
+  $narration = [regex]::Match($scriptText, "(?s)## Narration\s+(.*?)\s+## Recording acceptance").Groups[1].Value
+  $narration = ($narration -replace "\*\*", "" -replace "`r?`n+", " ").Trim()
+  $narrationText = Join-Path $build "narration.txt"
+  $narration | Set-Content -Encoding UTF8 $narrationText
+  $generated = Join-Path $build "narration-neural.mp3"
+  & python -m edge_tts --file $narrationText --voice "en-US-AndrewMultilingualNeural" --rate=-2% --write-media $generated
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path $generated)) { throw "Narration generation failed. Pass -NarrationPath with your recorded WAV or MP3." }
+  $generated
+}
+
+$videoDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $silentVideo)
 $audioDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $audio)
 $audioFilter = "adelay=900|900,apad=pad_dur=10"
 if ($audioDuration -gt ($videoDuration - 2)) {
@@ -96,10 +113,8 @@ if ($audioDuration -gt ($videoDuration - 2)) {
   $audioFilter = "atempo=$($tempo.ToString('0.000', [Globalization.CultureInfo]::InvariantCulture)),adelay=900|900,apad=pad_dur=10"
 }
 
-$outputPath = Join-Path $repo $Output
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputPath) | Out-Null
 Invoke-Ffmpeg @(
-  "-i", $silent, "-i", $audio, "-filter:a", $audioFilter, "-t", "$videoDuration",
+  "-i", $silentVideo, "-i", $audio, "-filter:a", $audioFilter, "-t", "$videoDuration",
   "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", $outputPath
 )
 

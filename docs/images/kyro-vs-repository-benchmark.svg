@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">Kyro graph context versus repository-first Codex benchmark</title>
+  <desc id="desc">Median planning time and token use for two identical prompts across three runs per path.</desc>
+  <rect width="1200" height="650" rx="28" fill="#071315"/>
+  <text x="60" y="68" fill="#f8fafc" font-family="Inter,Segoe UI,sans-serif" font-size="34" font-weight="700">Same prompt. Same GPT-5.6. Different context.</text>
+  <text x="60" y="104" fill="#94a3b8" font-family="Inter,Segoe UI,sans-serif" font-size="18">Median of 3 read-only planning runs · lower is better</text>
+  <g transform="translate(60 150)" font-family="Inter,Segoe UI,sans-serif">
+    <rect width="520" height="410" rx="22" fill="#102226" stroke="#234148"/>
+    <text x="28" y="46" fill="#f8fafc" font-size="24" font-weight="700">Selected button</text>
+    <text x="28" y="77" fill="#5eead4" font-size="16">3.05× faster · 92.0% fewer tokens</text>
+    <text x="28" y="122" fill="#cbd5e1" font-size="15">MEDIAN TIME</text>
+    <rect x="28" y="140" width="135" height="34" rx="8" fill="#22d3ee"/>
+    <text x="174" y="163" fill="#e2e8f0" font-size="17">Kyro 15.6 s</text>
+    <rect x="28" y="188" width="410" height="34" rx="8" fill="#fb7185" opacity=".82"/>
+    <text x="449" y="211" fill="#e2e8f0" font-size="17">CLI 47.5 s</text>
+    <text x="28" y="270" fill="#cbd5e1" font-size="15">MEDIAN TOKENS</text>
+    <rect x="28" y="288" width="30" height="34" rx="8" fill="#22d3ee"/>
+    <text x="70" y="311" fill="#e2e8f0" font-size="17">Kyro 18.4k</text>
+    <rect x="28" y="336" width="410" height="34" rx="8" fill="#fb7185" opacity=".82"/>
+    <text x="449" y="359" fill="#e2e8f0" font-size="17">CLI 229.8k</text>
+  </g>
+  <g transform="translate(620 150)" font-family="Inter,Segoe UI,sans-serif">
+    <rect width="520" height="410" rx="22" fill="#102226" stroke="#234148"/>
+    <text x="28" y="46" fill="#f8fafc" font-size="24" font-weight="700">Signed PDF + QR + SMTP</text>
+    <text x="28" y="77" fill="#5eead4" font-size="16">3.23× faster · 92.6% fewer tokens</text>
+    <text x="28" y="122" fill="#cbd5e1" font-size="15">MEDIAN TIME</text>
+    <rect x="28" y="140" width="127" height="34" rx="8" fill="#22d3ee"/>
+    <text x="166" y="163" fill="#e2e8f0" font-size="17">Kyro 22.2 s</text>
+    <rect x="28" y="188" width="410" height="34" rx="8" fill="#fb7185" opacity=".82"/>
+    <text x="449" y="211" fill="#e2e8f0" font-size="17">CLI 71.7 s</text>
+    <text x="28" y="270" fill="#cbd5e1" font-size="15">MEDIAN TOKENS</text>
+    <rect x="28" y="288" width="30" height="34" rx="8" fill="#22d3ee"/>
+    <text x="70" y="311" fill="#e2e8f0" font-size="17">Kyro 18.9k</text>
+    <rect x="28" y="336" width="410" height="34" rx="8" fill="#fb7185" opacity=".82"/>
+    <text x="449" y="359" fill="#e2e8f0" font-size="17">CLI 253.6k</text>
+  </g>
+  <circle cx="68" cy="607" r="7" fill="#22d3ee"/><text x="84" y="613" fill="#94a3b8" font-family="Inter,Segoe UI,sans-serif" font-size="15">Kyro: selected graph slice + typed tools</text>
+  <circle cx="390" cy="607" r="7" fill="#fb7185"/><text x="406" y="613" fill="#94a3b8" font-family="Inter,Segoe UI,sans-serif" font-size="15">CLI: repository-first, Kyro skills disabled</text>
+  <text x="1140" y="613" text-anchor="end" fill="#64748b" font-family="Inter,Segoe UI,sans-serif" font-size="14">21 Jul 2026</text>
+</svg>

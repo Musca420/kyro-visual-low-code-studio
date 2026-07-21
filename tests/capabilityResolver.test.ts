@@ -12,6 +12,13 @@ describe("Kyro capability resolver", () => {
     expect(result.fallback.doesNotBlockOnMissingSkill).toBe(true);
   });
 
+  it("does not route capabilities from the wording of the request", () => {
+    const context = { domains: ["actions", "data"] };
+    const first = resolveCapability({ ...context, request: "Create a checkout" });
+    const second = resolveCapability({ ...context, request: "Photograph a comet" });
+    expect({ ...first, request: "" }).toEqual({ ...second, request: "" });
+  });
+
   it("turns a pure transformation gap into a tested reusable module candidate", () => {
     const result = resolveCapability({ request: "Transform records", domains: ["actions"], prefersModule: true });
     expect(result.strategy).toBe("tested_typed_module");
