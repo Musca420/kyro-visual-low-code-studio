@@ -81,6 +81,8 @@ kyro --check           # Inspect what Kyro would open without starting it
 
 Kyro binds only to `127.0.0.1`, and project state remains in local IndexedDB. Building Android applications additionally requires Java 21 and the Android SDK.
 
+![Kyro 2.1.0 running from a clean CLI installation](./docs/images/kyro-2.1-fresh-install.png)
+
 ### Build from source
 
 ```bash
@@ -104,6 +106,10 @@ kyro --home
 8. Open **Publish** and export a Web/PWA or Android project.
 
 For a prepared output, see the [NexusField demo release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15), including an independent Web/PWA export, Android APK, and validation evidence.
+
+| Publish an independent Web/PWA | Verify the generated Android app |
+| --- | --- |
+| ![Publish panel configuring Web and PWA export](./docs/images/kyro-publish-web.png) | <img src="./docs/images/kyro-android-device.png" alt="Generated Android app running on a physical device" width="280"> |
 
 ## How Ask Codex works
 
@@ -169,6 +175,8 @@ The reproducible proof bundle is available at [`release/kyro-2.1.0-evidence.zip`
 - [`NEXUSFIELD_VALIDATION_REPORT.md`](./NEXUSFIELD_VALIDATION_REPORT.md)
 - [`ROLLBACK.md`](./ROLLBACK.md)
 
+![Kyro completing the independently verified Android debug build](./docs/images/kyro-android-build-verified.png)
+
 ## Context benchmark
 
 Kyro includes a reproducible ten-prompt benchmark designed to measure one specific question:
@@ -196,6 +204,10 @@ The complete material is published for inspection:
 - [`benchmark-codex-cli-10.ps1`](./scripts/benchmark-codex-cli-10.ps1)
 
 ![Kyro and Codex CLI context benchmark](./docs/images/kyro-vs-codex-cli-10.svg)
+
+| Headed Kyro Preview | Mobile breakpoint |
+| --- | --- |
+| ![Final benchmark project running in Kyro Preview](./docs/images/kyro-benchmark-10-desktop.png) | ![Final benchmark project at the mobile breakpoint](./docs/images/kyro-benchmark-10-mobile.png) |
 
 ## Architecture
 
