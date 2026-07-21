@@ -26,7 +26,7 @@ All notable changes to Kyro are documented here. Versions follow Semantic Versio
 
 ### Verification
 
-- 241 unit/integration tests and 55 Playwright scenarios pass; two environment-gated scenarios remain explicit.
+- 241 unit/integration tests and 55 Playwright scenarios pass on the prepared release workstation; three clean-runner environment gates remain explicit.
 - All ten cumulative Ask Codex prompts completed from a clean visual baseline.
 - The final Web export installed, built, ran independently, persisted records, and passed desktop/mobile interaction checks with zero runtime errors.
 

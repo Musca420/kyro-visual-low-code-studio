@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { basename } from "node:path";
 
 test("task runner locale confinato, auditabile e limitato al progetto aperto", async ({
   page,
@@ -15,7 +16,7 @@ test("task runner locale confinato, auditabile e limitato al progetto aperto", a
   ).toBeVisible();
   await expect(page.locator(".terminal-status")).toContainText("running");
   await expect(page.locator(".terminal-path code")).toContainText(
-    "node editor",
+    basename(process.cwd()),
   );
 
   await page

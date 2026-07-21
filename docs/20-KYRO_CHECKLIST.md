@@ -808,6 +808,7 @@ Test
 - Benchmark Kyro: 509.546 ms totali, mediana 44.804 ms, 784.271 token. CLI: 274.656 ms totali, mediana 27.002 ms, 763.568 token.
 - Android headed: generazione da Publish, dipendenze, build Vite, `cap add`, configurazione, `cap sync`, Gradle `assembleDebug` e APK 4.144.292 byte PASS; manifest, permessi, versione, orientamento, keyboard resize, tema e stato UI verificati.
 - Pacchetto CLI 2.1.0: installazione pulita, `kyro --version`, `kyro --check --home`, creazione visuale, Preview, reload e riapertura con persistenza PASS.
+- Regressione Playwright completa sulla workstation preparata: 55 PASS, 2 gate; su runner pulito il reimport della sorgente Android generata è un terzo gate esplicito. I test non assumono più account Codex, separatori Windows o nomi locali di cartella.
 
 Evidenze
 

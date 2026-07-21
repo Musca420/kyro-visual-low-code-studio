@@ -144,7 +144,7 @@ npm --prefix generated-app run build
 npm run test:generated
 ```
 
-Current release evidence records **241 unit/integration tests passed** and **55 standard Playwright scenarios passed**, with two explicitly environment-gated scenarios. The same release run completed the headed ten-prompt workflow, independent Web export installation/build/runtime verification, and fresh installed-CLI acceptance. The dedicated headed Android scenario also passed: Kyro generated a project through Publish, installed only reviewed dependencies, built the web bundle, added and synced Capacitor 8, ran Gradle `assembleDebug`, produced a 4,144,292-byte APK, and verified manifest permissions, version, orientation, keyboard behavior, theme resources, and the final UI status.
+Current release evidence records **241 unit/integration tests passed** and **55 standard Playwright scenarios passed** on the prepared release workstation. A clean CI runner can explicitly gate three environment-dependent scenarios: the full Android build, reimport of that generated Android source, and already-running specialized exports. The same release run completed the headed ten-prompt workflow, independent Web export installation/build/runtime verification, and fresh installed-CLI acceptance. The dedicated headed Android scenario also passed: Kyro generated a project through Publish, installed only reviewed dependencies, built the web bundle, added and synced Capacitor 8, ran Gradle `assembleDebug`, produced a 4,144,292-byte APK, and verified manifest permissions, version, orientation, keyboard behavior, theme resources, and the final UI status.
 
 ![Kyro completing the independently verified Android debug build](./docs/images/kyro-android-build-verified.png)
 

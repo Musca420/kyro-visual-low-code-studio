@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, normalize } from "node:path";
+import { dirname, join, normalize, sep } from "node:path";
 import JSZip from "jszip";
 
 const plan = (componentId: string, pageId: string) => JSON.stringify({
@@ -48,7 +48,7 @@ test("Demo A: an existing project survives manual and Codex editing, export and 
   for (const [relative, entry] of Object.entries(zip.files)) {
     if (entry.dir) continue;
     const target = normalize(join(exportRoot, relative));
-    expect(target.startsWith(`${normalize(exportRoot)}\\`)).toBe(true);
+    expect(target.startsWith(`${normalize(exportRoot)}${sep}`)).toBe(true);
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, await entry.async("nodebuffer"));
   }

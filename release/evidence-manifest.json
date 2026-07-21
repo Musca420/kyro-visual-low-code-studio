@@ -6,8 +6,8 @@
   "files": [
     {
       "path": "CHANGELOG.md",
-      "bytes": 3595,
-      "sha256": "5766005356a4b2aac80c1aa6c2387708f0cb636ae1fcfec8ef062af7142ee2df"
+      "bytes": 3636,
+      "sha256": "df239d8881dd13452127168bdc11a46cc210fbda51e8ce6c15be44e0f35fa18e"
     },
     {
       "path": "CODEX_SESSION_EVIDENCE.md",
@@ -31,8 +31,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 13981,
-      "sha256": "888a2a9cbe55dfec7dd6e1229dfe5d16b47c6645010bc0cf6a0aafe2a73afb60"
+      "bytes": 14153,
+      "sha256": "da76d5af4a20d38a7bee0a648fddad3e3216c8427cd915cbdfa588398c7adcdb"
     },
     {
       "path": "ROLLBACK.md",
@@ -47,42 +47,42 @@
     {
       "path": "artifacts/demo-a-existing-project.zip",
       "bytes": 393501,
-      "sha256": "37bb06eaf1e504bac7b471b34a3e5dd9584b3e3b0d0cb30484b40f6d668c55fe"
+      "sha256": "0808d42618809ee3d3328b9881ee7149b6f493d963ab666962264a0837f121c2"
     },
     {
       "path": "artifacts/demo-a-standalone.png",
-      "bytes": 9396,
-      "sha256": "15f4450e5141805849426401928b5f30f03c67219961731406589fa84502de6a"
+      "bytes": 9451,
+      "sha256": "0c061d04b0c00db9e85c5a6a5353e19a1e7f1a5f43f3452a06152c1063306705"
     },
     {
       "path": "artifacts/demo-b-global-standalone.png",
-      "bytes": 66655,
-      "sha256": "6620026773a07d3c3c57209785cb0a799e0f8ea7cdcd13677a7692204819cddc"
+      "bytes": 72483,
+      "sha256": "52a48b4b83e57e36937f32191f7a7f64fae0bee3e42f1ce5e899e120e636c9c7"
     },
     {
       "path": "artifacts/demo-b-global-web-app.zip",
       "bytes": 800092,
-      "sha256": "c5ad13ada1d36b6039a0029c7b24a7b067b46042f3fe83049979c29639836cb4"
+      "sha256": "b3cc0a2ee097cb662c899cf0e77484379ed94ebc6761ad96feec5ce4cb95bd34"
     },
     {
       "path": "artifacts/demo-c-four-page-app.zip",
       "bytes": 1174922,
-      "sha256": "1de41ab6878bea3774a8a817ab2779485543fe503d23daf38cd470e3b2490c91"
+      "sha256": "71d5eaf8f706d91e16491b1a4e49fbfee124701ddfa92b5fcb572ac0d1c2e7db"
     },
     {
       "path": "artifacts/demo-c-mobile-runtime.png",
-      "bytes": 15429,
-      "sha256": "2ad730cedb8fcf4540b76e5d94d37e7c2575cfea2f5bff69497d42470d0be915"
+      "bytes": 16932,
+      "sha256": "11d7e1c0b883ac4127b3ae494347a26ce3c88d5f14cb0082e11b436505069f9e"
     },
     {
       "path": "artifacts/demo-c-standalone-runtime.png",
-      "bytes": 61234,
-      "sha256": "6bc46f4f561470fe9c7956df2cca1856fd4bf57bef91f698c2690f1fce40ee3a"
+      "bytes": 62270,
+      "sha256": "99a2a21edc3ec9edbc9aebaa2d4c7ee6350cc2cc91917b160e30528d875a472f"
     },
     {
       "path": "docs/20-KYRO_CHECKLIST.md",
-      "bytes": 36492,
-      "sha256": "60fda1082ee400b0d5d0ea4bf35dd8d315082ed6d2439ec50b3970fdd38bfda0"
+      "bytes": 36747,
+      "sha256": "dc5bdc50e58c5d4470d41bc360b920289740dd3ed7da0b0dbbc8a49291a17785"
     },
     {
       "path": "docs/21-ARCHITECTURE_REVIEW.md",
@@ -171,18 +171,18 @@
     },
     {
       "path": "e2e/demo-a.spec.ts",
-      "bytes": 4432,
-      "sha256": "2ea564e5c666bd84ffc34a6aab75ff1e45baeb2c1866cd75f3f034dda56d4fa3"
+      "bytes": 4439,
+      "sha256": "9d316f1a553c9d7fa597c806d6bdf9a3eb1737f8cc695f7396829b488e53f954"
     },
     {
       "path": "e2e/demo-b.spec.ts",
-      "bytes": 4086,
-      "sha256": "db8a80c96ad4625ebe43be8672597504e3796de1259eee168912c285448c2e99"
+      "bytes": 4093,
+      "sha256": "9a54ba99536c3b67fc468e9846569b007d3b8a1c4049e0f33b89be66e96d13ae"
     },
     {
       "path": "e2e/demo-c.spec.ts",
-      "bytes": 5626,
-      "sha256": "940cebf31b7bb9bf694fe19c1d48a0554b73acd3dc70baa1afb3169dd4485982"
+      "bytes": 5633,
+      "sha256": "ed600cbe872c34b408274453cbcc49f07ae1aee14539f3070b5c69316f1d2f07"
     },
     {
       "path": "package.json",

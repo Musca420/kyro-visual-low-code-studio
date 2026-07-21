@@ -19,7 +19,7 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   await expect(panel).toBeVisible()
   await expect(panel).toContainText('Button')
   await expect(panel).toContainText('rev. 2')
-  await expect(panel.getByRole('button', { name: 'Sign out of Codex' })).toBeVisible()
+  await expect(panel.getByRole('button', { name: /Sign out of Codex|Sign in with ChatGPT/ })).toBeVisible()
   await expect(panel.getByLabel('Request in plain language')).toBeFocused()
   const detailTabs = panel.getByRole('navigation', { name: 'Codex operation details' })
   await expect(detailTabs.getByRole('button')).toHaveCount(6)
