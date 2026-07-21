@@ -8,8 +8,10 @@ artifacts/
 desktop-dist/
 out/
 .live-browser-profile/
+.kyro/
 e2e/fixtures/**/.agents/
 *.log
+/*.tgz
 .env.signing
 .env.trustedsigning
 electron-windows-sign.log

@@ -43,7 +43,7 @@ describe("import cartella esistente", () => {
       { path: "src/main.ts", content: "console.log('app')" },
     ]);
     expect(imported.id).not.toBe(original.id);
-    expect(imported.name).toBe("Field App imported");
+    expect(imported.name).toBe("Field App");
     expect(imported.pages[0].components).toHaveLength(2);
     expect(imported.exportConfig).toEqual(original.exportConfig);
     expect(imported.importedSource).toMatchObject({

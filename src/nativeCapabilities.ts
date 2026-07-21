@@ -1,10 +1,12 @@
 import type { FlowNode, Project } from "./model";
+import { capabilityContractSchema, type CapabilityContract } from "./capabilityContract";
 
 export type NativeActionDefinition = {
   id: string;
   label: string;
   description: string;
   output: "unknown" | "string" | "number" | "record" | "list";
+  input: "unknown" | "string" | "number" | "record" | "list";
 };
 
 export type NativeCapabilityDefinition = {
@@ -17,9 +19,23 @@ export type NativeCapabilityDefinition = {
   packages: Record<string, string>;
   externalApproval: boolean;
   actions: NativeActionDefinition[];
+  version: string;
+  lifecycle: "active";
+  effects: ("native" | "dependency")[];
+  implementation: { kind: "native_adapter"; reference: string; version: string; status: "verified" };
 };
 
-export const nativeCapabilities: NativeCapabilityDefinition[] = [
+type NativeCapabilitySource = Omit<NativeCapabilityDefinition, "version" | "lifecycle" | "effects" | "implementation" | "actions"> & { actions: (Omit<NativeActionDefinition, "input"> & { input?: NativeActionDefinition["input"] })[] };
+const defineNativeCapability = (source: NativeCapabilitySource): NativeCapabilityDefinition => ({
+  ...source,
+  version: "1.0.0",
+  lifecycle: "active",
+  effects: Object.keys(source.packages).length ? ["native", "dependency"] : ["native"],
+  implementation: { kind: "native_adapter", reference: `runtime:native:${source.id}`, version: "1.0.0", status: "verified" },
+  actions: source.actions.map((action) => ({ input: "unknown", ...action })),
+});
+
+const nativeCapabilitySources: NativeCapabilitySource[] = [
   { id: "camera", label: "Camera & media", description: "Take a photo or let the user choose media.", platforms: ["web", "android", "ios"], minAndroid: 24, permissions: ["camera"], packages: { "@capacitor/camera": "^8.0.0" }, externalApproval: false, actions: [
     { id: "takePhoto", label: "Take photo", description: "Open the system camera and return the captured image.", output: "record" },
     { id: "pickImage", label: "Choose image", description: "Open the system media picker.", output: "record" },
@@ -71,6 +87,22 @@ export const nativeCapabilities: NativeCapabilityDefinition[] = [
   ] },
 ];
 
+export const nativeCapabilities: NativeCapabilityDefinition[] = nativeCapabilitySources.map(defineNativeCapability);
+
+export const nativeCapabilityContracts: CapabilityContract[] = nativeCapabilities.map((capability) => capabilityContractSchema.parse({
+  schemaVersion: 1,
+  capabilityId: `native.${capability.id}`,
+  name: capability.label,
+  version: capability.version,
+  inputs: [{ name: "action input", type: "unknown", required: false }],
+  outputs: [{ name: "action output", type: "unknown", required: false }],
+  effects: capability.effects,
+  permissions: capability.permissions,
+  dependencies: Object.entries(capability.packages).map(([name, version]) => ({ name, version, approvalRequired: capability.externalApproval })),
+  platforms: capability.platforms,
+  implementation: capability.implementation,
+}));
+
 export function nativeCapability(id = "") {
   return nativeCapabilities.find((capability) => capability.id === id);
 }
@@ -92,12 +124,13 @@ export function nativePackagesForProject(project: Project) {
 }
 
 export function nativeExtensionRequests(project: Project) {
-  const requested = new Map<string, { packageName: string; version: string; capabilityId: string; capabilityLabel: string; permissions: string[]; approved: boolean }>();
+  const requested = new Map<string, { packageName: string; version: string; capabilityId: string; capabilityLabel: string; permissions: string[]; platforms: NativeCapabilityDefinition["platforms"]; license: string; risk: "medium" | "high"; rollback: string; approved: boolean }>();
   for (const node of nativeNodes(project)) {
     const capability = nativeCapability(node.config.capability);
     if (!capability?.externalApproval) continue;
     for (const [packageName, version] of Object.entries(capability.packages)) requested.set(packageName, {
-      packageName, version, capabilityId: capability.id, capabilityLabel: capability.label, permissions: capability.permissions,
+      packageName, version, capabilityId: capability.id, capabilityLabel: capability.label, permissions: capability.permissions, platforms: capability.platforms,
+      license: "MIT", risk: capability.permissions.length ? "high" : "medium", rollback: "Revoke approval and rebuild the export without this device capability",
       approved: project.extensionApprovals.some((approval) => approval.packageName === packageName && approval.version === version),
     });
   }

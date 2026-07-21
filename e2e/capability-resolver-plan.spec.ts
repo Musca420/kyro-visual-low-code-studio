@@ -9,7 +9,8 @@ test("spiega un servizio esterno e lascia la scelta all'utente", async ({ page }
   await page.locator(".palette").getByRole("button").filter({ hasText: "button" }).click();
   await page.getByTestId("component-button").click();
   await page.getByText("Meaning in the program").click();
-  await page.getByLabel("Expected result", { exact: true }).fill("completa pagamento checkout");
+  await page.getByLabel("Expected result", { exact: true }).fill("complete checkout");
+  await page.getByLabel("Required capability").selectOption("payments.checkout");
 
   const issue = page.locator(".capability-issues article").filter({ hasText: "Payment provider required" });
   await expect(issue).toBeVisible();

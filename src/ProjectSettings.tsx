@@ -12,9 +12,11 @@ type AndroidStatus = {
 
 export function ProjectSettings({
   project,
+  verifiedProject = project,
   onChange,
 }: {
   project: Project;
+  verifiedProject?: Project;
   onChange: (project: Project) => void;
 }) {
   const [environment, setEnvironment] = useState<AndroidStatus>();
@@ -104,8 +106,9 @@ export function ProjectSettings({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            projectId: project.id,
-            files: generateFiles(project),
+            projectId: verifiedProject.id,
+            files: generateFiles(verifiedProject),
+            dependencyApprovals: verifiedProject.extensionApprovals,
           }),
         }),
         value = await response.json();
@@ -415,8 +418,8 @@ export function ProjectSettings({
         <h2>Extensions required by the flow</h2>
         <p>Kyro found device actions that need an external package. Review each package before it is added to export and build.</p>
         {extensionRequests.map((request) => <article key={request.packageName}>
-          <div><strong>{request.capabilityLabel}</strong><code>{request.packageName}@{request.version}</code><small>Permissions: {request.permissions.join(", ") || "none"}</small></div>
-          {request.approved ? <><span className="valid-chip">Approved</span><button type="button" className="secondary" onClick={() => onChange({ ...project, extensionApprovals: project.extensionApprovals.filter((approval) => approval.packageName !== request.packageName) })}>Revoke</button></> : <button type="button" onClick={() => onChange({ ...project, extensionApprovals: [...project.extensionApprovals, { packageName: request.packageName, version: request.version, reason: request.capabilityLabel, approvedAt: new Date().toISOString() }] })}>Review and approve</button>}
+          <div><strong>{request.capabilityLabel}</strong><code>{request.packageName}@{request.version}</code><small>License: {request.license} · Risk: {request.risk} · Platforms: {request.platforms.join(", ")} · Permissions: {request.permissions.join(", ") || "none"} · Rollback: {request.rollback}</small></div>
+          {request.approved ? <><span className="valid-chip">Approved</span><button type="button" className="secondary" onClick={() => onChange({ ...project, extensionApprovals: project.extensionApprovals.filter((approval) => approval.packageName !== request.packageName) })}>Revoke</button></> : <button type="button" onClick={() => onChange({ ...project, extensionApprovals: [...project.extensionApprovals, { packageName: request.packageName, version: request.version, reason: request.capabilityLabel, license: request.license, risk: request.risk, rollback: request.rollback, platforms: request.platforms, approvedAt: new Date().toISOString() }] })}>Review and approve</button>}
         </article>)}
         <small>Approval is version-specific and is stored in the open project model. Undo or Revoke removes it. Installation happens only inside the isolated export/build folder.</small>
       </section>}

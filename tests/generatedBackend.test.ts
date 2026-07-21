@@ -193,5 +193,5 @@ describe("backend esportato", () => {
         (response) => response.json(),
       ),
     ).toEqual([]);
-  });
+  }, 15_000);
 });

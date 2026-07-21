@@ -77,6 +77,7 @@ describe("unified program graph", () => {
     const project = createProject("Resolver");
     const button = makeComponent("button");
     button.intent.expectedResult = "completa pagamento checkout";
+    button.intent.capabilityIds = ["payments.checkout"];
     project.pages.push({ id: "page", name: "Home", path: "/", components: [button] });
     const payment = inspectComponentProgram(project, "page", button.id).issues.find((issue) => issue.id === "payment-provider");
     expect(payment?.plan?.requirements).toContain("HTTPS webhook to confirm the result");

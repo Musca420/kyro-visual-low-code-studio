@@ -4,7 +4,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 
 export type WorkspaceSnapshot = Map<string, Buffer>
 
-const ignored = new Set(['.git', 'node_modules', 'dist', 'artifacts', 'playwright-report', 'test-results'])
+const ignored = new Set(['.git', '.kyro', 'node_modules', 'dist', 'artifacts', 'playwright-report', 'test-results'])
 
 export async function snapshotWorkspace(root: string): Promise<WorkspaceSnapshot> {
   const snapshot: WorkspaceSnapshot = new Map()

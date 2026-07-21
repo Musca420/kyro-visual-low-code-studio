@@ -264,6 +264,23 @@ export function VisualProperties({
               }
             />
           </label>
+          <label>
+            Connected service
+            <select
+              aria-label="Required capability"
+              value={component.intent.capabilityIds?.[0] ?? ""}
+              onChange={(event) => onUpdate((item) => ({
+                ...item,
+                intent: { ...item.intent, capabilityIds: event.target.value ? [event.target.value] : [] },
+              }))}
+            >
+              <option value="">No external service</option>
+              <option value="authentication.user">User accounts</option>
+              <option value="payments.checkout">Payments / checkout</option>
+              <option value="notifications.local">Local notifications</option>
+              <option value="notifications.push">Push notifications</option>
+            </select>
+          </label>
         </div>
       </details>
       {["image", "audio", "video"].includes(component.type) && (

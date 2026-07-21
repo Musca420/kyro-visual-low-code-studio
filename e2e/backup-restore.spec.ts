@@ -51,6 +51,8 @@ test("backup e ripristino conservano progetto, dati e ricerca della home", async
   });
   expect(backup.projects).toHaveLength(1);
   expect(backup.records).toEqual(expect.arrayContaining([expect.objectContaining({ text: "Dato conservato nel backup" })]));
+  expect(backup.artifacts.length).toBeGreaterThan(0);
+  expect(backup.artifacts.every((artifact: { kind: string; sha256: string }) => artifact.kind === "report" && /^[a-f0-9]{64}$/.test(artifact.sha256))).toBe(true);
 
   page.once("dialog", (dialog) => dialog.accept());
   const card = page.locator(".project-card").filter({ hasText: "Backup Roundtrip" });
@@ -60,6 +62,16 @@ test("backup e ripristino conservano progetto, dati e ricerca della home", async
   await page.locator('.recent input[type="file"]').setInputFiles(backupPath!);
   await expect(page.getByText(/Restore completed: 1 projects, 1 records/)).toBeVisible();
   await page.getByPlaceholder("Search projects…").fill("");
+  const restoredArtifacts = await page.evaluate(async () => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open("frontend-editor", 8);
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result, request = db.transaction("artifacts").objectStore("artifacts").count();
+      request.onsuccess = () => { db.close(); resolve(request.result); };
+      request.onerror = () => { db.close(); reject(request.error); };
+    };
+  }));
+  expect(restoredArtifacts).toBe(backup.artifacts.length);
   const cardColors = await page.locator(".project-open").evaluate((element) => {
     const style = getComputedStyle(element);
     return [style.color, style.backgroundColor];

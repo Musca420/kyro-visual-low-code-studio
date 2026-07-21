@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "product": "Kyro",
+  "version": "2.0.0",
+  "releaseDate": "2026-07-21",
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 1713,
+      "sha256": "12f9141adc3cddbceedefa0698e104623af6294ee3036d5a0a63a3b60b05e866"
+    },
+    {
+      "path": "ROLLBACK.md",
+      "bytes": 1547,
+      "sha256": "3f929b8512d1641d911114267da2225874734fd62da5a9d2092cbd81698d381b"
+    },
+    {
+      "path": "artifacts/demo-a-existing-project.zip",
+      "bytes": 279050,
+      "sha256": "89505a5b14ef4ef10cd914c356068182ec4c4c2f4775f37181a76a4843121fde"
+    },
+    {
+      "path": "artifacts/demo-a-standalone.png",
+      "bytes": 8994,
+      "sha256": "a6766f508699f34631e2af4b03aabeb8c24925f06ea42b1eec06100dd4b963fa"
+    },
+    {
+      "path": "artifacts/demo-b-global-standalone.png",
+      "bytes": 64431,
+      "sha256": "f854980c6537df9c8e6015ec98695e0b0a917628d0a278db75daff5c51235ee6"
+    },
+    {
+      "path": "artifacts/demo-b-global-web-app.zip",
+      "bytes": 796313,
+      "sha256": "c3473748076afa6445f289869ca47bc7631d43afb973ce50a2638c6628382879"
+    },
+    {
+      "path": "artifacts/demo-c-four-page-app.zip",
+      "bytes": 1169328,
+      "sha256": "c35be4345551f635cc7c16ab68ac2900659974fe4f0220ac1c38c35dcb123b07"
+    },
+    {
+      "path": "artifacts/demo-c-mobile-runtime.png",
+      "bytes": 19349,
+      "sha256": "fe0ca4ef3f20d8d5b3b28a3f4139afecb89c81635bd425c82e937ad337a4cc3a"
+    },
+    {
+      "path": "artifacts/demo-c-standalone-runtime.png",
+      "bytes": 62018,
+      "sha256": "a397406172508e9da3f624bb97a79d759d86605f1a57c19ace8bc533123ac508"
+    },
+    {
+      "path": "docs/20-KYRO_CHECKLIST.md",
+      "bytes": 22048,
+      "sha256": "46d5242f5374facfc9aedb7c513759a492550fb5b400f0ae35a0aa7130fe4e99"
+    },
+    {
+      "path": "docs/21-ARCHITECTURE_REVIEW.md",
+      "bytes": 6184,
+      "sha256": "a4752d00d84bf5656981eb156220a375fb40375a26c1ebc9b7af71473e3a9f4b"
+    },
+    {
+      "path": "docs/22-IMPLEMENTATION_PLAN.md",
+      "bytes": 8440,
+      "sha256": "b1996d996b098404bb29da630fbc157ea02d93b847acc6035e3232fc1772b193"
+    },
+    {
+      "path": "docs/benchmarks/2026-07-21-live.json",
+      "bytes": 2384,
+      "sha256": "54b8310abba836658a6d16968031508452719bc31aa9a20f46e37e3a5a1d5847"
+    },
+    {
+      "path": "docs/images/kyro-global-capability-draft.png",
+      "bytes": 60799,
+      "sha256": "ffc312bb3a04d28b23ccead7cf19b87d44c92bcb5e0685622a82508bd5131f79"
+    },
+    {
+      "path": "docs/images/kyro-live-codex-plan.png",
+      "bytes": 133054,
+      "sha256": "82e6531d1f23338feb0927d0a8cfa9fd0b1a720f361fafb1ceec4cbd220a06d8"
+    },
+    {
+      "path": "e2e/demo-a.spec.ts",
+      "bytes": 4360,
+      "sha256": "15ae9ca309ba796117695f7dac4132b36fda28102a4d41a4023f58062faa3968"
+    },
+    {
+      "path": "e2e/demo-b.spec.ts",
+      "bytes": 4022,
+      "sha256": "60f901719270269509eaeede951f42464cd45a3d3d899c799f82e4ab2d0a5723"
+    },
+    {
+      "path": "e2e/demo-c.spec.ts",
+      "bytes": 5533,
+      "sha256": "0cee77f25ecb77a98d8ae522971985d76c40c38040784519408ec56366f3cd33"
+    },
+    {
+      "path": "package.json",
+      "bytes": 4081,
+      "sha256": "e4a27c3b13d6755d7b777c21ac36a011cab89b4be55854391aeb3a8b0eb1e194"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { kyroMcpContracts, kyroMcpContractVersion, kyroMcpMeta } from "./mcpContract.mjs";
 
 const base = (process.env.KYRO_LIVE_URL || "http://127.0.0.1:4173").replace(/\/$/, "");
 const agentToken = process.env.KYRO_AGENT_TOKEN || "";
@@ -16,15 +17,29 @@ async function json(url, init) {
   return value;
 }
 
-async function status() { return json(`${base}/api/live/status`); }
+async function status(projectId) { return json(`${base}/api/live/status${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`); }
 async function authorization() {
   if (!agentToken) throw new Error("Kyro agent authorization is unavailable");
   return json(`${base}/api/agent/authorization`, { headers: { authorization: `Bearer ${agentToken}` } });
 }
+async function authorizedScope() {
+  const permission = await authorization(), live = await status(permission.projectId);
+  if (permission.projectId !== live.projectId) throw new Error("The active Job is scoped to another Kyro project");
+  if (Number(live.revision) < Number(permission.revision) || Number(live.revision) > Number(permission.revision) + 1)
+    throw new Error("The active Job authorization is stale for this Graph revision");
+  if (!permission.deadlineAt || Date.parse(permission.deadlineAt) <= Date.now()) throw new Error("The active Kyro Job authorization expired");
+  return { permission, live };
+}
+async function audit(name, result, detail = "") {
+  return json(`${base}/api/agent/mcp-audit`, {
+    method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+    body: JSON.stringify({ tool: name, result, detail }),
+  });
+}
 async function tool(name, args = {}) {
-  const live = await status();
+  const permission = await authorization(), live = await status(permission.projectId);
   let result = await json(`${base}/api/live/tools/${name}`, {
-    method: "POST", headers: { "content-type": "application/json" },
+    method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
     body: JSON.stringify({ projectId: live.projectId, pageId: live.pageId, revision: live.revision, args }),
   });
   if (result.transactionId) for (let attempt = 0; attempt < 120 && result.status === "pending"; attempt += 1) {
@@ -33,10 +48,10 @@ async function tool(name, args = {}) {
   }
   if (result.status === "pending" || result.status === "error") throw new Error(result.error || `Kyro ${name} did not complete`);
   if (result.tool === "apply_editor_transaction" && Number.isInteger(result.revision)) {
-    let live = await status();
+    let live = await status(permission.projectId);
     for (let attempt = 0; attempt < 80 && Number(live.revision) <= Number(result.revision); attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 250));
-      live = await status();
+      live = await status(permission.projectId);
     }
     if (Number(live.revision) <= Number(result.revision)) throw new Error("Kyro applied the transaction but did not publish the next graph revision");
     result = { ...result, finalRevision: live.revision };
@@ -45,6 +60,33 @@ async function tool(name, args = {}) {
 }
 
 const text = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }] });
+
+function register(name, config, handler) {
+  const contract = kyroMcpContracts[name];
+  if (!contract) throw new Error(`MCP tool ${name} has no declared contract`);
+  server.registerTool(name, {
+    ...config,
+    annotations: {
+      readOnlyHint: !contract.access.write,
+      destructiveHint: name === "kyro_undo",
+      idempotentHint: !contract.access.write,
+      openWorldHint: false,
+    },
+    _meta: kyroMcpMeta(name),
+  }, async (input) => {
+    if (!agentToken) throw new Error("Kyro agent authorization is unavailable");
+    await authorizedScope();
+    await audit(name, "allowed", "started");
+    try {
+      const result = await handler(input);
+      await audit(name, "allowed", "completed");
+      return result;
+    } catch (error) {
+      await audit(name, "denied", error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  });
+}
 
 async function applyApproved(operations) {
   const permission = await authorization();
@@ -76,63 +118,89 @@ function previewContent(transaction, evidence = {}) {
   ];
 }
 
-server.registerTool("kyro_get_context", {
+register("kyro_describe_tools", {
+  description: "Read the versioned typed contract and declared effects for every Kyro MCP tool.",
+  inputSchema: {},
+}, async () => text({ version: kyroMcpContractVersion, tools: kyroMcpContracts }));
+
+register("kyro_get_context", {
   description: "Read the compact indexed slice for the current Kyro selection without scanning project files.",
   inputSchema: {},
-}, async () => text(await json(`${base}/api/agent/context`)));
+}, async () => text(await json(`${base}/api/agent/context`, { headers: { authorization: `Bearer ${agentToken}` } })));
 
-server.registerTool("kyro_resolve_capability", {
-  description: "Read missing capabilities, requirements and alternatives. This tool never changes the project.",
-  inputSchema: { request: z.string().max(4000).optional() },
-}, async ({ request }) => {
-  if (!agentToken) throw new Error("Kyro agent authorization is unavailable");
-  return text(await json(`${base}/api/agent/capability`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
-    body: JSON.stringify({ request: request || "" }),
-  }));
-});
+const planSchema = {
+  request: z.string().max(4000).optional(),
+  domains: z.array(z.enum(["app", "design", "actions", "data", "extensions", "publish"])).optional(),
+  capabilityIds: z.array(z.string()).max(24).optional(),
+  requiresExternal: z.boolean().optional(),
+  prefersModule: z.boolean().optional(),
+};
+const plan = async (input) => text(await json(`${base}/api/agent/capability`, {
+  method: "POST",
+  headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+  body: JSON.stringify(input),
+}));
 
-server.registerTool("kyro_apply_operations", {
+register("kyro_plan", {
+  description: "Plan against explicit operation domains and capability IDs; descriptive text never routes Core decisions.",
+  inputSchema: planSchema,
+}, plan);
+
+register("kyro_resolve_capability", {
+  description: "Resolve typed capability IDs, domains and declared effects. Free text is descriptive and is never used for Core routing.",
+  inputSchema: planSchema,
+}, plan);
+
+register("kyro_apply_operations", {
   description: "Apply the already approved Kyro operations as one visual transaction.",
   inputSchema: { operations: z.array(z.object({ type: z.string(), pageId: z.string().optional(), args: z.record(z.string(), z.unknown()).optional() })).min(1).max(50) },
 }, async ({ operations }) => {
   return text(await applyApproved(operations));
 });
 
-server.registerTool("kyro_apply_verified_transaction", {
+register("kyro_apply_verified_transaction", {
   description: "Apply the exact approved Kyro operations once, wait for the next graph revision, validate, and capture the visual preview as one atomic verification round.",
   inputSchema: { operations: z.array(z.object({ type: z.string(), pageId: z.string().optional(), args: z.record(z.string(), z.unknown()).optional() })).min(1).max(50) },
 }, async ({ operations }) => {
   const transaction = await applyApproved(operations);
   const validation = await tool("validate_project");
   const preview = await tool("capture_preview");
-  return { content: previewContent(preview, { transactionId: transaction.id, finalRevision: transaction.finalRevision, validation }) };
+  return { content: previewContent(preview, { transactionId: transaction.id, finalRevision: transaction.finalRevision, verification: transaction.result?.verification, validation }) };
 });
 
-server.registerTool("kyro_register_global_capability", {
+register("kyro_register_global_capability", {
   description: "Register the exact approved capability as an inactive, versioned global Kyro draft. This never installs code or dependencies.",
   inputSchema: {
     proposal: z.object({
       scope: z.literal("global"), kind: z.enum(["reusable_flow", "typed_module", "plugin"]), name: z.string(), generalizedIntent: z.string(),
       inputs: z.array(z.string()), outputs: z.array(z.string()), permissions: z.array(z.string()), dependencies: z.array(z.string()),
       validationTests: z.array(z.string()).min(1), activation: z.enum(["passing_tests", "explicit_review"]),
+      effects: z.array(z.enum(["ui", "state", "data", "network", "filesystem", "native", "dependency", "secrets"])).default([]),
+      platforms: z.array(z.enum(["web", "pwa", "android", "ios", "desktop"])).min(1).default(["web"]),
     }),
   },
 }, async ({ proposal }) => text(await registerApprovedCapability(proposal)));
 
-server.registerTool("kyro_validate", {
+register("kyro_validate", {
   description: "Validate the active visual project and return actionable errors.", inputSchema: {},
 }, async () => text(await tool("validate_project")));
 
-server.registerTool("kyro_capture_preview", {
+register("kyro_verify", {
+  description: "Read the latest persisted Transaction VerificationReport and current Graph validation.", inputSchema: {},
+}, async () => text({ validation: await tool("validate_project"), verification: await tool("get_verification_report") }));
+
+register("kyro_build_preflight", {
+  description: "Verify build readiness for the active target without writing files, installing packages, or starting a shell.", inputSchema: {},
+}, async () => text(await tool("get_build_preflight")));
+
+register("kyro_capture_preview", {
   description: "Open and capture the current Kyro preview so Codex can inspect the result visually.", inputSchema: {},
 }, async () => {
   const transaction = await tool("capture_preview");
   return { content: previewContent(transaction) };
 });
 
-server.registerTool("kyro_undo", {
+register("kyro_undo", {
   description: "Undo the most recent Kyro visual transaction.", inputSchema: {},
 }, async () => {
   if ((await authorization()).mode !== "apply") throw new Error("Kyro undo is unavailable during planning");
