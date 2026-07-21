@@ -24,6 +24,47 @@ export function applyEditorOperation(project: Project, pageId: string, operation
       return applyEditorOperation(value, next.pageId ?? pageId, next)
     }, project))
   }
+  if (operation.type === 'restore_project_revision') {
+    if (args.confirmed !== true) throw new Error('Restoring a revision requires confirmed=true')
+    const restored = parseProject(args.project)
+    if (restored.id !== project.id) throw new Error('The revision belongs to another project')
+    return restored
+  }
+  if (operation.type === 'set_theme_tokens') {
+    const tokens = object(args.tokens)
+    return parseProject({ ...project, theme: { tokens: { ...project.theme.tokens, ...tokens } } })
+  }
+  if (operation.type === 'set_project_assets') {
+    if (!Array.isArray(args.assets)) throw new Error('Assets must be a list')
+    return parseProject({ ...project, assets: args.assets })
+  }
+  if (operation.type === 'set_reusable_components') {
+    if (!Array.isArray(args.components)) throw new Error('Reusable components must be a list')
+    return parseProject({ ...project, reusableComponents: args.components })
+  }
+  if (operation.type === 'set_code_modules') {
+    if (!Array.isArray(args.modules)) throw new Error('Code modules must be a list')
+    return parseProject({ ...project, codeModules: args.modules })
+  }
+  if (operation.type === 'set_project_plugins') {
+    if (!Array.isArray(args.plugins)) throw new Error('Plugins must be a list')
+    return parseProject({ ...project, plugins: args.plugins })
+  }
+  if (operation.type === 'set_project_flows') {
+    if (!Array.isArray(args.flows)) throw new Error('Flows must be a list')
+    return parseProject({ ...project, flows: args.flows })
+  }
+  if (operation.type === 'set_flow_runs') {
+    if (!Array.isArray(args.runs)) throw new Error('Flow runs must be a list')
+    return parseProject({ ...project, flowRuns: args.runs })
+  }
+  if (operation.type === 'set_project_settings') {
+    const appConfig = args.appConfig === undefined ? project.appConfig : object(args.appConfig)
+    const exportConfig = args.exportConfig === undefined ? project.exportConfig : object(args.exportConfig)
+    const extensionApprovals = args.extensionApprovals === undefined ? project.extensionApprovals : args.extensionApprovals
+    if (!Array.isArray(extensionApprovals)) throw new Error('Extension approvals must be a list')
+    return parseProject({ ...project, appConfig, exportConfig, extensionApprovals })
+  }
   if (operation.type === 'add_page') {
     const name = String(args.name ?? '').trim(), path = String(args.path ?? '').trim(), id = String(args.pageId ?? crypto.randomUUID())
     if (!name || !path.startsWith('/')) throw new Error('Page name and path are required')
@@ -36,6 +77,11 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     const name = args.name === undefined ? page.name : String(args.name).trim(), path = args.path === undefined ? page.path : String(args.path).trim()
     if (!name || !path.startsWith('/') || project.pages.some((item) => item.id !== id && item.path === path)) throw new Error('Page name or path is not valid')
     return parseProject({ ...project, pages: project.pages.map((item) => item.id === id ? { ...item, name, path } : item) })
+  }
+  if (operation.type === 'set_page_components') {
+    if (!Array.isArray(args.components)) throw new Error('Page components must be a list')
+    if (!project.pages.some((item) => item.id === pageId)) throw new Error('Page not found')
+    return parseProject({ ...project, pages: project.pages.map((item) => item.id === pageId ? { ...item, components: args.components } : item) })
   }
   if (operation.type === 'remove_page') {
     const id = String(args.pageId ?? pageId)
@@ -74,7 +120,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     const packageName = String(args.packageName ?? ''), version = String(args.version ?? '')
     const request = nativeExtensionRequests(project).find((item) => item.packageName === packageName && item.version === version)
     if (!request) throw new Error('This exact dependency is not required by the current visual flow')
-    const approval = { packageName, version, reason: request.capabilityLabel, approvedAt: new Date().toISOString() }
+    const approval = { packageName, version, reason: request.capabilityLabel, license: request.license, risk: request.risk, rollback: request.rollback, platforms: request.platforms, approvedAt: new Date().toISOString() }
     return parseProject({ ...project, extensionApprovals: [...project.extensionApprovals.filter((item) => item.packageName !== packageName), approval] })
   }
   if (operation.type === 'revoke_dependency') {
@@ -263,6 +309,11 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     const flowId = String(args.flowId), name = String(args.name ?? '').trim()
     if (!name || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Invalid flow')
     return parseProject({ ...project, flows: project.flows.map((flow) => flow.id === flowId ? { ...flow, name } : flow) })
+  }
+  if (operation.type === 'replace_flow') {
+    const flow = args.flow as Flow
+    if (!flow || !project.flows.some((item) => item.id === flow.id)) throw new Error('Invalid flow')
+    return parseProject({ ...project, flows: project.flows.map((item) => item.id === flow.id ? flow : item) })
   }
   if (operation.type === 'remove_flow') {
     const flowId = String(args.flowId)

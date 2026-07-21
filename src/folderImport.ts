@@ -279,7 +279,6 @@ export function importExistingFolder(
     return parseProject({
       ...original,
       id: crypto.randomUUID(),
-      name: `${original.name} imported`,
       createdAt: now,
       updatedAt: now,
       importedSource: {

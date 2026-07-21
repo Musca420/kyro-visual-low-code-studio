@@ -12,7 +12,7 @@ describe("native capability registry", () => {
     ], edges: [] });
     expect(nativePackagesForProject(project)).not.toHaveProperty("@capacitor-community/bluetooth-le");
     expect(nativeExtensionRequests(project)).toContainEqual(expect.objectContaining({ packageName: "@capacitor-community/bluetooth-le", approved: false }));
-    project.extensionApprovals.push({ packageName: "@capacitor-community/bluetooth-le", version: "^8.0.0", reason: "Bluetooth Low Energy", approvedAt: new Date().toISOString() });
+    project.extensionApprovals.push({ packageName: "@capacitor-community/bluetooth-le", version: "^8.0.0", reason: "Bluetooth Low Energy", license: "MIT", risk: "high", rollback: "Revoke approval and rebuild", platforms: ["web", "android", "ios"], approvedAt: new Date().toISOString() });
     expect(nativePackagesForProject(project)).toMatchObject({ "@capacitor/camera": "^8.0.0", "@capacitor-community/bluetooth-le": "^8.0.0" });
     expect(nativePermissionsForProject(project)).toEqual(expect.arrayContaining(["camera", "bluetoothScan", "bluetoothConnect"]));
   });

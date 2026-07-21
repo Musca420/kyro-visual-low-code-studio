@@ -15,6 +15,7 @@ import {
   insertGenericRecord,
   insertRecord,
   listPlugins,
+  listRuntimeRuns,
   listGlobalCapabilities,
   registerGlobalCapability,
   listExports,
@@ -22,12 +23,14 @@ import {
   listProjects,
   queryRecords,
   saveProject,
-  saveExport,
+  saveExportArtifact,
+  saveRuntimeRun,
   updateProjectRecord,
   updateGenericRecord,
   type LocalRecord,
   type ExportRecord,
   type ProjectVersion,
+  type RuntimeRunRecord,
 } from "./db";
 import { runProjectFlow, type FlowLog } from "./flow";
 import type { GlobalCapability } from "./globalCapability";
@@ -54,7 +57,10 @@ import {
   type TemplateId,
 } from "./templates";
 import { CodexPanel, type CodexContext } from "./CodexPanel";
-import { applyEditorOperation } from "./editorOperations";
+import type { EditorOperation } from "./editorOperations";
+import { executeProjectTransaction, rollbackProjectTransaction } from "./transactionEngine";
+import type { VerificationReport } from "./verification";
+import { applyProjectTransaction, type ProjectTransactionRequest } from "./projectCore";
 import { operationNames } from "./agentRegistry";
 import { captureElement, type CaptureResult } from "./capture";
 import {
@@ -84,6 +90,7 @@ import {
   type FlowNodeProgramView,
   type DataSourceProgramView,
 } from "./programGraph";
+import { createArtifact } from "./artifactRegistry";
 
 type WorkspaceTab =
   "design" | "flow" | "data" | "preview" | "plugins" | "terminal" | "settings";
@@ -617,6 +624,8 @@ function Editor({
   onToggleTheme: () => void;
 }) {
   const [project, setProject] = useState(initial);
+  const [verifiedProject, setVerifiedProject] = useState(initial);
+  const [latestVerification, setLatestVerification] = useState<VerificationReport>();
   const [installedPlugins, setInstalledPlugins] = useState<PluginManifest[]>([]);
   const [globalCapabilities, setGlobalCapabilities] = useState<GlobalCapability[]>([]);
   const [pageId, setPageId] = useState(initial.pages[0]?.id ?? "");
@@ -641,12 +650,13 @@ function Editor({
   const [reusableName, setReusableName] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
-  const [history, setHistory] = useState<Project[]>([]);
-  const [future, setFuture] = useState<Project[]>([]);
+  const [history, setHistory] = useState<{ project: Project; transactionId: string }[]>([]);
+  const [future, setFuture] = useState<{ project: Project; transactionId: string }[]>([]);
   const [versions, setVersions] = useState<ProjectVersion[]>([]);
   const [exportHistory, setExportHistory] = useState<ExportRecord[]>([]);
   const [saveState, setSaveState] = useState("Saved");
   const [logs, setLogs] = useState<FlowLog[]>([]);
+  const [runtimeRuns, setRuntimeRuns] = useState<Project["flowRuns"]>(initial.flowRuns);
   const [pausedFlow, setPausedFlow] = useState<{ nodeId: string; value: unknown }>();
   const [sourceName, setSourceName] = useState("Local tasks");
   const [collection, setCollection] = useState("items");
@@ -697,6 +707,7 @@ function Editor({
   const processingCommands = useRef(new Set<string>());
   const bridgeClientId = useRef(crypto.randomUUID());
   const projectRef = useRef(project);
+  const transactionQueue = useRef<Promise<unknown>>(Promise.resolve());
   const runtimeState = useRef<Record<string, unknown>>({ ...initial.state });
   const resumeFlow = useRef<(() => void) | undefined>(undefined);
   const assetInput = useRef<HTMLInputElement>(null);
@@ -759,11 +770,15 @@ function Editor({
     void Promise.all([
       listProjectVersions(project.id),
       listExports(project.id),
-    ]).then(([savedVersions, savedExports]) => {
+      listRuntimeRuns(project.id),
+    ]).then(([savedVersions, savedExports, savedRuns]) => {
       setVersions(savedVersions);
       setExportHistory(savedExports);
+      const legacyRuns = initial.id === project.id ? initial.flowRuns : [];
+      setRuntimeRuns([...savedRuns, ...legacyRuns.filter((legacy) => !savedRuns.some((run) => run.id === legacy.id))]
+        .sort((left, right) => right.startedAt.localeCompare(left.startedAt)).slice(0, 20));
     });
-  }, [project.id]);
+  }, [initial.flowRuns, initial.id, project.id]);
   const currentPage = project.pages.find((page) => page.id === pageId);
   const activeComponent = currentPage?.components.find(
     (component) => component.id === selected[0],
@@ -843,7 +858,9 @@ function Editor({
   }, [flow, pageId, project.pages, selected, tab]);
 
   useEffect(() => {
-    const components = currentPage?.components ?? [];
+    const liveProject = verifiedProject;
+    const livePage = liveProject.pages.find((page) => page.id === pageId) ?? liveProject.pages[0];
+    const components = livePage?.components ?? [];
     const layouts = Object.fromEntries(
       components.map((component) => {
         const element = document.querySelector<HTMLElement>(
@@ -860,46 +877,60 @@ function Editor({
     );
     const state = {
       clientId: bridgeClientId.current,
-      projectId: project.id,
-      pageId: currentPage?.id ?? "no-page",
-      revision: project.revision,
+      projectId: liveProject.id,
+      pageId: livePage?.id ?? "no-page",
+      revision: liveProject.revision,
       selectedComponentIds: selected,
       viewport: breakpoint,
       previewState: tab === "preview" ? "open" : "closed",
       componentTree: componentTree(components).map(serializeBranch),
       layouts,
-      flows: project.flows,
-      dataSources: project.dataSources,
+      flows: liveProject.flows,
+      dataSources: liveProject.dataSources,
       capabilities: selected.flatMap((componentId) =>
         components.some((component) => component.id === componentId)
           ? inspectComponentProgram(
-              project,
-              currentPage?.id ?? "no-page",
+              liveProject,
+              livePage?.id ?? "no-page",
               componentId,
             ).issues
           : [],
       ),
       globalCapabilities,
-      validationErrors: [],
+      validationErrors: latestVerification?.status === "failed"
+        ? latestVerification.stages.filter((stage) => stage.status === "failed").map((stage) => ({ stage: stage.name, message: stage.detail }))
+        : [],
       consoleErrors: [],
-      project: {
-        id: project.id,
-        name: project.name,
-        revision: project.revision,
-        brief: project.state.projectBrief,
-        target: project.exportConfig.target,
-        appConfig: project.appConfig,
-        exportConfig: project.exportConfig,
-        themeTokens: project.theme.tokens,
+      verificationReport: latestVerification,
+      buildPreflight: {
+        target: liveProject.exportConfig.target,
+        revision: liveProject.revision,
+        pages: liveProject.pages.length,
+        flows: liveProject.flows.length,
+        dataSources: liveProject.dataSources.length,
+        blockers: [
+          ...(!liveProject.pages.length ? ["page"] : []),
+          ...(liveProject.appConfig.authentication.mode === "generated" && !liveProject.dataSources.some((source) => source.provider === "generated") ? ["generated_backend"] : []),
+        ],
       },
-      pages: project.pages.map(({ id, name, path }) => ({ id, name, path })),
+      project: {
+        id: liveProject.id,
+        name: liveProject.name,
+        revision: liveProject.revision,
+        brief: liveProject.state.projectBrief,
+        target: liveProject.exportConfig.target,
+        appConfig: liveProject.appConfig,
+        exportConfig: liveProject.exportConfig,
+        themeTokens: liveProject.theme.tokens,
+      },
+      pages: liveProject.pages.map(({ id, name, path }) => ({ id, name, path })),
     };
     void fetch("/api/live/state", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(state),
     }).catch(() => undefined);
-  }, [project, currentPage, selected, breakpoint, tab, globalCapabilities]);
+  }, [verifiedProject, latestVerification, pageId, selected, breakpoint, tab, globalCapabilities]);
 
   const askCodex = (action: string, direct?: { component: EditorComponent; bounds: CodexContext["bounds"]; prompt?: string }) => {
     const source = direct ?? contextMenu;
@@ -984,67 +1015,114 @@ function Editor({
     setContextMenu(undefined);
   };
 
-  const change = useCallback(
-    (next: Project | ((value: Project) => Project), track = true) => {
-      setProject((previous) => {
-        const candidate = typeof next === "function" ? next(previous) : next;
-        const value = {
-          ...candidate,
-          revision: previous.revision + 1,
-          updatedAt: new Date().toISOString(),
-        };
-        if (track) {
-          setHistory((items) => [...items.slice(-49), previous]);
-          setFuture([]);
-        }
-        return value;
-      });
-      setSaveState("Unsaved changes");
-    },
-    [],
-  );
+  const commitOperations = useCallback((
+    input: EditorOperation[] | ((project: Project) => EditorOperation[]),
+    options: { transactionId?: string; actor?: "manual" | "codex" | "system"; jobId?: string; capability?: string; recordHistory?: boolean } = {},
+  ) => {
+    const base = projectRef.current;
+    const operations = typeof input === "function" ? input(base) : input;
+    const actor = options.actor ?? "manual";
+    const transactionId = options.transactionId ?? crypto.randomUUID();
+    const request: ProjectTransactionRequest = {
+      transactionId, actor, projectId: base.id, pageId, baseRevision: base.revision, operations,
+      authorization: actor === "manual"
+        ? { kind: "user" }
+        : actor === "codex"
+          ? { kind: "approved_job", jobId: options.jobId ?? "" }
+          : { kind: "internal", capability: options.capability ?? "editor" },
+    };
+    const optimistic = applyProjectTransaction(base, request);
+    if (options.recordHistory !== false) {
+      setHistory((items) => [...items.slice(-49), { project: base, transactionId }]);
+      setFuture([]);
+    }
+    projectRef.current = optimistic.project;
+    setProject(optimistic.project);
+    setSaveState("Saving…");
+    const run = transactionQueue.current.then(async () => {
+      const result = await executeProjectTransaction(base, request);
+      if (projectRef.current.revision <= result.project.revision) {
+        projectRef.current = result.project;
+        setProject(result.project);
+      }
+      setVerifiedProject(result.project);
+      setLatestVerification(result.transaction.verification);
+      setVersions(await listProjectVersions(result.project.id));
+      setSaveState("Saved automatically");
+      return result;
+    }).catch((error) => {
+      if (projectRef.current.revision === optimistic.project.revision) {
+        projectRef.current = base;
+        setProject(base);
+      }
+      throw error;
+    });
+    transactionQueue.current = run.catch(() => undefined);
+    return run;
+  }, [pageId]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (projectRef.current.revision !== project.revision) return;
-      void saveProject(project)
-        .then(async () => {
-          setSaveState("Saved automatically");
-          setVersions(await listProjectVersions(project.id));
-        })
-        .catch((error) =>
-          setSaveState(
-            `Save error: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        );
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [project]);
+  const transact = useCallback((input: EditorOperation[] | ((project: Project) => EditorOperation[])) => {
+    void commitOperations(input).catch((error) => setSaveState(`Save error: ${error instanceof Error ? error.message : String(error)}`));
+  }, [commitOperations]);
 
-  const undo = useCallback(() => {
+  const openPreview = useCallback(() => {
+    void transactionQueue.current.then(() => setTab("preview"));
+  }, []);
+
+  const undo = useCallback(async (options: { transactionId?: string; actor?: "manual" | "codex"; jobId?: string } = {}) => {
     const previous = history.at(-1);
     if (!previous) return;
-    setFuture((items) => [project, ...items]);
-    setHistory((items) => items.slice(0, -1));
-    setProject({
-      ...previous,
-      revision: project.revision + 1,
-      updatedAt: new Date().toISOString(),
+    const base = projectRef.current;
+    const actor = options.actor ?? "manual";
+    const transactionId = options.transactionId ?? crypto.randomUUID();
+    const authorization = actor === "codex" ? { kind: "approved_job" as const, jobId: options.jobId ?? "" } : { kind: "user" as const };
+    const optimistic = applyProjectTransaction(base, {
+      transactionId, actor, projectId: base.id, pageId, baseRevision: base.revision, authorization,
+      rollbackOf: previous.transactionId,
+      operations: [{ type: "restore_project_revision", args: { project: previous.project, confirmed: true } }],
     });
-    setSaveState("Unsaved changes");
-  }, [history, project]);
-  const redo = useCallback(() => {
+    setFuture((items) => [{ project: base, transactionId }, ...items]);
+    setHistory((items) => items.slice(0, -1));
+    projectRef.current = optimistic.project;
+    setProject(optimistic.project);
+    setSaveState("Savingâ€¦");
+    const run = transactionQueue.current.then(async () => {
+      const result = await rollbackProjectTransaction(base, previous.transactionId, {
+        transactionId, actor, projectId: base.id, pageId, baseRevision: base.revision, authorization,
+      });
+      if (projectRef.current.revision <= result.project.revision) {
+        projectRef.current = result.project;
+        setProject(result.project);
+      }
+      setVerifiedProject(result.project);
+      setLatestVerification(result.transaction.verification);
+      setVersions(await listProjectVersions(result.project.id));
+      setSaveState("Saved automatically");
+      return result;
+    }).catch((error) => {
+      if (projectRef.current.revision === optimistic.project.revision) {
+        projectRef.current = base;
+        setProject(base);
+      }
+      setHistory((items) => [...items, previous]);
+      setFuture((items) => items[0]?.transactionId === transactionId ? items.slice(1) : items);
+      setSaveState(`Save error: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    });
+    transactionQueue.current = run.catch(() => undefined);
+    return run;
+  }, [history, pageId]);
+  const redo = useCallback(async () => {
     const next = future[0];
     if (!next) return;
-    setHistory((items) => [...items, project]);
+    const base = projectRef.current;
+    const result = await commitOperations(
+      [{ type: "restore_project_revision", args: { project: next.project, confirmed: true } }],
+      { recordHistory: false },
+    );
+    setHistory((items) => [...items, { project: base, transactionId: result.transaction.id }]);
     setFuture((items) => items.slice(1));
-    setProject({
-      ...next,
-      revision: project.revision + 1,
-      updatedAt: new Date().toISOString(),
-    });
-    setSaveState("Unsaved changes");
-  }, [future, project]);
+  }, [future, commitOperations]);
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -1114,13 +1192,16 @@ function Editor({
           `/api/live/commands?projectId=${project.id}&clientId=${encodeURIComponent(bridgeClientId.current)}`,
         ).then((response) => response.json())) as {
           id: string;
+          jobId?: string;
           tool: string;
           args: Record<string, unknown>;
+          pageId?: string;
         }[];
         for (const command of commands) {
           if (processingCommands.current.has(command.id)) continue;
           processingCommands.current.add(command.id);
           try {
+            let transactionResult: Awaited<ReturnType<typeof commitOperations>> | undefined;
             if (
               command.tool === "capture_canvas" ||
               command.tool === "capture_preview"
@@ -1129,7 +1210,7 @@ function Editor({
               setTab(command.tool === "capture_canvas" ? "design" : "preview");
               continue;
             }
-            if (command.tool === "undo_last_transaction") undo();
+            if (command.tool === "undo_last_transaction") transactionResult = await undo({ transactionId: command.id, actor: command.jobId ? "codex" : "manual", jobId: command.jobId });
             else if (command.tool === "open_preview") setTab("preview");
             else if (command.tool === "register_global_capability") {
               const capability = await registerGlobalCapability(command.args as never, {
@@ -1147,22 +1228,26 @@ function Editor({
               continue;
             }
             else {
-              const next = applyEditorOperation(project, pageId, {
-                type: command.tool,
-                args: command.args,
+              const operations = command.tool === "apply_editor_transaction"
+                ? command.args.operations as EditorOperation[]
+                : [{ type: command.tool, pageId: command.pageId, args: command.args }];
+              transactionResult = await commitOperations(operations, {
+                transactionId: command.id,
+                actor: command.jobId ? "codex" : "manual",
+                jobId: command.jobId,
               });
-              const persisted = { ...next, revision: project.revision + 1, updatedAt: new Date().toISOString() };
-              setHistory((items) => [...items.slice(-49), project]);
-              setFuture([]);
-              setProject(persisted);
-              projectRef.current = persisted;
-              await saveProject(persisted);
-              setSaveState("Saved automatically");
             }
             await fetch(`/api/live/commands/${command.id}?clientId=${encodeURIComponent(bridgeClientId.current)}`, {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ ok: true }),
+              body: JSON.stringify({
+                ok: true,
+                result: transactionResult ? {
+                  transactionId: transactionResult.transaction.id,
+                  finalRevision: transactionResult.transaction.finalRevision,
+                  verification: transactionResult.transaction.verification,
+                } : undefined,
+              }),
             });
             processingCommands.current.delete(command.id);
             setFeedback(
@@ -1177,19 +1262,15 @@ function Editor({
       }
     }, 600);
     return () => clearInterval(timer);
-  }, [project, pageId, change, undo, finishBridgeCommand]);
+  }, [project, pageId, undo, finishBridgeCommand, commitOperations]);
 
   const patchPage = (
     update: (components: EditorComponent[]) => EditorComponent[],
   ) =>
-    change((value) => ({
-      ...value,
-      pages: value.pages.map((page) =>
-        page.id === pageId
-          ? { ...page, components: update(page.components) }
-          : page,
-      ),
-    }));
+    transact((value) => [{
+      type: "set_page_components", pageId,
+      args: { components: update(value.pages.find((page) => page.id === pageId)?.components ?? []) },
+    }]);
   const addComponent = (type: EditorComponent["type"], parentId?: string) => {
     if (!currentPage) return setFeedback("Create a page first");
     const component = makeComponent(type);
@@ -1226,10 +1307,7 @@ function Editor({
       name,
       currentPage.components.filter((component) => included.has(component.id)),
     );
-    change({
-      ...project,
-      reusableComponents: [...project.reusableComponents, definition],
-    });
+    transact((value) => [{ type: "set_reusable_components", args: { components: [...value.reusableComponents, definition] } }]);
     setReusableName("");
     setFeedback(`${name} saved to your blocks`);
   };
@@ -1243,12 +1321,14 @@ function Editor({
   };
   const updateComponent = (
     update: (component: EditorComponent) => EditorComponent,
-  ) =>
-    patchPage((components) =>
-      components.map((component) =>
-        selected.includes(component.id) ? update(component) : component,
-      ),
+  ) => {
+    const selectedIds = new Set(selected);
+    const current = projectRef.current.pages.find((page) => page.id === pageId)?.components ?? [];
+    const replacements = new Map(
+      current.filter((component) => selectedIds.has(component.id)).map((component) => [component.id, update(component)]),
     );
+    patchPage((components) => components.map((component) => replacements.get(component.id) ?? component));
+  };
   const componentStyle = (component: EditorComponent) => ({
     ...component.styles.desktop,
     ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
@@ -1483,44 +1563,8 @@ function Editor({
     window.addEventListener("pointercancel", finish);
   };
   const removeSelected = () => {
-    change((value) => {
-      const page = value.pages.find((item) => item.id === pageId);
-      const removedComponents = new Set(selected);
-      if (page)
-        selected.forEach((id) =>
-          descendantIds(page.components, id).forEach((childId) =>
-            removedComponents.add(childId),
-          ),
-        );
-      const removedFlows = new Set(
-        value.flows
-          .filter((item) =>
-            item.nodes.some(
-              (node) =>
-                node.config.componentId &&
-                removedComponents.has(node.config.componentId),
-            ),
-          )
-          .map((item) => item.id),
-      );
-      return {
-        ...value,
-        flows: value.flows.filter((item) => !removedFlows.has(item.id)),
-        pages: value.pages.map((page) => ({
-          ...page,
-          components: page.components
-            .filter((component) => !removedComponents.has(component.id))
-            .map((component) => ({
-              ...component,
-              events: Object.fromEntries(
-                Object.entries(component.events).filter(
-                  ([, flowId]) => !removedFlows.has(flowId),
-                ),
-              ),
-            })),
-        })),
-      };
-    });
+    const roots = selected.filter((id) => !selected.some((parentId) => parentId !== id && descendantIds(currentPage?.components ?? [], parentId).has(id)));
+    transact(roots.map((componentId) => ({ type: "remove_component", args: { componentId, confirmed: true } })));
     setSelected([]);
   };
   const addPage = () => {
@@ -1544,7 +1588,10 @@ function Editor({
       path,
       components: [root],
     };
-    change({ ...project, pages: [...project.pages, page] });
+    transact([
+      { type: "add_page", args: { pageId: page.id, name: page.name, path: page.path } },
+      { type: "add_component", pageId: page.id, args: { componentId: root.id, componentType: root.type, name: root.name, props: root.props, styles: root.styles, accessibility: root.accessibility, intent: root.intent } },
+    ]);
     setPageId(page.id);
     setSelected([root.id]);
     setPageDraft(undefined);
@@ -1572,7 +1619,7 @@ function Editor({
       })),
     );
     if (assets.length) {
-      change({ ...project, assets: [...project.assets, ...assets] });
+      transact((value) => [{ type: "set_project_assets", args: { assets: [...value.assets, ...assets] } }]);
       setFeedback(
         `${assets.length} ${assets.length === 1 ? "asset" : "assets"} uploaded and saved in the project`,
       );
@@ -1606,35 +1653,11 @@ function Editor({
       return setFeedback("Lo schema deve contenere il campo id");
     const schema = Object.fromEntries(normalizedFields.map((field) => [field.name, field.type]));
     const id = crypto.randomUUID();
-    change({
-      ...project,
-      dataSources: [
-        ...project.dataSources,
-        {
-          id,
-          name: sourceName.trim(),
-          provider: sourceProvider,
-          collection: collection.trim(),
-          schema,
-          schemaVersion: 1,
-          migrations: [],
-          relations: [],
-          capabilities: [
-            "get",
-            "query",
-            "insert",
-            "update",
-            "delete",
-            "subscribe",
-          ],
-          secretStrategy: sourceProvider === "rest" ? "environment" : "none",
-          ...(sourceProvider === "indexeddb"
-            ? {}
-            : { endpoint: sourceEndpoint }),
-          ...(sourceProvider === "rest" ? { environmentKey: "API_TOKEN" } : {}),
-        },
-      ],
-    });
+    transact([{ type: "create_data_source", args: {
+      sourceId: id, name: sourceName.trim(), provider: sourceProvider, collection: collection.trim(), schema,
+      ...(sourceProvider === "indexeddb" ? {} : { endpoint: sourceEndpoint }),
+      ...(sourceProvider === "rest" ? { environmentKey: "API_TOKEN" } : {}),
+    } }]);
     setSelectedSourceId(id);
     setSourceDraftFields(normalizedFields.map((field) => ({ ...field, id: crypto.randomUUID() })));
     setFeedback(
@@ -1664,12 +1687,10 @@ function Editor({
     const nextSchema = Object.fromEntries(normalized.map((field) => [field.name, field.type]));
     if (JSON.stringify(nextSchema) === JSON.stringify(selectedSourceDefinition.schema)) return setFeedback("The schema is already up to date");
     const version = (selectedSourceDefinition.schemaVersion ?? 1) + 1;
-    change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? {
-      ...source,
-      schema: nextSchema,
-      schemaVersion: version,
-      migrations: [...(source.migrations ?? []), { version, createdAt: new Date().toISOString(), previousSchema: source.schema, nextSchema }],
-    } : source) });
+    transact([{ type: "update_data_source", args: { sourceId: selectedSourceDefinition.id, patch: {
+      schema: nextSchema, schemaVersion: version,
+      migrations: [...(selectedSourceDefinition.migrations ?? []), { version, createdAt: new Date().toISOString(), previousSchema: selectedSourceDefinition.schema, nextSchema }],
+    } } }]);
     setSourceDraftFields(normalized);
     setFeedback(`Schema updated to version ${version}. Existing records remain available.`);
   };
@@ -1678,12 +1699,12 @@ function Editor({
     const target = project.dataSources.find((source) => source.id === relationTarget);
     if (!target || !relationTargetField || !(relationTargetField in target.schema)) return setFeedback("Choose a valid field in the connected source");
     if ((selectedSourceDefinition.relations ?? []).some((relation) => relation.field === relationField)) return setFeedback("This field is already connected");
-    change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? { ...source, relations: [...(source.relations ?? []), { id: crypto.randomUUID(), field: relationField, targetSourceId: target.id, targetField: relationTargetField, kind: relationKind }] } : source) });
+    transact([{ type: "update_data_source", args: { sourceId: selectedSourceDefinition.id, patch: { relations: [...(selectedSourceDefinition.relations ?? []), { id: crypto.randomUUID(), field: relationField, targetSourceId: target.id, targetField: relationTargetField, kind: relationKind }] } } }]);
     setFeedback(`Relation created: ${relationField} → ${target.name}.${relationTargetField}`);
   };
   const removeRelation = (relationId: string) => {
     if (!selectedSourceDefinition) return;
-    change({ ...project, dataSources: project.dataSources.map((source) => source.id === selectedSourceDefinition.id ? { ...source, relations: (source.relations ?? []).filter((relation) => relation.id !== relationId) } : source) });
+    transact([{ type: "update_data_source", args: { sourceId: selectedSourceDefinition.id, patch: { relations: (selectedSourceDefinition.relations ?? []).filter((relation) => relation.id !== relationId) } } }]);
     setFeedback("Relazione rimossa");
   };
   const connectComponentAction = (component: EditorComponent, event: ActionEventDefinition, existingFlowId?: string) => {
@@ -1701,24 +1722,17 @@ function Editor({
       edges: [],
     };
     const targetFlow = selectedFlow ?? newFlow!;
-    change({
-      ...project,
-      flows: newFlow ? [...project.flows, newFlow] : project.flows,
-      pages: project.pages.map((page) => page.id === pageId ? {
-        ...page,
-        components: page.components.map((item) => item.id === component.id ? { ...item, events: { ...item.events, [event.id]: targetFlow.id } } : item),
-      } : page),
-    });
+    transact([
+      ...(newFlow ? [{ type: "create_flow", args: { flow: newFlow } }] : []),
+      { type: "set_component_event", args: { componentId: component.id, event: event.id, flowId: targetFlow.id } },
+    ]);
     setFlowId(targetFlow.id);
     setSelectedFlowNodeId(targetFlow.nodes.find((node) => node.type === "event")?.id ?? "");
     setTab("flow");
     setFeedback(`${event.label} is connected to ${targetFlow.name}`);
   };
   const removeComponentAction = (component: EditorComponent, eventId: string) => {
-    change({ ...project, pages: project.pages.map((page) => page.id === pageId ? {
-      ...page,
-      components: page.components.map((item) => item.id === component.id ? { ...item, events: Object.fromEntries(Object.entries(item.events).filter(([name]) => name !== eventId)) } : item),
-    } : page) });
+    transact([{ type: "remove_component_event", args: { componentId: component.id, event: eventId } }]);
     setFeedback("Action disconnected. The reusable flow was kept.");
   };
   const askCodexForAction = (component: EditorComponent, event?: ActionEventDefinition) => {
@@ -1733,7 +1747,10 @@ function Editor({
   const createFlow = () => {
     if (project.state.experience === "landing") {
       const flows = landingFlows(project);
-      change({ ...project, flows: flows.flows, pages: flows.pages });
+      transact([
+        { type: "set_project_flows", args: { flows: flows.flows } },
+        ...flows.pages.map((page) => ({ type: "set_page_components", pageId: page.id, args: { components: page.components } })),
+      ]);
       setFlowId(flows.flows[0].id);
       setFeedback(
         flows.flows.length === 2
@@ -1746,7 +1763,10 @@ function Editor({
       if (!project.dataSources[0])
         return setFeedback("Create the local projects source first");
       const flows = dashboardFlows(project);
-      change({ ...project, flows: flows.flows, pages: flows.pages });
+      transact([
+        { type: "set_project_flows", args: { flows: flows.flows } },
+        ...flows.pages.map((page) => ({ type: "set_page_components", pageId: page.id, args: { components: page.components } })),
+      ]);
       setFlowId(flows.flows[0].id);
       setFeedback(
         "CRUD, loading, search, filter, sort, and KPI flows connected",
@@ -1852,30 +1872,11 @@ function Editor({
         },
       ],
     };
-    change({
-      ...project,
-      flows: [newFlow],
-      pages: project.pages.map((page) =>
-        page.id === pageId
-          ? {
-              ...page,
-              components: page.components.map((component) =>
-                component.id === button.id
-                  ? {
-                      ...component,
-                      events: { ...component.events, click: newFlow.id },
-                    }
-                  : component.id === list.id
-                    ? {
-                        ...component,
-                        binding: { sourceId: source.id, state: "data" },
-                      }
-                    : component,
-              ),
-            }
-          : page,
-      ),
-    });
+    transact([
+      { type: "set_project_flows", args: { flows: [newFlow] } },
+      { type: "set_component_event", args: { componentId: button.id, event: "click", flowId: newFlow.id } },
+      { type: "bind_component_data", args: { componentId: list.id, sourceId: source.id, state: "data" } },
+    ]);
     setFlowId(newFlow.id);
     setFeedback("Flow connected to the click and list connected to the source");
   };
@@ -1887,7 +1888,7 @@ function Editor({
       nodes: [{ id: startId, type: "event", label: "Input", position: { x: 80, y: 100 }, config: { trigger: "manual" } }],
       edges: [],
     };
-    change({ ...project, flows: [...project.flows, reusable] });
+    transact([{ type: "create_flow", args: { flow: reusable } }]);
     setFlowId(id);
     setSelectedFlowNodeId(startId);
     setFeedback("Reusable flow created. Add steps, then call it from any other flow.");
@@ -1895,17 +1896,7 @@ function Editor({
   const deleteCurrentFlow = () => {
     if (!flow || !window.confirm(`Delete “${flow.name}”? Connected element events will be removed.`)) return;
     const remaining = project.flows.filter((item) => item.id !== flow.id);
-    change({
-      ...project,
-      flows: remaining,
-      pages: project.pages.map((page) => ({
-        ...page,
-        components: page.components.map((component) => ({
-          ...component,
-          events: Object.fromEntries(Object.entries(component.events).filter(([, targetFlowId]) => targetFlowId !== flow.id)),
-        })),
-      })),
-    });
+    transact([{ type: "remove_flow", args: { flowId: flow.id, confirmed: true } }]);
     setFlowId(remaining[0]?.id ?? "");
     setSelectedFlowNodeId("");
     setFeedback(`Flow deleted · ${flow.name}`);
@@ -1915,29 +1906,11 @@ function Editor({
   ) => {
     if (!flow) return setFeedback("Create a flow before adding the plugin node");
     const id = crypto.randomUUID();
-    change({
-      ...project,
-      flows: project.flows.map((item) =>
-        item.id === flow.id
-          ? {
-              ...item,
-              nodes: [
-                ...item.nodes,
-                {
-                  id,
-                  type: contribution.nodeType,
-                  label: contribution.label,
-                  position: {
-                    x: 120 + (item.nodes.length % 4) * 190,
-                    y: 260 + Math.floor(item.nodes.length / 4) * 120,
-                  },
-                  config: contribution.config,
-                },
-              ],
-            }
-          : item,
-      ),
-    });
+    transact([{ type: "add_flow_node", args: { flowId: flow.id, node: {
+      id, type: contribution.nodeType, label: contribution.label,
+      position: { x: 120 + (flow.nodes.length % 4) * 190, y: 260 + Math.floor(flow.nodes.length / 4) * 120 },
+      config: contribution.config,
+    } } }]);
     setSelectedFlowNodeId(id);
     setFeedback(`Nodo plugin aggiunto in isolamento: ${contribution.label}`);
   };
@@ -1971,25 +1944,18 @@ function Editor({
       message: log.message,
       durationMs: log.durationMs ?? 0,
     }));
-    const run = {
+    const run: RuntimeRunRecord = {
       id: crypto.randomUUID(),
+      projectId: projectRef.current.id,
+      graphRevision: projectRef.current.revision,
       flowId: activeFlowId,
       startedAt,
       durationMs: logs.reduce((total, log) => total + log.durationMs, 0),
       logs,
     };
-    const base = projectRef.current;
-    const candidate = {
-      ...base,
-      flowRuns: [...base.flowRuns, run].slice(-20),
-      revision: base.revision + 1,
-      updatedAt: new Date().toISOString(),
-    };
-    projectRef.current = candidate;
-    change({ ...base, flowRuns: candidate.flowRuns }, false);
-    await saveProject(candidate);
-    setSaveState("Saved automatically");
-  }, [change]);
+    await saveRuntimeRun(run);
+    setRuntimeRuns((current) => [run, ...current.filter((item) => item.id !== run.id)].slice(0, 20));
+  }, []);
   const addRecord = useCallback(
     async (input: string) => {
       const activeFlow =
@@ -2156,21 +2122,28 @@ function Editor({
   }, [project.dataSources]);
 
   const archiveExport = async (blob: Blob, fileName: string, target: string) => {
-    await saveExport({
-      id: crypto.randomUUID(),
+    const id = crypto.randomUUID(), createdAt = new Date().toISOString();
+    const record = {
+      id,
       projectId: project.id,
       fileName,
       target,
-      createdAt: new Date().toISOString(),
+      createdAt,
       blob,
+    };
+    const kind = target === "project" ? "export" as const : "build" as const;
+    const artifact = await createArtifact({
+      projectId: project.id, kind, name: fileName, mediaType: blob.type || "application/octet-stream", payload: blob,
+      provenance: { actor: "manual", source: kind, revision: verifiedProject.revision, sourceId: id, phase: "result" }, createdAt,
     });
+    await saveExportArtifact(record, artifact);
     setExportHistory(await listExports(project.id));
   };
   const exportProject = async () => {
-    const blob = new Blob([serializeProject(project)], {
+    const blob = new Blob([serializeProject(verifiedProject)], {
       type: "application/json",
     });
-    const fileName = `${project.name}.kyro.json`;
+    const fileName = `${verifiedProject.name}.kyro.json`;
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = fileName;
@@ -2181,10 +2154,10 @@ function Editor({
   const openGeneratedFile = async (path: string) => {
     try {
       const content = path === "project.kyro.json" || path === "project.frontend-editor.json"
-        ? serializeProject(project)
+        ? serializeProject(verifiedProject)
         : path.endsWith("/")
           ? `Folder generated during the build: ${path}`
-          : (await import("./generator")).generateFiles(project)[path];
+          : (await import("./generator")).generateFiles(verifiedProject)[path];
       if (!content) throw new Error(`The file ${path} is not produced by this configuration`);
       setGeneratedFile({ path, content });
     } catch (error) {
@@ -2207,12 +2180,7 @@ function Editor({
     const index =
       siblings.findIndex((item) => item.id === component.id) + direction;
     if (index >= 0 && index < siblings.length)
-      change((value) =>
-        applyEditorOperation(value, pageId, {
-          type: "reorder_component",
-          args: { componentId: component.id, index },
-        }),
-      );
+      transact([{ type: "reorder_component", args: { componentId: component.id, index } }]);
   };
   const reparent = (componentId: string, parentId?: string) => {
     if (!currentPage) return;
@@ -2222,12 +2190,7 @@ function Editor({
       setFeedback("A container cannot be moved inside itself");
       return;
     }
-    change((value) =>
-      applyEditorOperation(value, pageId, {
-        type: "move_component",
-        args: { componentId, parentId: parentId || null },
-      }),
-    );
+    transact([{ type: "move_component", args: { componentId, parentId: parentId || null } }]);
     setSelected([componentId]);
     setFeedback(parentId ? "Elemento spostato nel contenitore" : "Elemento riportato sulla pagina");
   };
@@ -2243,31 +2206,23 @@ function Editor({
     }
     const siblings = currentPage.components.filter((item) => item.parentId === parentId && item.id !== componentId);
     const targetIndex = siblings.findIndex((item) => item.id === targetId);
-    change((value) => applyEditorOperation(value, pageId, {
-      type: "move_component",
-      args: { componentId, parentId: parentId || null, index: targetIndex + (after ? 1 : 0) },
-    }));
+    transact([{ type: "move_component", args: { componentId, parentId: parentId || null, index: targetIndex + (after ? 1 : 0) } }]);
     setSelected([componentId]);
     setFeedback(after ? "Element moved after" : "Element moved before");
   };
   const wrap = (componentId: string) =>
-    change((value) =>
-      applyEditorOperation(value, pageId, {
-        type: "wrap_component",
-        args: { componentId, componentType: "stack", name: "Gruppo" },
-      }),
-    );
+    transact([{ type: "wrap_component", args: { componentId, componentType: "stack", name: "Gruppo" } }]);
 
   const commands = [
     ...([
       ["Open Design", "componenti canvas", () => setTab("design")],
       ["Open Flow", "interazioni nodi", () => setTab("flow")],
       ["Open Data", "database sources", () => setTab("data")],
-      ["Open Preview", "prova anteprima", () => setTab("preview")],
+      ["Open Preview", "prova anteprima", openPreview],
       ["Open Pubblica", "export web pwa android", () => setTab("settings")],
       ["Add page", "new screen", addPage],
-      ["Undo last change", "undo history", undo],
-      ["Redo change", "redo history", redo],
+      ["Undo last change", "undo history", () => void undo()],
+      ["Redo change", "redo history", () => void redo()],
     ] as Array<[string, string, () => void]>),
     ...componentTypes.map(
       (type) =>
@@ -2346,7 +2301,7 @@ function Editor({
             aria-label="Project name"
             value={project.name}
             onChange={(event) =>
-              change({ ...project, name: event.target.value })
+              event.target.value.trim() && transact([{ type: "set_project_property", args: { property: "name", value: event.target.value } }])
             }
           />
           <span>{saveState}</span>
@@ -2355,7 +2310,7 @@ function Editor({
           <ThemeToggle theme={uiTheme} onToggle={onToggleTheme} />
           <button
             className="icon-button"
-            onClick={undo}
+            onClick={() => void undo()}
             disabled={!history.length}
             aria-label="Undo"
           >
@@ -2363,7 +2318,7 @@ function Editor({
           </button>
           <button
             className="icon-button"
-            onClick={redo}
+            onClick={() => void redo()}
             disabled={!future.length}
             aria-label="Redo"
           >
@@ -2385,7 +2340,7 @@ function Editor({
                   key={version.id}
                   className="secondary"
                   onClick={() => {
-                    change(version.project);
+                    transact([{ type: "restore_project_revision", args: { project: version.project, confirmed: true } }]);
                     setFeedback(`Restored revision ${version.revision}`);
                   }}
                 >
@@ -2472,7 +2427,7 @@ function Editor({
             key={value}
             data-help={help}
             className={tab === value ? "active" : ""}
-            onClick={() => setTab(value)}
+            onClick={() => value === "preview" ? openPreview() : setTab(value)}
           >
             {label}
             {value === "flow" && project.flows.length > 0 && (
@@ -2586,7 +2541,7 @@ function Editor({
                     type="button"
                     className="reusable-remove"
                     aria-label={`Remove block ${definition.name}`}
-                    onClick={() => change({ ...project, reusableComponents: project.reusableComponents.filter((item) => item.id !== definition.id) })}
+                    onClick={() => transact((value) => [{ type: "set_reusable_components", args: { components: value.reusableComponents.filter((item) => item.id !== definition.id) } }])}
                   >×</button>
                 </div>
               ))}
@@ -2754,7 +2709,7 @@ function Editor({
                 className={`design-canvas canvas-${breakpoint} ${canvasDropActive ? "drop-target" : ""}`}
                 style={{
                   transform: `scale(${zoom})`,
-                  background: project.theme.tokens.pageBackground ?? "#ffffff",
+                  backgroundColor: project.theme.tokens.pageBackground ?? "#ffffff",
                   backgroundImage: project.theme.tokens.pageBackgroundImage ?? "none",
                   backgroundSize: "cover",
                   backgroundPosition: "center",
@@ -2933,10 +2888,7 @@ function Editor({
                 tokens={project.theme.tokens}
                 assets={project.assets}
                 onChange={(values) =>
-                  change({
-                    ...project,
-                    theme: { tokens: { ...project.theme.tokens, ...values } },
-                  })
+                  transact([{ type: "set_theme_tokens", args: { tokens: values } }])
                 }
               />
             ) : (
@@ -3044,31 +2996,23 @@ function Editor({
               roles={project.appConfig.authentication.roles}
               selectedNodeId={selectedFlowNodeId}
               onNodeSelect={setSelectedFlowNodeId}
-              onModulesChange={(codeModules) => change({ ...project, codeModules })}
-              onCreateModule={(module, nodeId) => change({
-                ...project,
-                codeModules: [...project.codeModules, module],
-                flows: project.flows.map((item) => item.id === flow?.id ? {
-                  ...item,
-                  nodes: item.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, moduleId: module.id } } : node),
-                } : item),
-              })}
+              onModulesChange={(codeModules) => transact([{ type: "set_code_modules", args: { modules: codeModules } }])}
+              onCreateModule={(module, nodeId) => transact([
+                { type: "create_code_module", args: { module } },
+                { type: "update_flow_node", args: { flowId: flow?.id, nodeId, patch: { config: { moduleId: module.id } } } },
+              ])}
               onChange={(updated) =>
-                change((() => {
+                transact((value) => {
                   const triggers = updated.nodes.filter((node) => node.type === "event" && isComponentEvent(node.config.trigger ?? "click") && node.config.componentId);
-                  return {
-                    ...project,
-                    flows: project.flows.map((item) => item.id === updated.id ? updated : item),
-                    pages: project.pages.map((page) => ({
-                      ...page,
-                      components: page.components.map((component) => {
-                        const events = Object.fromEntries(Object.entries(component.events).filter(([, flowId]) => flowId !== updated.id));
-                        for (const node of triggers) if (node.config.componentId === component.id) events[node.config.trigger ?? "click"] = updated.id;
-                        return { ...component, events };
-                      }),
-                    })),
-                  };
-                })())
+                  return [
+                    { type: "replace_flow", args: { flow: updated } },
+                    ...value.pages.map((page) => ({ type: "set_page_components", pageId: page.id, args: { components: page.components.map((component) => {
+                      const events = Object.fromEntries(Object.entries(component.events).filter(([, targetFlowId]) => targetFlowId !== updated.id));
+                      for (const node of triggers) if (node.config.componentId === component.id) events[node.config.trigger ?? "click"] = updated.id;
+                      return { ...component, events };
+                    }) } })),
+                  ];
+                })
               }
             />
           </Suspense>
@@ -3088,7 +3032,7 @@ function Editor({
               onOpenData={() => setTab("data")}
             />
           )}
-          <FlowRunHistory runs={project.flowRuns} flows={project.flows} onOpen={setLogs} />
+          <FlowRunHistory runs={runtimeRuns} flows={project.flows} onOpen={setLogs} />
           <LogConsole logs={logs} paused={pausedFlow} onResume={() => resumeFlow.current?.()} onSelect={setSelectedFlowNodeId} />
         </main>
       )}
@@ -3343,12 +3287,7 @@ function Editor({
                           type="button"
                           aria-label={`Delete ${asset.name}`}
                           onClick={() =>
-                            change({
-                              ...project,
-                              assets: project.assets.filter(
-                                (item) => item.id !== asset.id,
-                              ),
-                            })
+                            transact((value) => [{ type: "set_project_assets", args: { assets: value.assets.filter((item) => item.id !== asset.id) } }])
                           }
                         >
                           ×
@@ -3385,10 +3324,10 @@ function Editor({
               Interactive mode
             </label>
           </div>
-          {currentPage ? (
+          {verifiedProject.pages.some((page) => page.id === pageId) ? (
             <PreviewFrame
-              project={project}
-              pageId={currentPage.id}
+              project={verifiedProject}
+              pageId={pageId}
               breakpoint={breakpoint}
               interactive={interactive}
               onAdd={addRecord}
@@ -3401,7 +3340,7 @@ function Editor({
                 const destination = project.pages.find((page) => page.path === path);
                 if (destination) setPageId(destination.id);
               }}
-              onThemeChange={(themeMode) => change((value) => ({ ...value, appConfig: { ...value.appConfig, themeMode } }))}
+              onThemeChange={(themeMode) => transact([{ type: "set_app_config", args: { patch: { themeMode } } }])}
               captureRequest={
                 captureCommand?.tool === "capture_preview"
                   ? captureCommand.id
@@ -3422,7 +3361,7 @@ function Editor({
               <span>Create a page to open Preview.</span>
             </div>
           )}
-          <FlowRunHistory runs={project.flowRuns} flows={project.flows} onOpen={setLogs} />
+          <FlowRunHistory runs={runtimeRuns} flows={project.flows} onOpen={setLogs} />
           <LogConsole logs={logs} paused={pausedFlow} onResume={() => resumeFlow.current?.()} onSelect={(nodeId) => { setSelectedFlowNodeId(nodeId); setTab("flow"); }} />
         </main>
       )}
@@ -3434,7 +3373,8 @@ function Editor({
         >
           <ProjectSettings
             project={project}
-            onChange={(next) => change(next)}
+            verifiedProject={verifiedProject}
+            onChange={(next) => transact([{ type: "set_project_settings", args: { appConfig: next.appConfig, exportConfig: next.exportConfig, extensionApprovals: next.extensionApprovals } }])}
           />
         </Suspense>
       )}
@@ -3442,7 +3382,11 @@ function Editor({
         <main className="wide-workspace">
           <PluginManager
             project={project}
-            onChange={change}
+            onChange={(next) => transact([
+              { type: "set_project_plugins", args: { plugins: next.plugins } },
+              { type: "set_theme_tokens", args: { tokens: next.theme.tokens } },
+            ])}
+            onInstallModule={(module) => commitOperations([{ type: "create_code_module", args: { module } }]).then((result) => result.transaction)}
             onCatalogChange={refreshPlugins}
           />
         </main>

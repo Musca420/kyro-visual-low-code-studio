@@ -48,9 +48,6 @@ export type DataSourceProgramView = {
   warnings: string[];
 };
 
-const containsAny = (value: string, words: string[]) =>
-  words.some((word) => value.toLocaleLowerCase().includes(word));
-
 export function inspectComponentProgram(
   project: Project,
   pageId: string,
@@ -93,12 +90,7 @@ export function resolveCapabilities(
   component: EditorComponent,
 ): CapabilityIssue[] {
   const issues: CapabilityIssue[] = [];
-  const meaning = [
-    component.intent.role,
-    component.intent.action,
-    component.intent.entity,
-    component.intent.expectedResult,
-  ].join(" ");
+  const capabilityIds = new Set(component.intent.capabilityIds ?? []);
   const dataVisual = ["list", "table", "chart", "calendar"].includes(component.type);
   const interactive = ["button", "form", "upload"].includes(component.type);
 
@@ -134,7 +126,7 @@ export function resolveCapabilities(
         confirmationRequired: true,
       },
     });
-  if (containsAny(meaning, ["login", "accesso", "autentic"]) && project.appConfig.authentication.mode === "none")
+  if (capabilityIds.has("authentication.user") && project.appConfig.authentication.mode === "none")
     issues.push({
       id: "authentication",
       kind: "authentication",
@@ -148,7 +140,7 @@ export function resolveCapabilities(
         confirmationRequired: true,
       },
     });
-  if (containsAny(meaning, ["pagamento", "payment", "checkout"]))
+  if (capabilityIds.has("payments.checkout"))
     issues.push({
       id: "payment-provider",
       kind: "backend",
@@ -163,7 +155,7 @@ export function resolveCapabilities(
       },
     });
   if (
-    containsAny(meaning, ["notifica", "notification"]) &&
+    (capabilityIds.has("notifications.local") || capabilityIds.has("notifications.push")) &&
     project.exportConfig.target === "android" &&
     !project.exportConfig.android?.permissions.includes("POST_NOTIFICATIONS")
   )

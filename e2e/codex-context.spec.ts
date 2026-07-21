@@ -22,7 +22,7 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   await expect(panel.getByRole('button', { name: 'Sign out of Codex' })).toBeVisible()
   await expect(panel.getByLabel('Request in plain language')).toBeFocused()
   const detailTabs = panel.getByRole('navigation', { name: 'Codex operation details' })
-  await expect(detailTabs.getByRole('button')).toHaveCount(5)
+  await expect(detailTabs.getByRole('button')).toHaveCount(6)
   await detailTabs.getByRole('button', { name: 'Operations' }).hover()
   await expect(page.getByRole('tooltip')).toContainText('commands run')
   await detailTabs.getByRole('button', { name: 'Files and diff' }).click()
@@ -37,24 +37,37 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
   expect(live.selectedComponentIds).toHaveLength(1)
   expect(live.componentTree.some((item: { id: string }) => item.id === live.selectedComponentIds[0])).toBe(true)
 
-  const mutation = await request.post('/api/live/tools/set_component_style', { data: { projectId: live.projectId, pageId: live.pageId, revision: live.revision, args: { componentId: live.selectedComponentIds[0], property: 'background', value: '#ff0000' } } })
-  expect(mutation.status()).toBe(202)
-  const { transactionId } = await mutation.json()
+  const unauthorizedMutation = await request.post('/api/live/tools/set_component_style', { data: { projectId: live.projectId, pageId: live.pageId, revision: live.revision, args: { componentId: live.selectedComponentIds[0], property: 'background', value: '#000000' } } })
+  expect(unauthorizedMutation.status()).toBe(401)
+
+  const bridgePost = (path: string, data: unknown) => page.evaluate(async ({ path, data }) => {
+    const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) })
+    return { status: response.status, value: await response.json() }
+  }, { path, data })
+  const mutation = await bridgePost('/api/live/tools/set_component_style', { projectId: live.projectId, pageId: live.pageId, revision: live.revision, args: { componentId: live.selectedComponentIds[0], property: 'background', value: '#ff0000' } })
+  expect(mutation.status).toBe(202)
+  const { transactionId } = mutation.value
   await expect.poll(async () => (await (await request.get(`/api/live/transactions/${transactionId}`)).json()).status).toBe('applied')
+  const verifiedMutation = await (await request.get(`/api/live/transactions/${transactionId}`)).json()
+  expect(verifiedMutation.result.verification).toMatchObject({ status: 'verified', projectId: live.projectId })
+  expect(verifiedMutation.result.verification.stages.some((stage: { name: string; status: string }) => stage.name === 'visual' && stage.status === 'passed')).toBe(true)
   await expect(component).toHaveCSS('background-color', 'rgb(255, 0, 0)')
   await expect.poll(async () => (await (await request.get(`/api/live/status?projectId=${projectId}`)).json()).revision).toBe(live.revision + 1)
 
   const current = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
-  const undo = await request.post('/api/live/tools/undo_last_transaction', { data: { projectId: live.projectId, pageId: live.pageId, revision: current.revision, args: {} } })
-  const undoId = (await undo.json()).transactionId
+  expect(current.verificationReport).toMatchObject({ status: 'verified', finalRevision: current.revision })
+  const buildPreflight = await bridgePost('/api/live/tools/get_build_preflight', { projectId: live.projectId, pageId: live.pageId, revision: current.revision, args: {} })
+  expect(buildPreflight).toMatchObject({ status: 200, value: { target: 'web', revision: current.revision, blockers: [] } })
+  const undo = await bridgePost('/api/live/tools/undo_last_transaction', { projectId: live.projectId, pageId: live.pageId, revision: current.revision, args: {} })
+  const undoId = undo.value.transactionId
   await expect.poll(async () => (await (await request.get(`/api/live/transactions/${undoId}`)).json()).status).toBe('applied')
   await expect(component).not.toHaveCSS('background-color', 'rgb(255, 0, 0)')
   await expect.poll(async () => (await (await request.get(`/api/live/status?projectId=${projectId}`)).json()).revision).toBe(live.revision + 2)
 
   const beforeWrap = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
-  const wrap = await request.post('/api/live/tools/wrap_component', { data: { projectId: live.projectId, pageId: live.pageId, revision: beforeWrap.revision, args: { componentId: live.selectedComponentIds[0], componentType: 'stack', name: 'Azioni' } } })
-  expect(wrap.status()).toBe(202)
-  const wrapId = (await wrap.json()).transactionId
+  const wrap = await bridgePost('/api/live/tools/wrap_component', { projectId: live.projectId, pageId: live.pageId, revision: beforeWrap.revision, args: { componentId: live.selectedComponentIds[0], componentType: 'stack', name: 'Azioni' } })
+  expect(wrap.status).toBe(202)
+  const wrapId = wrap.value.transactionId
   await expect.poll(async () => (await (await request.get(`/api/live/transactions/${wrapId}`)).json()).status).toBe('applied')
   let wrapper: { id: string; children: { id: string }[] } | undefined
   await expect.poll(async () => { const nestedState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json(); wrapper = nestedState.componentTree.find((item: { name: string }) => item.name === 'Azioni'); return Boolean(wrapper) }).toBe(true)
@@ -66,9 +79,9 @@ test('apre Codex dal componente con contesto stabile e bridge protetto', async (
 
   const captureState = await (await request.get(`/api/live/status?projectId=${projectId}`)).json()
   for (const tool of ['capture_canvas', 'capture_preview']) {
-    const capture = await request.post(`/api/live/tools/${tool}`, { data: { projectId: live.projectId, pageId: live.pageId, revision: captureState.revision, args: {} } })
-    expect(capture.status()).toBe(202)
-    const captureId = (await capture.json()).transactionId
+    const capture = await bridgePost(`/api/live/tools/${tool}`, { projectId: live.projectId, pageId: live.pageId, revision: captureState.revision, args: {} })
+    expect(capture.status).toBe(202)
+    const captureId = capture.value.transactionId
     await expect.poll(async () => (await (await request.get(`/api/live/transactions/${captureId}`)).json()).status, { timeout: 15_000, message: `${tool} must finish` }).not.toBe('pending')
     const transaction = await (await request.get(`/api/live/transactions/${captureId}`)).json()
     expect(transaction.status, `${tool}: ${transaction.error || 'errore sconosciuto'}`).toBe('applied')

@@ -196,6 +196,7 @@ export const componentSchema = z.object({
         .array(z.enum(["loading", "success", "error"]))
         .default([]),
       permissions: z.array(z.string()).default([]),
+      capabilityIds: z.array(z.string()).optional(),
     })
     .default({
       role: "",
@@ -498,6 +499,10 @@ export const projectSchema = z.object({
     packageName: z.string().regex(/^@[a-z0-9-]+\/[a-z0-9-]+$/),
     version: z.string().regex(/^[~^]?\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/),
     reason: z.string().min(1),
+    license: z.string().min(1).default("MIT"),
+    risk: z.enum(["low", "medium", "high"]).default("medium"),
+    rollback: z.string().min(1).default("Revoke approval and rebuild the export"),
+    platforms: z.array(z.enum(["web", "android", "ios"])).min(1).default(["android", "ios"]),
     approvedAt: z.string().datetime(),
   })).default([]),
   exportConfig: z.object({

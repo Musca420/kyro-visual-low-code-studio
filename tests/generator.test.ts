@@ -102,7 +102,7 @@ describe("web generator", () => {
     const project = createProject("Warehouse scanner");
     project.pages.push({ id: "home", name: "Home", path: "/", components: [] });
     project.exportConfig = { target: "android", capacitor: true, android: { packageId: "studio.kyro.scanner", appName: "Scanner", orientation: "any", themeColor: "#00b8c8", versionName: "1.0.0", versionCode: 1, permissions: [], statusBarStyle: "dark", keyboardResize: true, backButton: true } };
-    project.extensionApprovals.push({ packageName: "@capacitor-mlkit/barcode-scanning", version: "^8.1.0", reason: "Scan inventory codes", approvedAt: new Date().toISOString() });
+    project.extensionApprovals.push({ packageName: "@capacitor-mlkit/barcode-scanning", version: "^8.1.0", reason: "Scan inventory codes", license: "MIT", risk: "high", rollback: "Revoke approval and rebuild", platforms: ["web", "android", "ios"], approvedAt: new Date().toISOString() });
     project.flows.push(
       { id: "scan", name: "Scan", nodes: [{ id: "event", type: "event", label: "Tap", position: { x: 0, y: 0 }, config: {} }, { id: "scanner", type: "nativeAction", label: "Scan QR", position: { x: 1, y: 0 }, config: { capability: "barcode", action: "scanQr" } }], edges: [{ id: "edge", source: "event", target: "scanner", path: "success" }] },
       { id: "deep", name: "Deep link", nodes: [{ id: "event", type: "event", label: "Open URL", position: { x: 0, y: 0 }, config: { trigger: "deepLink", pageId: "home" } }], edges: [] },
@@ -180,8 +180,8 @@ describe("web generator", () => {
     const source = generateFiles(project)["src/main.ts"];
     expect(source).toContain('"componentId":"tasks-list","sourceId":"tasks"');
     expect(source).toContain('"componentId":"habits-list","sourceId":"habits"');
-    expect(source).toContain("query(current.config.sourceId)");
-    expect(source).toContain("refresh(current.config.componentId)");
+    expect(source).toContain("graphQuery(current.config.sourceId)");
+    expect(source).toContain("graphRefresh(current.config.componentId)");
     expect(source).toContain("getAll(selectedSourceId)");
     expect(source).toContain("const fields: Record<string, unknown>");
     expect(source).toContain("frontend-editor-theme");
@@ -488,8 +488,10 @@ describe("web generator", () => {
     const files = generateFiles(project);
     expect(files["index.html"]).toContain('href="#/quotes"');
     expect(files["index.html"]).toContain('data-route="/quotes"');
-    expect(files["src/main.ts"]).toContain("async function query(selectedSourceId = sourceId)");
-    expect(files["src/main.ts"]).toContain("async function insert(value: unknown, selectedSourceId = sourceId)");
+    expect(files["index.html"]).toContain('id="project-modal"');
+    expect(files["src/main.ts"]).toContain("window.dashboardData");
+    expect(files["src/main.ts"]).toContain("addEventListener('hashchange', route)");
+    expect(files["src/ui.js"]).toContain("openForm()");
   });
 
   it("generates a Capacitor 8 Android configuration and guided scripts", () => {

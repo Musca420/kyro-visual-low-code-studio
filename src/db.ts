@@ -1,10 +1,13 @@
 import type { PluginManifest, Project } from './model'
 import { parseProject, pluginManifestSchema } from './model'
 import { z } from 'zod'
-import { capabilityProposalSchema, globalCapabilitySchema, type CapabilityProposal, type GlobalCapability } from './globalCapability'
+import { capabilityProposalSchema, createGlobalCapabilityVersion, globalCapabilitySchema, type CapabilityProposal, type GlobalCapability } from './globalCapability'
+import type { ProjectTransactionRecord } from './transactionEngine'
+import { globalCapabilityImplementationSchema, openModeSessionSchema, type GlobalCapabilityImplementation, type OpenModeSession } from './openMode'
+import { artifactRecordSchema, createArtifact, verifyArtifact, type ArtifactRecord } from './artifactRegistry'
 
 const DB_NAME = 'frontend-editor'
-const DB_VERSION = 4
+const DB_VERSION = 8
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -18,6 +21,11 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('projectVersions')) db.createObjectStore('projectVersions', { keyPath: 'id' }).createIndex('projectId', 'projectId')
       if (!db.objectStoreNames.contains('exports')) db.createObjectStore('exports', { keyPath: 'id' }).createIndex('projectId', 'projectId')
       if (!db.objectStoreNames.contains('globalCapabilities')) db.createObjectStore('globalCapabilities', { keyPath: 'id' }).createIndex('state', 'state')
+      if (!db.objectStoreNames.contains('projectTransactions')) db.createObjectStore('projectTransactions', { keyPath: 'id' }).createIndex('projectId', 'projectId')
+      if (!db.objectStoreNames.contains('runtimeRuns')) db.createObjectStore('runtimeRuns', { keyPath: 'id' }).createIndex('projectId', 'projectId')
+      if (!db.objectStoreNames.contains('openModeSessions')) db.createObjectStore('openModeSessions', { keyPath: 'id' }).createIndex('projectId', 'projectId')
+      if (!db.objectStoreNames.contains('capabilityImplementations')) db.createObjectStore('capabilityImplementations', { keyPath: 'id' }).createIndex('capabilityId', 'capabilityId')
+      if (!db.objectStoreNames.contains('artifacts')) db.createObjectStore('artifacts', { keyPath: 'id' }).createIndex('projectId', 'projectId')
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -76,8 +84,92 @@ export async function saveProject(project: Project) {
   return value
 }
 
+export function getProjectTransaction(id: string): Promise<ProjectTransactionRecord | undefined> {
+  return request<ProjectTransactionRecord | undefined>('projectTransactions', 'readonly', (store) => store.get(id))
+}
+
+export function listProjectTransactions(projectId: string): Promise<ProjectTransactionRecord[]> {
+  return request<ProjectTransactionRecord[]>('projectTransactions', 'readonly', (store) => store.index('projectId').getAll(projectId))
+    .then((items) => items.sort((left, right) => right.createdAt.localeCompare(left.createdAt)))
+}
+
+export async function commitProjectTransaction(record: ProjectTransactionRecord): Promise<ProjectTransactionRecord> {
+  if (!record.afterProject || record.finalRevision !== record.baseRevision + 1) throw new Error('An applied transaction needs one final Graph revision')
+  if (record.verification?.status !== 'verified') throw new Error('A transaction must pass Verification before commit')
+  const value = parseProject(record.afterProject)
+  const reportArtifact = await createArtifact({
+    projectId: record.projectId, kind: 'report', name: `Verification ${record.id}`, mediaType: 'application/json', payload: JSON.stringify(record.verification),
+    provenance: { actor: record.actor, source: 'verification', revision: record.finalRevision, transactionId: record.id, ...(record.jobId ? { jobId: record.jobId } : {}) }, createdAt: record.createdAt,
+  })
+  const db = await openDb()
+  const committed = await new Promise<ProjectTransactionRecord>((resolve, reject) => {
+    const transaction = db.transaction(['projects', 'projectVersions', 'projectTransactions', 'artifacts'], 'readwrite')
+    const transactionStore = transaction.objectStore('projectTransactions')
+    let result: ProjectTransactionRecord = record
+    let failure: Error | undefined
+    const existingRequest = transactionStore.get(record.id)
+    existingRequest.onsuccess = () => {
+      const existing = existingRequest.result as ProjectTransactionRecord | undefined
+      if (existing) {
+        if (existing.projectId !== record.projectId || existing.operationHash !== record.operationHash)
+          failure = new Error('A transaction ID cannot be reused with different operations')
+        else result = existing
+        return
+      }
+      const projectRequest = transaction.objectStore('projects').get(record.projectId)
+      projectRequest.onsuccess = () => {
+        const current = projectRequest.result ? parseProject(projectRequest.result) : undefined
+        if (!current || current.revision !== record.baseRevision) {
+          failure = new Error('The persisted project revision changed before commit')
+          return
+        }
+        transaction.objectStore('projects').put(value)
+        transaction.objectStore('projectVersions').put({ id: `${value.id}:${value.revision}`, projectId: value.id, revision: value.revision, createdAt: value.updatedAt, project: value })
+        transactionStore.add(record)
+        transaction.objectStore('artifacts').add(reportArtifact)
+      }
+    }
+    transaction.oncomplete = () => {
+      db.close()
+      if (failure) reject(failure)
+      else resolve(result)
+    }
+    transaction.onerror = () => { db.close(); reject(failure ?? transaction.error) }
+    transaction.onabort = () => { db.close(); reject(failure ?? transaction.error ?? new Error('Transaction commit aborted')) }
+  })
+  return committed
+}
+
+export async function saveFailedProjectTransaction(record: ProjectTransactionRecord) {
+  const existing = await getProjectTransaction(record.id)
+  if (existing) return existing
+  const reportArtifact = record.verification ? await createArtifact({
+    projectId: record.projectId, kind: 'report', name: `Failed verification ${record.id}`, mediaType: 'application/json', payload: JSON.stringify(record.verification),
+    provenance: { actor: record.actor, source: 'verification', revision: record.baseRevision, transactionId: record.id, ...(record.jobId ? { jobId: record.jobId } : {}) }, createdAt: record.createdAt,
+  }) : undefined
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(reportArtifact ? ['projectTransactions', 'artifacts'] : ['projectTransactions'], 'readwrite')
+    transaction.objectStore('projectTransactions').add(record)
+    if (reportArtifact) transaction.objectStore('artifacts').add(reportArtifact)
+    transaction.oncomplete = () => { db.close(); resolve() }
+    transaction.onerror = () => { db.close(); reject(transaction.error) }
+  })
+  return record
+}
+
 export type ProjectVersion = { id: string; projectId: string; revision: number; createdAt: string; project: Project }
 export type ExportRecord = { id: string; projectId: string; fileName: string; target: string; createdAt: string; blob: Blob }
+export type RuntimeRunRecord = Project['flowRuns'][number] & { projectId: string; graphRevision: number }
+
+export const listRuntimeRuns = (projectId: string) => request<RuntimeRunRecord[]>('runtimeRuns', 'readonly', (store) => store.index('projectId').getAll(projectId))
+  .then((items) => items.sort((left, right) => right.startedAt.localeCompare(left.startedAt)))
+export async function saveRuntimeRun(run: RuntimeRunRecord) {
+  await request('runtimeRuns', 'readwrite', (store) => store.put(run))
+  const obsolete = (await listRuntimeRuns(run.projectId)).slice(20)
+  await Promise.all(obsolete.map((item) => request('runtimeRuns', 'readwrite', (store) => store.delete(item.id))))
+  return run
+}
 
 export const listProjectVersions = (projectId: string) => request<ProjectVersion[]>('projectVersions', 'readonly', (store) => store.index('projectId').getAll(projectId))
   .then((items) => items.map((item) => ({ ...item, project: parseProject(item.project) })).sort((a, b) => b.revision - a.revision))
@@ -92,15 +184,50 @@ export async function saveExport(record: ExportRecord) {
   const obsolete = (await listExports(record.projectId)).slice(10)
   await Promise.all(obsolete.map((item) => request('exports', 'readwrite', (store) => store.delete(item.id))))
 }
-
-export async function deleteProject(id: string) {
-  const [versions, exports] = await Promise.all([listProjectVersions(id), listExports(id)])
+export async function saveExportArtifact(record: ExportRecord, artifactInput: ArtifactRecord) {
+  if (record.blob.size > 10_000_000) throw new Error('Export troppo grande per lo storico locale (10 MB)')
+  const artifact = artifactRecordSchema.parse(artifactInput), integrity = await verifyArtifact(artifact)
+  if (!integrity.passed || artifact.projectId !== record.projectId || artifact.provenance.sourceId !== record.id) throw new Error('Export artifact provenance or integrity failed')
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(['projects', 'projectVersions', 'exports'], 'readwrite')
+    const transaction = db.transaction(['exports', 'artifacts'], 'readwrite')
+    transaction.objectStore('exports').put(record)
+    transaction.objectStore('artifacts').add(artifact)
+    transaction.oncomplete = () => { db.close(); resolve() }
+    transaction.onerror = () => { db.close(); reject(transaction.error) }
+  })
+  const obsolete = (await listExports(record.projectId)).slice(10)
+  await Promise.all(obsolete.map((item) => request('exports', 'readwrite', (store) => store.delete(item.id))))
+  return artifact
+}
+
+export const listArtifacts = (projectId: string) => request<ArtifactRecord[]>('artifacts', 'readonly', (store) => store.index('projectId').getAll(projectId))
+  .then((items) => items.map((item) => artifactRecordSchema.parse(item)).sort((left, right) => right.createdAt.localeCompare(left.createdAt)))
+export const listAllArtifacts = () => request<ArtifactRecord[]>('artifacts', 'readonly', (store) => store.getAll()).then((items) => items.map((item) => artifactRecordSchema.parse(item)))
+export async function saveArtifact(input: ArtifactRecord) {
+  const record = artifactRecordSchema.parse(input), integrity = await verifyArtifact(record)
+  if (!integrity.passed) throw new Error(`Artifact integrity failed: ${integrity.issues.join('; ')}`)
+  const existing = await request<ArtifactRecord | undefined>('artifacts', 'readonly', (store) => store.get(record.id))
+  if (existing) {
+    const current = artifactRecordSchema.parse(existing)
+    if (current.sha256 !== record.sha256 || JSON.stringify(current.provenance) !== JSON.stringify(record.provenance)) throw new Error('Artifact identity collision')
+    return current
+  }
+  await request('artifacts', 'readwrite', (store) => store.add(record))
+  return record
+}
+
+export async function deleteProject(id: string) {
+  const [versions, exports, transactions, runs, artifacts] = await Promise.all([listProjectVersions(id), listExports(id), listProjectTransactions(id), listRuntimeRuns(id), listArtifacts(id)])
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(['projects', 'projectVersions', 'exports', 'projectTransactions', 'runtimeRuns', 'artifacts'], 'readwrite')
     transaction.objectStore('projects').delete(id)
     versions.forEach((item) => transaction.objectStore('projectVersions').delete(item.id))
     exports.forEach((item) => transaction.objectStore('exports').delete(item.id))
+    transactions.forEach((item) => transaction.objectStore('projectTransactions').delete(item.id))
+    runs.forEach((item) => transaction.objectStore('runtimeRuns').delete(item.id))
+    artifacts.forEach((item) => transaction.objectStore('artifacts').delete(item.id))
     transaction.oncomplete = () => { db.close(); resolve() }
     transaction.onerror = () => { db.close(); reject(transaction.error) }
   })
@@ -242,25 +369,43 @@ export async function registerGlobalCapability(proposalValue: CapabilityProposal
   const proposal = capabilityProposalSchema.parse(proposalValue)
   const installed = await listGlobalCapabilities()
   const existing = installed.find((item) => item.kind === proposal.kind && item.generalizedIntent.toLocaleLowerCase() === proposal.generalizedIntent.toLocaleLowerCase())
-  const now = new Date().toISOString()
-  const capability = globalCapabilitySchema.parse({
-    ...proposal,
-    id: existing?.id ?? crypto.randomUUID(),
-    version: existing?.version ?? '0.1.0',
-    state: 'draft',
-    sourceJobId: source.jobId,
-    sourcePrompt: source.prompt,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  })
+  const capability = createGlobalCapabilityVersion(proposal, source, existing)
   await request('globalCapabilities', 'readwrite', (store) => store.put(capability))
   return capability
 }
 
-export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = [], versions: ProjectVersion[] = [], exports: ExportRecord[] = [], globalCapabilities: GlobalCapability[] = []) {
+export const listOpenModeSessions = (projectId: string) => request<OpenModeSession[]>('openModeSessions', 'readonly', (store) => store.index('projectId').getAll(projectId))
+  .then((items) => items.map((item) => openModeSessionSchema.parse(item)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+
+export const listCapabilityImplementations = (capabilityId: string) => request<GlobalCapabilityImplementation[]>('capabilityImplementations', 'readonly', (store) => store.index('capabilityId').getAll(capabilityId))
+  .then((items) => items.map((item) => globalCapabilityImplementationSchema.parse(item)))
+
+export const saveOpenModeSession = (session: OpenModeSession) => request('openModeSessions', 'readwrite', (store) => store.put(openModeSessionSchema.parse(session)))
+export const listAllOpenModeSessions = () => request<OpenModeSession[]>('openModeSessions', 'readonly', (store) => store.getAll()).then((items) => items.map((item) => openModeSessionSchema.parse(item)))
+export const listAllCapabilityImplementations = () => request<GlobalCapabilityImplementation[]>('capabilityImplementations', 'readonly', (store) => store.getAll()).then((items) => items.map((item) => globalCapabilityImplementationSchema.parse(item)))
+
+export async function saveVerifiedOpenModeResult(result: { session: OpenModeSession; capability: GlobalCapability; implementation: GlobalCapabilityImplementation | null }) {
+  const session = openModeSessionSchema.parse(result.session)
+  if (session.stage !== 'completed' || result.capability.state !== 'active' || !result.implementation) throw new Error('Only a completed verified Open Mode result can be registered')
+  const capability = globalCapabilitySchema.parse(result.capability), implementation = globalCapabilityImplementationSchema.parse(result.implementation)
+  if (capability.capabilityId !== implementation.capabilityId || capability.version !== implementation.capabilityVersion) throw new Error('Capability implementation scope mismatch')
   const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline', 'projectVersions', 'exports', 'globalCapabilities'], 'readwrite')
+    const transaction = db.transaction(['openModeSessions', 'globalCapabilities', 'capabilityImplementations'], 'readwrite')
+    transaction.objectStore('openModeSessions').put(session)
+    transaction.objectStore('globalCapabilities').put(capability)
+    transaction.objectStore('capabilityImplementations').put(implementation)
+    transaction.oncomplete = () => { db.close(); resolve() }
+    transaction.onerror = () => { db.close(); reject(transaction.error) }
+  })
+  return { session, capability, implementation }
+}
+
+export async function mergeDatabaseBackup(projects: Project[], records: LocalRecord[], plugins: PluginManifest[], timeline: CodexTimelineEntry[] = [], versions: ProjectVersion[] = [], exports: ExportRecord[] = [], globalCapabilities: GlobalCapability[] = [], openModeSessions: OpenModeSession[] = [], capabilityImplementations: GlobalCapabilityImplementation[] = [], artifacts: ArtifactRecord[] = []) {
+  for (const artifact of artifacts) if (!(await verifyArtifact(artifact)).passed) throw new Error(`Backup artifact ${artifact.id} failed integrity verification`)
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(['projects', 'records', 'plugins', 'codexTimeline', 'projectVersions', 'exports', 'globalCapabilities', 'openModeSessions', 'capabilityImplementations', 'artifacts'], 'readwrite')
     const projectStore = transaction.objectStore('projects')
     const recordStore = transaction.objectStore('records')
     const pluginStore = transaction.objectStore('plugins')
@@ -268,6 +413,9 @@ export async function mergeDatabaseBackup(projects: Project[], records: LocalRec
     const versionStore = transaction.objectStore('projectVersions')
     const exportStore = transaction.objectStore('exports')
     const capabilityStore = transaction.objectStore('globalCapabilities')
+    const openModeStore = transaction.objectStore('openModeSessions')
+    const implementationStore = transaction.objectStore('capabilityImplementations')
+    const artifactStore = transaction.objectStore('artifacts')
     projects.forEach((project) => projectStore.put(parseProject(project)))
     records.forEach((record) => recordStore.put(record))
     plugins.forEach((plugin) => pluginStore.put(pluginManifestSchema.parse(plugin)))
@@ -275,6 +423,9 @@ export async function mergeDatabaseBackup(projects: Project[], records: LocalRec
     versions.forEach((version) => versionStore.put({ ...version, project: parseProject(version.project) }))
     exports.forEach((item) => exportStore.put(item))
     globalCapabilities.forEach((item) => capabilityStore.put(globalCapabilitySchema.parse(item)))
+    openModeSessions.forEach((item) => openModeStore.put(openModeSessionSchema.parse(item)))
+    capabilityImplementations.forEach((item) => implementationStore.put(globalCapabilityImplementationSchema.parse(item)))
+    artifacts.forEach((item) => artifactStore.put(artifactRecordSchema.parse(item)))
     transaction.oncomplete = () => { db.close(); resolve() }
     transaction.onerror = () => { db.close(); reject(transaction.error) }
     transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error('Ripristino annullato')) }

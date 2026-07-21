@@ -54,6 +54,21 @@ This single-scenario A/B shows a **45.7% latency reduction** and **49.1% token r
 
 This deliberately isolates the change Kyro makes: Codex receives the same 5,220-byte indexed graph context in both runs, while the optimized path combines apply, revision synchronization, validation, preview capture, and undo evidence in one MCP round. A repository-scanning comparison would not be equivalent because the active visual project lives in Kyro's local graph rather than in source files; no broad “Kyro versus repository” claim is made without a matched fixture and repeated trials.
 
+### Fresh release acceptance, 21 July 2026
+
+These are new authenticated GPT-5.6 runs performed from the visible editor. They did not intercept or replace Codex responses.
+
+| Real user request | Indexed context | Plan | Apply | Model tokens | Verified outcome |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Change the selected button and verify Preview from the installed CLI | 5,244 B | 17.009 s | 1.674 s | 18,468 | Stable ID preserved, rendered result checked, undo passed |
+| Signed PDF + QR + SMTP, unsupported initially | 5,254 B | 41.427 s | 0.539 s | 56,218 | Global reusable draft created; no install or fake implementation |
+
+The second run is intentionally difficult. Kyro let Codex reason normally, then saved a versioned global capability contract in `draft` state. Activation still requires review, implementation, security checks, and evidence. Sanitized raw telemetry is in [`docs/benchmarks/2026-07-21-live.json`](./docs/benchmarks/2026-07-21-live.json).
+
+| Real Codex plan awaiting approval | Unsupported request becomes a safe global draft |
+| --- | --- |
+| ![Live authenticated Codex plan for the selected Kyro button](./docs/images/kyro-live-codex-plan.png) | ![Global reusable capability draft created after an unsupported request](./docs/images/kyro-global-capability-draft.png) |
+
 ## Install and start Kyro
 
 The supported editor installation is the repository-first CLI. It works consistently on Windows, macOS, and Linux and avoids unsigned desktop-binary warnings.
@@ -85,7 +100,7 @@ Kyro binds only to `127.0.0.1`; project state stays in local IndexedDB. Android 
 5. Add an IndexedDB or generated local REST source; bind a list or form and exercise CRUD states.
 6. Open **Preview**, then **Publish** to export Web/PWA or prepare Android.
 
-Judges can also test generated outputs without rebuilding Kyro from the [v0.1.15 release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15): a standalone NexusField Web/PWA export, an Android APK, Playwright traces, and the narrated demo.
+The repository source is now **Kyro 2.0.0**. Judges can also test the previously published generated outputs without rebuilding Kyro from the [v0.1.15 demo release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15): a standalone NexusField Web/PWA export, an Android APK, Playwright traces, and the narrated demo.
 
 | Configure an independent Web/PWA export | Verified on a physical Android device |
 | --- | --- |
@@ -117,7 +132,7 @@ npm --prefix generated-app run build
 npm run test:generated
 ```
 
-The final validation currently records **127 unit tests passed** and **48 Playwright scenarios passed**, with three environment-gated scenarios intentionally skipped. Kyro's visible Publish UI was also used to run the Web export independently and install the generated APK with `adb install -r`. The physical-device path verifies authentication, shared backend mutations, queued offline writes and replay, keyboard resize, back navigation, native capabilities, and persistence. Full evidence: [NEXUSFIELD_VALIDATION_REPORT.md](./NEXUSFIELD_VALIDATION_REPORT.md).
+The Kyro 2.0 validation records **161 unit and integration tests passed** and **58 Playwright scenarios passed**, with three explicitly environment-gated scenarios. A fresh visible acceptance run also passed the beginner tutorial, Canva-style editing, a multipage Web App, a four-page data application, responsive Preview, persistence, and standalone exports (**4/4 scenarios in 18.9 s**). Kyro's visible Publish UI was also used to run the Web export independently and install the generated APK with `adb install -r`. The physical-device path verifies authentication, shared backend mutations, queued offline writes and replay, keyboard resize, back navigation, native capabilities, and persistence. The reproducible release manifest and demo proofs are bundled in [`release/kyro-2.0.0-evidence.zip`](./release/kyro-2.0.0-evidence.zip); see [CHANGELOG.md](./CHANGELOG.md) and [ROLLBACK.md](./ROLLBACK.md).
 
 ## Architecture
 

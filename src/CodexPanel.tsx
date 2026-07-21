@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   listCodexTimeline,
+  listArtifacts,
+  saveArtifact,
   saveCodexTimelineEntry,
   type CodexTimelineEntry,
 } from "./db";
 import { parseAgentPlan } from "./agentPlan";
+import { parseAgentApply } from "./agentApply";
+import { summarizeAgentPlan } from "./changeSummary";
 import type { CapabilityProposal } from "./globalCapability";
 import type { GlobalCapability } from "./globalCapability";
+import type { VerificationReport } from "./verification";
+import { createArtifact, createScreenshotArtifact, verifyArtifact, type ArtifactRecord } from "./artifactRegistry";
 
 export type CodexContext = {
   projectId: string;
@@ -50,6 +56,8 @@ type Trace = {
 };
 type CodexJob = {
   id: string;
+  projectId?: string;
+  mode?: "plan" | "apply";
   status: "running" | "completed" | "error" | "cancelled" | "restored";
   output: string;
   errors: string;
@@ -62,6 +70,9 @@ type CodexJob = {
   usage?: { inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningOutputTokens: number; totalTokens: number };
   learningCandidate?: { kind: "reusable_flow" | "typed_module" | "plugin"; name: string; generalizedIntent: string; inputs: string[]; outputs: string[]; activation: "passing_tests" | "explicit_review" } | null;
   capabilityProposal?: CapabilityProposal | null;
+  attempts?: number;
+  parentJobId?: string;
+  stopReason?: "cancelled" | "timeout" | "interrupted";
   git?: { status?: string; diff?: string };
 };
 
@@ -136,11 +147,14 @@ export function CodexPanel({
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState("");
   const [planThreadId, setPlanThreadId] = useState("");
-  const parsedPlan = parseAgentPlan(plan);
+  const parsedPlan = useMemo(() => parseAgentPlan(plan), [plan]);
+  const planSummary = parsedPlan ? summarizeAgentPlan(parsedPlan) : undefined;
+  const approvalHeading = useRef<HTMLHeadingElement>(null);
+  const [verification, setVerification] = useState<VerificationReport>();
   const [history, setHistory] = useState<
     { role: "user" | "codex" | "system"; text: string }[]
   >([]);
-  const [view, setView] = useState<"chat" | "timeline" | "operations" | "files" | "tests">(
+  const [view, setView] = useState<"chat" | "timeline" | "evidence" | "operations" | "files" | "tests">(
     "chat",
   );
   const [trace, setTrace] = useState<Trace>({
@@ -150,9 +164,26 @@ export function CodexPanel({
     tests: [],
   });
   const [job, setJob] = useState<CodexJob>();
+  const activeJobId = job?.id;
+  const activeJobStatus = job?.status;
   const [liveText, setLiveText] = useState("");
   const [timeline, setTimeline] = useState<CodexTimelineEntry[]>([]);
+  const [artifacts, setArtifacts] = useState<(ArtifactRecord & { integrity: boolean })[]>([]);
   const contextProjectId = context?.projectId;
+  useEffect(() => {
+    if (!plan || !parsedPlan) return;
+    window.requestAnimationFrame(() => approvalHeading.current?.focus());
+  }, [plan, parsedPlan]);
+  useEffect(() => {
+    if (!job?.transactionId || job.status !== "completed") {
+      setVerification(undefined);
+      return;
+    }
+    void fetch(`/api/live/transactions/${job.transactionId}`)
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Verification unavailable")))
+      .then((value) => setVerification(value.result?.verification ?? value.verification))
+      .catch(() => setVerification(undefined));
+  }, [job?.status, job?.transactionId]);
   useEffect(() => {
     setPrompt(suggestedPrompt);
   }, [suggestedPrompt]);
@@ -173,6 +204,7 @@ export function CodexPanel({
   useEffect(() => {
     if (!contextProjectId) return;
     void listCodexTimeline(contextProjectId).then(setTimeline).catch(() => setTimeline([]));
+    void listArtifacts(contextProjectId).then(async (items) => setArtifacts(await Promise.all(items.map(async (item) => ({ ...item, integrity: (await verifyArtifact(item)).passed }))))).catch(() => setArtifacts([]));
   }, [contextProjectId]);
   useEffect(() => {
     if (contextProjectId)
@@ -196,6 +228,35 @@ export function CodexPanel({
       })
       .catch(() => setStatus("Local bridge unavailable"));
   }, [open]);
+  useEffect(() => {
+    if (!open || !contextProjectId) return;
+    void fetch("/api/codex/jobs").then((response) => response.json()).then((items: CodexJob[]) => {
+      const latest = items.find((item) => item.projectId === contextProjectId);
+      if (latest) setJob(latest);
+    }).catch(() => undefined);
+  }, [open, contextProjectId]);
+  useEffect(() => {
+    if (!open || !activeJobId || activeJobStatus !== "running") return;
+    setBusy(true);
+    const timer = window.setInterval(() => {
+      void fetch(`/api/codex/jobs/${activeJobId}`).then((response) => response.json()).then((value: CodexJob) => {
+        setJob(value);
+        const progress = readOutput(value.output, value.git);
+        setLiveText(progress.text);
+        setTrace(progress.trace);
+        if (value.status !== "running") {
+          setBusy(false);
+          setLiveText("");
+          if (value.status === "completed" && value.mode === "plan") {
+            const text = readOutput(value.output, value.git).text;
+            setPlan(text);
+            setPlanThreadId(value.threadId ?? "");
+          }
+        }
+      }).catch(() => undefined);
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [open, activeJobId, activeJobStatus]);
   const refreshAuth = async () => {
     const value = await fetch("/api/codex/status").then((response) => response.json());
     setAuthenticated(Boolean(value.authenticated));
@@ -318,15 +379,37 @@ export function CodexPanel({
         ...(afterScreenshot ? { afterScreenshot } : {}),
       };
       await saveCodexTimelineEntry(completedEntry);
+      let evidenceWarning = "";
+      if (mode === "apply" && value.transactionId) {
+        try {
+          const provenance = { actor: "codex" as const, source: "codex" as const, revision: context.revision + 1, jobId: timelineId, transactionId: value.transactionId };
+          const evidence = [
+            ...(beforeScreenshot ? [await createScreenshotArtifact({ projectId: context.projectId, name: "Canvas before Codex change", dataUrl: beforeScreenshot, provenance: { ...provenance, phase: "before" }, createdAt: startedAt })] : []),
+            ...(afterScreenshot ? [await createScreenshotArtifact({ projectId: context.projectId, name: "Canvas after Codex change", dataUrl: afterScreenshot, provenance: { ...provenance, phase: "after" } })] : []),
+            await createArtifact({ projectId: context.projectId, kind: "trace", name: "Codex operation trace", mediaType: "application/json", payload: JSON.stringify(parsed.trace), provenance: { ...provenance, phase: "result" } }),
+          ];
+          await Promise.all(evidence.map(saveArtifact));
+          const items = await listArtifacts(context.projectId);
+          setArtifacts(await Promise.all(items.map(async (item) => ({ ...item, integrity: (await verifyArtifact(item)).passed }))));
+        } catch (error) {
+          evidenceWarning = `\nThe change succeeded, but its additional evidence could not be registered: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
       setTimeline((items) => [completedEntry, ...items.filter((item) => item.id !== timelineId)]);
       setTrace(parsed.trace);
       if (mode === "plan") {
         setPlan(text);
         setPlanThreadId(String(value.threadId ?? ""));
       }
+      const appliedResult = mode === "apply" ? parseAgentApply(text) : undefined;
+      const plainResult = completedPlan
+        ? `${completedPlan.summary}\nReview the proposed scope, checks, and authorization before applying anything.`
+        : appliedResult
+          ? `${appliedResult.summary}\n${appliedResult.visualResult}`
+          : text;
       setHistory((items) => [
         ...items.filter((item) => !item.text.endsWith("avviata…")),
-        { role: "codex", text },
+        { role: "codex", text: `${plainResult}${evidenceWarning}` },
       ]);
     } catch (error) {
       if (context) {
@@ -368,6 +451,7 @@ export function CodexPanel({
     const value = await response.json();
     if (!response.ok) return setHistory((items) => [...items, { role: "system", text: value.error || "Restore failed" }]);
     setJob({ ...job, status: "restored" });
+    setVerification(undefined);
     const entry = timeline.find((item) => item.id === job.id);
     if (entry) {
       const restoredEntry = { ...entry, status: "restored" as const, finishedAt: new Date().toISOString() };
@@ -375,6 +459,24 @@ export function CodexPanel({
       setTimeline((items) => items.map((item) => item.id === job.id ? restoredEntry : item));
     }
     setHistory((items) => [...items, { role: "system", text: "The approved visual transaction was undone." }]);
+  };
+  const rejectPlan = () => {
+    setPlan("");
+    setHistory((items) => [...items, { role: "system", text: "Plan rejected. No changes were applied." }]);
+  };
+  const continueJob = async (action: "resume" | "retry" | "restart") => {
+    if (!job) return;
+    setBusy(true);
+    const response = await fetch(`/api/codex/jobs/${job.id}/${action}`, { method: "POST" });
+    const value = await response.json();
+    if (!response.ok) {
+      setBusy(false);
+      return setHistory((items) => [...items, { role: "system", text: value.error || `${action} failed` }]);
+    }
+    const next = await fetch(`/api/codex/jobs/${value.jobId}`).then((result) => result.json());
+    setJob(next);
+    setHistory((items) => [...items, { role: "system", text: value.reused ? "The completed Job was reused safely." : `${action[0].toUpperCase()}${action.slice(1)} started as attempt ${next.attempts ?? 1}.` }]);
+    if (next.status !== "running") setBusy(false);
   };
   if (!open) return null;
   return (
@@ -394,10 +496,17 @@ export function CodexPanel({
           </small>
         </div>
         <div>
-          {job?.status === "completed" && job.transactionId && (
+          {!busy && job?.status === "completed" && job.transactionId && (
             <button className="secondary" data-help="Undo this visual transaction. Kyro stops if later graph changes exist." onClick={() => void restore()}>
               Undo change
             </button>
+          )}
+          {(job?.status === "error" || job?.status === "cancelled") && (
+            <>
+              {job.threadId && <button className="secondary" onClick={() => void continueJob("resume")}>Resume</button>}
+              <button className="secondary" onClick={() => void continueJob("retry")}>Retry</button>
+              <button className="secondary" onClick={() => void continueJob("restart")}>Restart</button>
+            </>
           )}
           <button
             data-help="Stop the Codex operation currently running."
@@ -433,6 +542,11 @@ export function CodexPanel({
               "Review requests, revisions, screenshots, files, and tests after restarting.",
             ],
             [
+              "evidence",
+              "Evidence",
+              "Verify hashed reports, screenshots, traces, builds, and exports.",
+            ],
+            [
               "operations",
               "Operations",
               "Show commands run by the controlled local process.",
@@ -460,6 +574,7 @@ export function CodexPanel({
               <span>{trace.commands.length}</span>
             )}
             {id === "timeline" && timeline.length > 0 && <span>{timeline.length}</span>}
+            {id === "evidence" && artifacts.length > 0 && <span>{artifacts.length}</span>}
             {id === "files" && trace.files.length > 0 && (
               <span>{trace.files.length}</span>
             )}
@@ -518,6 +633,18 @@ export function CodexPanel({
         </aside>
         <main>
           <div className="codex-history" aria-live="polite">
+            {view === "chat" && verification && (
+              <section className="change-result" aria-label="Change verification result">
+                <div><span aria-hidden="true">✓</span><div><strong>Change verified</strong><p>Kyro applied one authorized revision and checked the result before saving it.</p></div></div>
+                <ul>
+                  {verification.stages.filter((stage) => stage.required).map((stage) => (
+                    <li key={stage.name}><span>{stage.name}</span><strong>{stage.status === "passed" ? "Passed" : "Failed"}</strong></li>
+                  ))}
+                </ul>
+                <small>{verification.stages.flatMap((stage) => stage.evidence).filter((item) => item.hash).length} reproducible evidence hashes · revision {verification.finalRevision}</small>
+                {job?.status === "completed" && job.transactionId && <button className="secondary" onClick={() => void restore()}>Undo this change</button>}
+              </section>
+            )}
             {view === "chat" &&
               (history.length === 0 ? (
                 <div className="codex-welcome">
@@ -605,6 +732,16 @@ export function CodexPanel({
                 {trace.diff && <pre className="code-diff">{trace.diff}</pre>}
               </>
             )}
+            {view === "evidence" && (
+              artifacts.length ? <div className="artifact-list">
+                {artifacts.map((artifact) => <article key={artifact.id}>
+                  <header><strong>{artifact.name}</strong><span className={`timeline-status ${artifact.integrity ? "" : "error"}`}>{artifact.integrity ? "verified" : "corrupt"}</span></header>
+                  <p>{artifact.kind} · revision {artifact.provenance.revision} · {(artifact.size / 1024).toFixed(1)} KB</p>
+                  <code>SHA-256 {artifact.sha256}</code>
+                  <small>{artifact.provenance.jobId ? `Job ${artifact.provenance.jobId.slice(0, 8)} · ` : ""}{artifact.provenance.transactionId ? `Transaction ${artifact.provenance.transactionId.slice(0, 8)} · ` : ""}{artifact.location}</small>
+                </article>)}
+              </div> : <div className="codex-welcome"><strong>No evidence registered yet.</strong><p>Apply a verified change or create an export.</p></div>
+            )}
             {view === "tests" && (
               <TraceList
                 empty="Codex has not run tests yet."
@@ -642,11 +779,18 @@ export function CodexPanel({
             </div>
           </form>
           {plan && (
-            <section className="approval-card">
+            <section className="approval-card" role="dialog" aria-modal="false" aria-labelledby="approval-title" onKeyDown={(event) => { if (event.key === "Escape") rejectPlan(); }}>
               <p className="eyebrow">Plan to approve</p>
               {parsedPlan ? <>
-                <strong>{parsedPlan.summary}</strong>
-                <p>{parsedPlan.alreadySatisfied ? `Already satisfied · verified via ${parsedPlan.skill}.` : `${parsedPlan.operations.length} typed operations via ${parsedPlan.skill}.`}</p>
+                <h3 id="approval-title" tabIndex={-1} ref={approvalHeading}>{parsedPlan.summary}</h3>
+                <p>{parsedPlan.alreadySatisfied ? "Kyro checked the current project and no change is needed." : `${parsedPlan.operations.length} visual ${parsedPlan.operations.length === 1 ? "change" : "changes"} proposed.`}</p>
+                {!parsedPlan.alreadySatisfied && planSummary && <div className="change-impact">
+                  <div><strong>What will change</strong><ul>{[...new Set(planSummary.changes)].map((change) => <li key={change}>{change}</li>)}</ul></div>
+                  <div><strong>Impact</strong><p>{planSummary.areas.map((area) => `${area.count} ${area.name.toLowerCase()}`).join(" · ") || "Global capability draft"}</p></div>
+                  <div><strong>Where</strong><p>{context ? `${context.componentName} on ${context.treePath[0]} · revision ${context.revision}` : "Current selection"}</p></div>
+                  <div><strong>Your authorization</strong><p>Nothing has changed yet. Approval allows only this listed plan on this revision.</p></div>
+                  <div><strong>Verification</strong><p>{planSummary.checkCount ? `${planSummary.checkCount} planned ${planSummary.checkCount === 1 ? "check" : "checks"}, plus Kyro runtime verification.` : "Kyro will verify the Graph and runtime before saving."}</p></div>
+                </div>}
                 {parsedPlan.capabilityProposal && <p role="status">Global capability proposal: <strong>{parsedPlan.capabilityProposal.name}</strong>. Approving saves an inactive, versioned draft for every Kyro project; activation still requires its tests and review.</p>}
                 {parsedPlan.checks.length > 0 && <ul>{parsedPlan.checks.map((check) => <li key={check}>{check}</li>)}</ul>}
                 {parsedPlan.confirmations.length > 0 && <p role="alert">Confirmation required: {parsedPlan.confirmations.join("; ")}</p>}
@@ -654,16 +798,7 @@ export function CodexPanel({
               <div>
                 <button
                   className="secondary"
-                  onClick={() => {
-                    setPlan("");
-                    setHistory((items) => [
-                      ...items,
-                      {
-                        role: "system",
-                        text: "Plan rejected. No changes were applied.",
-                      },
-                    ]);
-                  }}
+                  onClick={rejectPlan}
                 >
                   Reject
                 </button>

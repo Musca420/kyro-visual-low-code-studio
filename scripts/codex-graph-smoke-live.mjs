@@ -3,8 +3,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const artifacts = resolve("artifacts", "codex-graph-smoke");
+const baseUrl = process.env.KYRO_URL || "http://127.0.0.1:5173";
 await mkdir(artifacts, { recursive: true });
-const context = await chromium.launchPersistentContext(resolve(artifacts, "browser-profile"), {
+const browserProfile = process.env.KYRO_BROWSER_PROFILE ? resolve(process.env.KYRO_BROWSER_PROFILE) : resolve(artifacts, "browser-profile");
+const context = await chromium.launchPersistentContext(browserProfile, {
   headless: false,
   slowMo: 180,
   viewport: { width: 1440, height: 900 },
@@ -14,7 +16,7 @@ page.setDefaultTimeout(45_000);
 const evidence = { startedAt: new Date().toISOString(), planMs: 0, applyMs: 0, undoVerified: false };
 
 try {
-  await page.goto("http://127.0.0.1:5173/", { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
   await page.getByLabel("Project name").fill(`Codex graph smoke ${Date.now()}`);
   await page.getByRole("button", { name: "Blank project Start with a clean canvas" }).click();
   await page.getByRole("button", { name: "Add page", exact: true }).click();

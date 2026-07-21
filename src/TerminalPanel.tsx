@@ -108,11 +108,10 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
       <header>
         <div>
           <p>ADVANCED TOOL</p>
-          <h1>Project terminal</h1>
+          <h1>Project tasks</h1>
           <span>
-            Commands run only when you press Run. The session stays inside the
-            workspace folder, and variables that look like secrets are not
-            inherited.
+            Run allow-listed development tasks inside this project. Kyro does
+            not open a system shell, inherit secrets, or accept shell operators.
           </span>
         </div>
         <div className={`terminal-status ${session?.status ?? "loading"}`}>
@@ -137,7 +136,7 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
           <input
             value={command}
             onChange={(event) => setCommand(event.target.value)}
-            placeholder="Example: git status --short"
+            placeholder="Example: npm run check"
             autoComplete="off"
             disabled={session?.status !== "running" || submitting}
           />
@@ -158,9 +157,9 @@ export function TerminalPanel({ projectId }: { projectId: string }) {
         </button>
       </form>
       <p className="terminal-note">
-        The shell is local and is never included in exports. Network commands,
-        elevated privileges, or writes outside the workspace require the same
-        care as a desktop terminal.
+        Allowed: project Node scripts, npm/pnpm run, TypeScript, Vitest,
+        Playwright, git status and git diff. Dependencies and network tools need
+        a separate reviewed approval.
       </p>
     </main>
   );

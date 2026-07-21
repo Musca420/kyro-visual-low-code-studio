@@ -1,7 +1,9 @@
 import { z } from "zod";
-import { codexTimelineEntrySchema, listAllCodexTimeline, listAllExports, listAllProjectVersions, listAllRecords, listGlobalCapabilities, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
+import { codexTimelineEntrySchema, listAllArtifacts, listAllCapabilityImplementations, listAllCodexTimeline, listAllExports, listAllOpenModeSessions, listAllProjectVersions, listAllRecords, listGlobalCapabilities, listPlugins, listProjects, mergeDatabaseBackup } from "./db";
 import { pluginManifestSchema, projectSchema } from "./model";
 import { globalCapabilitySchema } from "./globalCapability";
+import { globalCapabilityImplementationSchema, openModeSessionSchema } from "./openMode";
+import { artifactRecordSchema } from "./artifactRegistry";
 
 const localRecordSchema = z.object({
   id: z.string().min(1),
@@ -32,6 +34,9 @@ const backupSchema = z.object({
     createdAt: z.string(), type: z.string(), data: z.string().max(14_000_000),
   })).max(200).default([]),
   globalCapabilities: z.array(globalCapabilitySchema).max(500).default([]),
+  openModeSessions: z.array(openModeSessionSchema).max(2_000).default([]),
+  capabilityImplementations: z.array(globalCapabilityImplementationSchema).max(500).default([]),
+  artifacts: z.array(artifactRecordSchema).max(2_000).default([]),
 });
 
 export type FrontendEditorBackup = z.infer<typeof backupSchema>;
@@ -57,6 +62,9 @@ export async function createBackup(): Promise<FrontendEditorBackup> {
     records: await listAllRecords(),
     plugins: await listPlugins(),
     globalCapabilities: await listGlobalCapabilities(),
+    openModeSessions: await listAllOpenModeSessions(),
+    capabilityImplementations: await listAllCapabilityImplementations(),
+    artifacts: await listAllArtifacts(),
     preferences,
     codexTimeline: await listAllCodexTimeline(),
     versions: await listAllProjectVersions(),
@@ -84,6 +92,9 @@ export async function restoreBackup(input: unknown) {
       return { id: record.id, projectId: record.projectId, fileName: record.fileName, target: record.target, createdAt: record.createdAt, blob: new Blob([bytes], { type: record.type }) };
     }),
     backup.globalCapabilities,
+    backup.openModeSessions,
+    backup.capabilityImplementations,
+    backup.artifacts,
   );
   Object.entries(backup.preferences).forEach(([key, value]) => {
     if (persistedKey(key)) localStorage.setItem(key, value);
@@ -93,6 +104,9 @@ export async function restoreBackup(input: unknown) {
     records: backup.records.length,
     plugins: backup.plugins.length,
     globalCapabilities: backup.globalCapabilities.length,
+    openModeSessions: backup.openModeSessions.length,
+    capabilityImplementations: backup.capabilityImplementations.length,
+    artifacts: backup.artifacts.length,
     versions: backup.versions.length,
     exports: backup.exports.length,
   };

@@ -16,6 +16,8 @@ import { operationNameSet, operationPrompt } from "./src/agentRegistry";
 import { parseAgentPlan } from "./src/agentPlan";
 import { parseAgentApply } from "./src/agentApply";
 import { resolveCapability } from "./src/capabilityResolver";
+import { JobStore, type JobAuditEvent } from "./server/jobStore";
+import { assertLocalRequest, authorizeTask, defaultSecurityBudget, redactSecrets, safeEnvironment, SecurityPolicy, type SecurityBudget } from "./server/security";
 
 const workspaceRoot = resolve(process.env.KYRO_WORKSPACE ?? process.env.FRONTEND_EDITOR_WORKSPACE ?? process.cwd());
 const bundledSkillsRoot = fileURLToPath(new URL("./.agents/skills", import.meta.url));
@@ -25,7 +27,7 @@ const agentPlanSchemaPath = fileURLToPath(new URL("./server/agent-plan.schema.js
 const agentApplySchemaPath = fileURLToPath(new URL("./server/agent-apply.schema.json", import.meta.url));
 
 const sourceExtensions = new Set([".css", ".html", ".htm", ".js", ".json", ".jsx", ".md", ".mjs", ".svelte", ".ts", ".tsx", ".txt", ".vue", ".yaml", ".yml"]);
-const ignoredSourceDirectories = new Set([".agents", ".git", ".next", ".output", ".turbo", "android", "build", "coverage", "dist", "ios", "node_modules", "out", "target"]);
+const ignoredSourceDirectories = new Set([".agents", ".git", ".kyro", ".next", ".output", ".turbo", "android", "build", "coverage", "dist", "ios", "node_modules", "out", "target"]);
 async function readWorkspace() {
   if (process.env.KYRO_PROJECT_MODE !== "project") return null;
   if (!(await stat(workspaceRoot).catch(() => undefined))?.isDirectory()) throw new Error("The project folder is not accessible.");
@@ -67,11 +69,6 @@ const npmCommand = process.platform === "win32" ? nodeCommand : "npm";
 const npmPrefix =
   process.platform === "win32"
     ? [resolve(nodeCommand, "../node_modules/npm/bin/npm-cli.js")]
-    : [];
-const npxCommand = process.platform === "win32" ? nodeCommand : "npx";
-const npxPrefix =
-  process.platform === "win32"
-    ? [resolve(nodeCommand, "../node_modules/npm/bin/npx-cli.js")]
     : [];
 const exists = (path: string) =>
   access(path)
@@ -120,6 +117,7 @@ function flattenComponentTree(
 
 function liveBridge() {
   const agentBridgeToken = crypto.randomUUID();
+  const security = new SecurityPolicy(workspaceRoot);
   let latest: Record<string, unknown> | undefined;
   const projects = new Map<string, Record<string, unknown>>();
   const commands: {
@@ -132,6 +130,7 @@ function liveBridge() {
     status: "pending" | "applied" | "error";
     claimedBy?: string;
     claimedAt?: number;
+    jobId?: string;
     error?: string;
     result?: unknown;
   }[] = [];
@@ -177,7 +176,7 @@ function liveBridge() {
     projectId: string;
     status: "running" | "closed" | "error";
     output: string;
-    process: ChildProcessWithoutNullStreams;
+    budget: SecurityBudget;
     code?: number | null;
   };
   const terminalSessions = new Map<string, TerminalSession>();
@@ -203,8 +202,50 @@ function liveBridge() {
     approvedOperations?: NonNullable<ReturnType<typeof parseAgentPlan>>["operations"];
     approvedCapabilityProposal?: NonNullable<ReturnType<typeof parseAgentPlan>>["capabilityProposal"];
     learningCandidate?: NonNullable<ReturnType<typeof parseAgentApply>>["learningCandidate"];
+    attempts: number;
+    timeoutMs: number;
+    deadlineAt: string;
+    parentJobId?: string;
+    stopReason?: "cancelled" | "timeout" | "interrupted";
+    request: {
+      prompt: string;
+      mode: "plan" | "apply";
+      projectId: string;
+      revision: number;
+      clientId?: string;
+      approvedPlan?: string;
+      threadId?: string;
+      focus?: unknown;
+      context?: unknown;
+    };
+    audit?: JobAuditEvent[];
+    securityBudget: SecurityBudget;
   };
   const jobs = new Map<string, CodexJob>();
+  const jobStore = new JobStore<CodexJob>(workspaceRoot);
+  const jobsReady = jobStore.initialize().then(() => {
+    for (const job of jobStore.list(100)) jobs.set(job.id, job);
+  });
+  const authorizedAgentJob = (authorization: string | undefined) => {
+    if (authorization !== `Bearer ${agentBridgeToken}`) return undefined;
+    const job = agentJobId ? jobs.get(agentJobId) : undefined;
+    if (!job || job.status !== "running" || Date.parse(job.deadlineAt) <= Date.now()) return undefined;
+    return job;
+  };
+  const persistJob = async (job: CodexJob, action: string, detail?: string) => {
+    const existing = jobStore.get(job.id);
+    if (!existing) await jobStore.create(job, action);
+    else await jobStore.update(job.id, (stored) => {
+      const audit = stored.audit;
+      Object.assign(stored, structuredClone(job));
+      stored.audit = audit;
+    }, action, detail);
+  };
+  const publicJob = (job: CodexJob) => {
+    const value: Partial<CodexJob> = structuredClone(job);
+    delete value.request;
+    return value;
+  };
   return {
     name: "frontend-editor-live-bridge",
     configureServer(server: {
@@ -220,7 +261,9 @@ function liveBridge() {
     }) {
       server.middlewares.use(async (request, response, next) => {
         try {
+          await jobsReady;
           const url = new URL(request.url ?? "/", "http://127.0.0.1");
+          if (url.pathname.startsWith("/api/")) assertLocalRequest(request);
           if (url.pathname === "/api/workspace" && request.method === "GET")
             return reply(response, 200, await readWorkspace());
           if (url.pathname === "/api/live/status" && request.method === "GET") {
@@ -234,28 +277,55 @@ function liveBridge() {
             );
           }
           if (url.pathname === "/api/agent/context" && request.method === "GET") {
-            if (!latest) return reply(response, 404, { error: "No Kyro project is open" });
-            return reply(response, 200, buildAgentContext(latest, { kind: (latest.selectedComponentIds as unknown[])?.length ? "component" : "page" }));
+            const activeJob = authorizedAgentJob(request.headers.authorization);
+            if (!activeJob) return reply(response, 401, { error: "An active Kyro Job authorization is required" });
+            const state = (activeJob.clientId ? projects.get(`${activeJob.projectId}:${activeJob.clientId}`) : undefined) ?? projects.get(activeJob.projectId);
+            if (!state) return reply(response, 404, { error: "The Job project is not open in Kyro" });
+            return reply(response, 200, buildAgentContext(state, { kind: (state.selectedComponentIds as unknown[])?.length ? "component" : "page" }));
           }
           if (url.pathname === "/api/agent/authorization" && request.method === "GET") {
-            if (request.headers.authorization !== `Bearer ${agentBridgeToken}`)
-              return reply(response, 401, { error: "Invalid Kyro agent token" });
-            const activeJob = agentJobId ? jobs.get(agentJobId) : undefined;
-            if (!activeJob || activeJob.status !== "running")
+            const activeJob = authorizedAgentJob(request.headers.authorization);
+            if (!activeJob)
               return reply(response, 409, { error: "No active Kyro agent job" });
             return reply(response, 200, {
+              jobId: activeJob.id,
+              projectId: activeJob.projectId,
+              revision: activeJob.revision,
+              deadlineAt: activeJob.deadlineAt,
               mode: activeJob.mode,
               approvedOperations: activeJob.mode === "apply" ? activeJob.approvedOperations : undefined,
               approvedCapabilityProposal: activeJob.mode === "apply" ? activeJob.approvedCapabilityProposal : undefined,
             });
           }
+          if (url.pathname === "/api/agent/mcp-audit" && request.method === "POST") {
+            const activeJob = authorizedAgentJob(request.headers.authorization);
+            if (!activeJob) return reply(response, 401, { error: "An active Kyro Job authorization is required" });
+            const input = await body(request), tool = String(input.tool ?? "");
+            if (!/^kyro_[a-z0-9_]+$/.test(tool)) return reply(response, 400, { error: "Invalid MCP tool name" });
+            if (String(input.detail) === "started") {
+              try { security.consume(activeJob.securityBudget, "networkRequests"); }
+              catch (error) {
+                const detail = error instanceof Error ? error.message : String(error);
+                await security.audit({ projectId: activeJob.projectId, jobId: activeJob.id, effect: "mcp", action: tool, result: "denied", detail });
+                return reply(response, 429, { error: detail });
+              }
+            }
+            const record = await security.audit({
+              projectId: activeJob.projectId, jobId: activeJob.id, effect: "mcp", action: tool,
+              result: input.result === "denied" ? "denied" : "allowed",
+              detail: redactSecrets(String(input.detail ?? "")).slice(0, 1_000),
+            });
+            return reply(response, 200, record);
+          }
           if (url.pathname === "/api/agent/capability" && request.method === "POST") {
-            if (request.headers.authorization !== `Bearer ${agentBridgeToken}`)
-              return reply(response, 401, { error: "Invalid Kyro agent token" });
+            const activeJob = authorizedAgentJob(request.headers.authorization);
+            if (!activeJob) return reply(response, 401, { error: "An active Kyro Job authorization is required" });
             const input = await body(request);
-            return reply(response, 200, resolveCapability(input.request, latest));
+            const state = (activeJob.clientId ? projects.get(`${activeJob.projectId}:${activeJob.clientId}`) : undefined) ?? projects.get(activeJob.projectId);
+            return reply(response, 200, resolveCapability(input, state));
           }
           if (url.pathname === "/api/live/state" && request.method === "POST") {
+            assertLocalRequest(request, true);
             const state = await body(request);
             if (
               !state.projectId ||
@@ -279,6 +349,12 @@ function liveBridge() {
             const tool = url.pathname.split("/").at(-1)!,
               input = await body(request),
               projectId = String(input.projectId ?? ""),
+              activeJob = authorizedAgentJob(request.headers.authorization),
+              agentAuthorized = activeJob?.projectId === projectId,
+              browserAuthorized = Boolean(request.headers.origin);
+            if (!agentAuthorized && !browserAuthorized)
+              return reply(response, 401, { error: "A live tool requires an authorized Job scoped to this project or the local editor origin" });
+            const
               activeClientId = agentJobId ? jobs.get(agentJobId)?.clientId : undefined,
               state = (activeClientId ? projects.get(`${projectId}:${activeClientId}`) : undefined) ?? projects.get(projectId);
             if (!state)
@@ -340,6 +416,8 @@ function liveBridge() {
                 valid: !(state.validationErrors as unknown[])?.length,
                 errors: state.validationErrors,
               }),
+              get_verification_report: () => state.verificationReport ?? { status: "unavailable", detail: "No verified transaction has completed in this editor session" },
+              get_build_preflight: () => state.buildPreflight,
             };
             if (reads[tool]) return reply(response, 200, reads[tool]());
             const mutations = new Set([...operationNameSet, "apply_editor_transaction", "register_global_capability", "undo_last_transaction", "open_preview", "capture_canvas", "capture_preview"]);
@@ -366,6 +444,7 @@ function liveBridge() {
               tool,
               args: (input.args ?? {}) as Record<string, unknown>,
               status: "pending" as const,
+              ...(agentJobId ? { jobId: agentJobId } : {}),
             };
             commands.push(command);
             for (let attempt = 0; attempt < 240 && command.status === "pending"; attempt += 1)
@@ -422,6 +501,7 @@ function liveBridge() {
             url.pathname === "/api/terminal/sessions" &&
             request.method === "POST"
           ) {
+            assertLocalRequest(request, true);
             const input = await body(request),
               projectId = String(input.projectId ?? "");
             if (!projects.has(projectId))
@@ -438,49 +518,14 @@ function liveBridge() {
                 status: existing.status,
                 workspace: workspaceRoot,
               });
-            const terminalCommand =
-              process.platform === "win32"
-                ? "powershell.exe"
-                : process.env.SHELL || "/bin/sh";
-            const terminalArgs =
-              process.platform === "win32"
-                ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "-"]
-                : [];
-            const safeEnvironment = Object.fromEntries(
-              Object.entries(process.env).filter(
-                ([name, value]) =>
-                  value !== undefined &&
-                  !/(token|secret|password|api[_-]?key|credential)/i.test(name),
-              ),
-            ) as NodeJS.ProcessEnv;
-            const child = spawn(terminalCommand, terminalArgs, {
-              cwd: workspaceRoot,
-              env: safeEnvironment,
-              stdio: "pipe",
-              windowsHide: true,
-            });
             const session: TerminalSession = {
               id: crypto.randomUUID(),
               projectId,
               status: "running",
-              output: `Frontend Editor terminale locale\nWorkspace: ${workspaceRoot}\n`,
-              process: child,
+              output: `Kyro allow-listed project tasks\nWorkspace: ${workspaceRoot}\n`,
+              budget: defaultSecurityBudget(),
             };
             terminalSessions.set(session.id, session);
-            const append = (chunk: unknown) => {
-              session.output = (session.output + String(chunk)).slice(-200_000);
-            };
-            child.stdout.on("data", append);
-            child.stderr.on("data", append);
-            child.on("error", (error) => {
-              append(`\n${error.message}\n`);
-              session.status = "error";
-            });
-            child.on("close", (code) => {
-              session.code = code;
-              session.status = session.status === "error" ? "error" : "closed";
-              append(`\nSessione terminata (${code ?? "nessun codice"}).\n`);
-            });
             return reply(response, 201, {
               sessionId: session.id,
               status: session.status,
@@ -525,30 +570,43 @@ function liveBridge() {
                 return reply(response, 409, {
                   error: "The session is not active",
                 });
-              if (
-                !command.trim() ||
-                command.length > 4_000 ||
-                command.includes("\0") ||
-                command.includes("\r") ||
-                command.includes("\n")
-              )
-                return reply(response, 400, {
-                  error: "Inserisci un singolo comando fino a 4000 caratteri",
-                });
-              session.output = (session.output + `\n> ${command}\n`).slice(
-                -200_000,
-              );
-              session.process.stdin.write(`${command}\n`);
-              return reply(response, 202, { accepted: true });
+              try {
+                const task = authorizeTask(command);
+                security.consume(session.budget, "shellCommands");
+                security.consume(session.budget, "processes");
+                let executable: string = task.executable, args = task.args;
+                if (task.executable === "node") {
+                  executable = nodeCommand;
+                  args = [await security.workspacePath(task.args[0]), ...task.args.slice(1)];
+                } else if (task.executable === "npm") {
+                  executable = npmCommand;
+                  args = [...npmPrefix, ...task.args];
+                } else if (task.executable === "tsc") {
+                  executable = nodeCommand;
+                  args = [resolve(kyroRoot, "node_modules/typescript/bin/tsc"), ...task.args];
+                } else if (task.executable === "vitest") {
+                  executable = nodeCommand;
+                  args = [resolve(kyroRoot, "node_modules/vitest/vitest.mjs"), ...task.args];
+                } else if (task.executable === "playwright") {
+                  executable = nodeCommand;
+                  args = [resolve(kyroRoot, "node_modules/@playwright/test/cli.js"), ...task.args];
+                }
+                session.output = (session.output + `\n> ${command}\n`).slice(-200_000);
+                const result = await run(executable, args, { cwd: workspaceRoot, env: safeEnvironment(process.env), timeout: 120_000, maxBuffer: 200_000 });
+                session.code = 0;
+                session.output = (session.output + redactSecrets(`${result.stdout}${result.stderr}`)).slice(-200_000);
+                await security.audit({ projectId: session.projectId, effect: "shell", action: task.executable, result: "allowed", detail: command });
+                return reply(response, 200, { accepted: true, code: 0 });
+              } catch (error) {
+                const message = redactSecrets(error instanceof Error ? error.message : String(error));
+                session.code = 1;
+                session.output = (session.output + `${message}\n`).slice(-200_000);
+                await security.audit({ projectId: session.projectId, effect: "shell", action: "task", result: "denied", detail: `${command}: ${message}` });
+                return reply(response, 403, { error: message });
+              }
             }
             if (request.method === "POST" && action === "close") {
-              if (session.status === "running") {
-                session.process.stdin.end();
-                setTimeout(
-                  () => session.status === "running" && session.process.kill(),
-                  1500,
-                );
-              }
+              session.status = "closed";
               return reply(response, 200, { closing: true });
             }
           }
@@ -618,6 +676,7 @@ function liveBridge() {
             url.pathname === "/api/android/prepare" &&
             request.method === "POST"
           ) {
+            assertLocalRequest(request, true);
             const input = await body(request),
               projectId = String(input.projectId ?? ""),
               files = input.files;
@@ -632,16 +691,25 @@ function liveBridge() {
               Object.keys(files).length > 250
             )
               return reply(response, 400, { error: "File Android non validi" });
-            const base = resolve(workspaceRoot, "android-builds"),
-              directory = resolve(base, `${projectId}-${Date.now()}`);
-            if (
-              !directory.startsWith(
-                `${base}${process.platform === "win32" ? "\\" : "/"}`,
-              )
-            )
-              return reply(response, 400, {
-                error: "Percorso Android non sicuro",
-              });
+            const generatedFiles = files as Record<string, unknown>;
+            const packageJson = typeof generatedFiles["package.json"] === "string" ? JSON.parse(generatedFiles["package.json"]) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } : undefined;
+            if (!packageJson) return reply(response, 400, { error: "The generated dependency manifest is missing" });
+            const approvals = Array.isArray(input.dependencyApprovals) ? input.dependencyApprovals as Array<Record<string, unknown>> : [];
+            const trustedPackages = new Map<string, string>([
+              ["typescript", "^5.8.3"], ["vite", "^7.1.4"], ["@capacitor/cli", "^8.0.0"], ["@capacitor/core", "^8.0.0"], ["@capacitor/android", "^8.0.0"],
+              ["@capacitor/camera", "^8.0.0"], ["@capacitor/geolocation", "^8.0.0"], ["@capacitor/device", "^8.0.0"], ["@capacitor/network", "^8.0.0"],
+              ["@capacitor/haptics", "^8.0.0"], ["@capacitor/share", "^8.0.0"], ["@capacitor/clipboard", "^8.0.0"], ["@capacitor/filesystem", "^8.0.0"],
+              ["@capacitor/motion", "^8.0.0"], ["@capacitor/local-notifications", "^8.0.0"],
+            ]);
+            for (const [packageName, version] of Object.entries({ ...packageJson.devDependencies, ...packageJson.dependencies })) {
+              const trusted = trustedPackages.get(packageName) === version;
+              const approved = approvals.some((item) => item.packageName === packageName && item.version === version && typeof item.license === "string" && typeof item.risk === "string" && typeof item.rollback === "string" && Array.isArray(item.platforms));
+              if (!trusted && !approved) {
+                await security.audit({ projectId, effect: "dependency", action: `${packageName}@${version}`, result: "denied", detail: "Missing exact reviewed dependency approval" });
+                return reply(response, 403, { error: `Dependency ${packageName}@${version} needs an exact reviewed approval` });
+              }
+            }
+            const directory = await security.workspacePath(`android-builds/${projectId}-${Date.now()}`);
             await mkdir(directory, { recursive: true });
             for (const [name, content] of Object.entries(files)) {
               const target = resolve(directory, name);
@@ -657,7 +725,9 @@ function liveBridge() {
               await mkdir(resolve(target, ".."), { recursive: true });
               await writeFile(target, content, "utf8");
             }
+            await security.audit({ projectId, effect: "filesystem", action: "android-export-write", result: "allowed", detail: `${Object.keys(files).length} files inside android-builds` });
             const id = crypto.randomUUID(),
+              buildBudget = { ...defaultSecurityBudget(), dependencies: approvals.length },
               job = {
                 id,
                 status: "running" as const,
@@ -684,12 +754,13 @@ function liveBridge() {
                 timeout: number,
                 environment?: NodeJS.ProcessEnv,
               ) => {
+                security.consume(buildBudget, "processes");
                 job.message = message;
                 const value = await run(command, args, {
                   cwd: directory,
                   timeout,
                   maxBuffer: 4_000_000,
-                  env: environment,
+                  env: safeEnvironment(environment ?? process.env),
                 });
                 job.output += `\n$ ${command} ${args.join(" ")}\n${value.stdout}\n${value.stderr}`;
               };
@@ -700,12 +771,13 @@ function liveBridge() {
                 timeout: number,
                 environment: NodeJS.ProcessEnv,
               ) => {
+                security.consume(buildBudget, "processes");
                 job.message = message;
                 job.output += `\n$ ${command} ${args.join(" ")}\n`;
                 await new Promise<void>((resolveStep, rejectStep) => {
                   const child = spawn(command, args, {
                     cwd: directory,
-                    env: environment,
+                    env: safeEnvironment(environment),
                     stdio: "ignore",
                     windowsHide: true,
                   });
@@ -730,12 +802,16 @@ function liveBridge() {
                 });
               };
               try {
+                await security.audit({ projectId, effect: "dependency", action: "android-export-install", result: "allowed", detail: `Reviewed manifest with ${Object.keys({ ...packageJson.devDependencies, ...packageJson.dependencies }).length} dependencies` });
+                security.consume(buildBudget, "networkRequests");
+                if (approvals.length) security.consume(buildBudget, "dependencies", approvals.length);
                 await step(
                   npmCommand,
                   [...npmPrefix, "install", "--no-audit", "--no-fund"],
                   "Scarico le dipendenze dichiarate…",
                   300_000,
                 );
+                security.consume(buildBudget, "builds");
                 await step(
                   npmCommand,
                   [...npmPrefix, "run", "build"],
@@ -743,8 +819,8 @@ function liveBridge() {
                   180_000,
                 );
                 await step(
-                  npxCommand,
-                  [...npxPrefix, "cap", "add", "android"],
+                  nodeCommand,
+                  [resolve(directory, "node_modules/@capacitor/cli/bin/capacitor"), "add", "android"],
                   "Creo la cartella Android nativa…",
                   180_000,
                 );
@@ -755,8 +831,8 @@ function liveBridge() {
                   60_000,
                 );
                 await step(
-                  npxCommand,
-                  [...npxPrefix, "cap", "sync", "android"],
+                  nodeCommand,
+                  [resolve(directory, "node_modules/@capacitor/cli/bin/capacitor"), "sync", "android"],
                   "Sincronizzo interfaccia e configurazione…",
                   180_000,
                 );
@@ -814,6 +890,7 @@ function liveBridge() {
                           "assembleDebug",
                         ];
                   try {
+                    security.consume(buildBudget, "builds");
                     await quietStep(
                       gradleCommand,
                       gradleArgs,
@@ -848,11 +925,13 @@ function liveBridge() {
                   job.build === "passed"
                     ? "Progetto e APK Android verificati."
                     : "Progetto Android generato; build APK non disponibile in questo ambiente.";
+                await security.audit({ projectId, effect: "process", action: "android-export-build", result: "allowed", detail: job.message });
               } catch (error) {
                 job.status = "error";
                 job.error =
                   error instanceof Error ? error.message : String(error);
                 job.message = "Preparazione Android interrotta.";
+                await security.audit({ projectId, effect: "process", action: "android-export-build", result: "denied", detail: job.error });
               }
             })();
             return reply(response, 202, { jobId: id, directory });
@@ -871,12 +950,12 @@ function liveBridge() {
             );
           }
           if (url.pathname === "/api/codex/jobs" && request.method === "GET")
-            return reply(response, 200, [...jobs.values()].slice(-20).reverse().map((job) => ({ ...job })));
+            return reply(response, 200, jobStore.list(20).map(publicJob));
           if (url.pathname === "/api/codex/jobs" && request.method === "POST") {
             if (agent || agentJobId)
               return reply(response, 409, { error: "Codex is already working" });
             const input = await body(request),
-              prompt = String(input.prompt ?? ""),
+              prompt = redactSecrets(String(input.prompt ?? "")),
               mode = input.mode === "apply" ? "apply" : "plan",
               projectId = String(input.projectId ?? ""),
               clientId = String(input.clientId ?? "").trim();
@@ -891,6 +970,7 @@ function liveBridge() {
                   "The project changed: refresh the context before continuing",
               });
             const id = crypto.randomUUID(),
+              timeoutMs = 180_000,
               job: CodexJob = {
                 id,
                 projectId,
@@ -903,9 +983,29 @@ function liveBridge() {
                 warnings: "",
                 startedAt: new Date().toISOString(),
                 changedFiles: [],
+                attempts: Math.max(1, Number(input.attempts) || 1),
+                timeoutMs,
+                deadlineAt: new Date(Date.now() + timeoutMs).toISOString(),
+                securityBudget: defaultSecurityBudget(),
+                ...(String(input.parentJobId ?? "").trim() ? { parentJobId: String(input.parentJobId) } : {}),
+                request: {
+                  prompt, mode, projectId, revision: Number(input.revision),
+                  ...(clientId ? { clientId } : {}),
+                  ...(String(input.approvedPlan ?? "").trim() ? { approvedPlan: String(input.approvedPlan) } : {}),
+                  ...(String(input.threadId ?? "").trim() ? { threadId: String(input.threadId) } : {}),
+                  ...(input.focus ? { focus: input.focus } : {}),
+                  ...(input.context ? { context: input.context } : {}),
+                },
             };
             jobs.set(id, job);
             agentJobId = id;
+            try {
+              await persistJob(job, "created");
+            } catch (error) {
+              jobs.delete(id);
+              agentJobId = undefined;
+              throw error;
+            }
             const bridgeBase = `${url.protocol}//${request.headers.host ?? "127.0.0.1:4173"}`;
             const approvedPlan = String(input.approvedPlan ?? "").trim();
             const parsedApprovedPlan = mode === "apply" ? parseAgentPlan(approvedPlan) : undefined;
@@ -914,6 +1014,7 @@ function liveBridge() {
               job.finishedAt = new Date().toISOString();
               job.errors = "The approved Codex plan is invalid or uses unsupported Kyro operations.";
               agentJobId = undefined;
+              await persistJob(job, "failed", job.errors);
               return reply(response, 202, { jobId: id, status: job.status });
             }
             if (parsedApprovedPlan) {
@@ -935,14 +1036,17 @@ function liveBridge() {
                   ? { operations: parsedApprovedPlan.operations }
                   : parsedApprovedPlan.capabilityProposal as Record<string, unknown>,
                 status: "pending",
+                jobId: id,
                 ...(clientId ? { claimedBy: clientId, claimedAt: Date.now() } : {}),
               };
               commands.push(command);
-              for (let attempt = 0; attempt < 240 && command.status === "pending"; attempt += 1)
+              for (let attempt = 0; attempt < 240 && command.status === "pending" && job.status === "running"; attempt += 1)
                 await new Promise((resolveWait) => setTimeout(resolveWait, 250));
               job.finishedAt = new Date().toISOString();
               job.code = command.status === "applied" ? 0 : 1;
-              if (command.status !== "applied") {
+              if (job.status === "cancelled") {
+                job.errors = "";
+              } else if (command.status !== "applied") {
                 job.status = "error";
                 job.errors = command.error || (command.status === "pending" ? "Kyro transaction timed out" : "Kyro transaction failed");
               } else {
@@ -961,6 +1065,7 @@ function liveBridge() {
                 job.output = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: JSON.stringify(result) } }) + "\n";
               }
               agentJobId = undefined;
+              await persistJob(job, job.status === "completed" ? "completed" : "failed", job.errors || undefined);
               return reply(response, 202, { jobId: id, status: job.status });
             }
             const auth = await codexAuthStatus();
@@ -970,14 +1075,15 @@ function liveBridge() {
               job.errors = auth.message;
               job.output = JSON.stringify({ type: "item.completed", item: { type: "error", message: auth.message } }) + "\n";
               agentJobId = undefined;
+              await persistJob(job, "failed", job.errors);
               return reply(response, 202, { jobId: id, status: job.status });
             }
             const liveBridgeContract = mode === "plan" ? `
-Use the Kyro context pack provided below. Do not run commands or read project files. Use kyro_get_context or kyro_resolve_capability only when the supplied indexed slice is insufficient.
+Use the Kyro context pack provided below. Do not run commands or read project files. Use kyro_get_context or kyro_plan only when the supplied indexed slice is insufficient. Use kyro_verify or kyro_build_preflight only for an explicit verification/readiness question.
 Produce a short plan based on stable IDs, typed operations, and observable criteria. The visual project and its graph are the source of truth.
 Available operations: ${operationPrompt}. In the plan output every operation uses {"type":"...","pageId":"page ID or null","argsJson":"{...}"}. argsJson must be valid JSON encoding the operation argument object.
 Essential signatures: add_page args={name,path,pageId?}; update_page args={name?,path?}; add_component args={componentId?,componentType,name?,props?,styles?:{desktop?,tablet?,mobile?},accessibility?,intent?,parentId?}; compose_screen args={name,layout,expectedResult?,replaceExisting?,confirmed?,theme?:{primary?,accent?,background?,surface?,text?},sections:[{type?,name,label,description?,role?,expectedResult?,items?:[{type?,name,label,description?,path?,role?,expectedResult?}]}],navigation?:[{label,path}],states?:boolean}. Prefer one compose_screen for a whole screen or large redesign so Kyro expands professional responsive defaults into native editable components; use atomic operations only for precise changes. set_component_property args={componentId,property,value}, where property="name" renames the layer; set_responsive_style args={componentId,breakpoint,property,value}; set_component_state_style args={componentId,state,property,value}; set_component_accessibility args={componentId,label,role?}; set_component_intent args={componentId,intent}; set_component_event args={componentId,event,flowId}; remove_component_event args={componentId,event}; remove_component args={componentId,confirmed:true}; compose_record_action args={componentId,sourceId?,entity,action:"update"|"delete"}. Prefer compose_record_action for a bound list/table update or confirmed delete with refresh, success/error feedback and generated undo support. compose_native_action args={componentId,event?,capability,action,permission?,resultComponentId?,rationale?,successMessage?,errorMessage?}. Prefer it for one registered device action. Registered capability/action pairs: camera/takePhoto|pickImage; barcode/scanQr|scanBarcode; location/getCurrentPosition|openMap; bluetooth/requestDevice|scan|connect|disconnect|read|write; device/getInfo|getBattery; network/getStatus; haptics/impact|vibrate; share/share; clipboard/write|read; files/writeFile|readFile|deleteFile; motion/getOrientation; push/register. External packages remain inactive until the separate visual approval step. add_flow args={flowId?,name}; add_flow_node args={flowId,node:{id,type,label,position:{x,y},config:{string:string}}}; connect_nodes args={flowId,source,target,path?:"success"|"error"}; create_data_source args={sourceId?,name,provider,collection,schema}; bind_component_data args={componentId,sourceId,state?:"data"|"loading"|"empty"|"error"}; set_app_config args={patch:{safeArea?,offline?,themeMode?,supportedThemes?,mobileBottomNavigation?:{enabled,items:[{label,path}]},authentication?,realtime?}} with no navigation wrapper; set_export_config args={patch:{...}}. Native flow node types are event, readInput, validate, condition, switch, loop, getState, setState, resetState, delay, debounce, format, map, http, file, requireRole, signOut, insert, query, update, delete, filter, sort, kpi, refresh, navigate, openModal, updateUI, notify, localNotification, requestPermission, nativeAction, platformCondition, runFlow, module, log. A manual nativeAction config must contain a registered capability and action. Use insert instead of data-create, refresh instead of data-refresh, notify instead of toast or alert, and success/error for validation and failure branches. Use a componentType already present in context or: section,row,grid,spacer,text,title,link,image,icon,button,input,textarea,select,checkbox,radio,form,card,list,table,navbar,tabs,modal,loader,empty,alert,toast,header,sidebar,hero,footer,carousel,gallery,menu,breadcrumb,accordion,drawer,tooltip,pagination,upload,avatar,badge,progress,skeleton,chart,calendar,map,audio,video.
-If the request is not directly covered, call kyro_resolve_capability. Prefer a reusable visual flow. A tested built-in advanced function can use create_code_module args={module:{id,name,description,inputType,outputType,operation,config,tests}} where operation is trim, uppercase, lowercase, template, pick, or count; connect it with a module flow node. External code or packages require an explicit confirmation and a separate reviewed extension plan: never invent or install them silently.
+If the request is not directly covered, call kyro_plan with explicit domains, capabilityIds and effect flags derived by your reasoning. The resolver never routes from request words. Prefer a reusable visual flow. A tested built-in advanced function can use create_code_module args={module:{id,name,description,inputType,outputType,operation,config,tests}} where operation is trim, uppercase, lowercase, template, pick, or count; connect it with a module flow node. External code or packages require an explicit confirmation and a separate reviewed extension plan: never invent or install them silently.
 Every plan must return alreadySatisfied and capabilityProposal. Set alreadySatisfied=true only when the indexed graph proves the requested outcome already exists; then return operations=[] and capabilityProposal=null. Otherwise set it to false. When registered graph operations fully express a required change, use capabilityProposal=null. When they cannot, do not add a fake intent operation: return operations=[] and a scope="global" proposal generalized for all future Kyro projects, with typed inputs/outputs, permissions, dependencies, validation tests and its activation gate.
 Return the structured JSON plan required by the output schema. Put pageId at operation level when the target is not the active page. Use multiple set_responsive_style operations for multiple styles or breakpoints.
 ` : `
@@ -1001,14 +1107,18 @@ After successful verification, return learningCandidate only when the pattern is
               job.usage = codexUsage(job.output);
               job.errors = "The approved plan has no Codex thread to resume.";
               agentJobId = undefined;
+              await persistJob(job, "failed", job.errors);
               return reply(response, 202, { jobId: id, status: job.status });
             }
             const execArgs = codexExecArguments(mode, threadId, mode === "plan" ? agentPlanSchemaPath : agentApplySchemaPath);
             const enabledKyroTools = mode === "plan"
-              ? ["kyro_get_context", "kyro_resolve_capability"]
+              ? ["kyro_get_context", "kyro_plan", "kyro_verify", "kyro_build_preflight"]
               : parsedApprovedPlan?.operations.length
                 ? ["kyro_apply_verified_transaction"]
                 : ["kyro_register_global_capability"];
+            security.consume(job.securityBudget, "processes");
+            security.consume(job.securityBudget, "networkRequests");
+            await security.audit({ projectId, jobId: job.id, effect: "process", action: "codex", result: "allowed", detail: `${mode} with ${enabledKyroTools.join(",")}` });
             const spawnedAgent = spawn(
               codexCommand,
               [
@@ -1042,14 +1152,24 @@ After successful verification, return learningCandidate only when the pattern is
                 cwd: kyroRoot,
                 stdio: "pipe",
                 env: {
-                  ...process.env,
+                  ...safeEnvironment(process.env),
                   FRONTEND_EDITOR_LIVE_URL: bridgeBase,
                 },
               },
             );
             agent = spawnedAgent;
+            const timeout = setTimeout(() => {
+              if (job.status !== "running") return;
+              job.status = "error";
+              job.stopReason = "timeout";
+              job.errors = `Codex exceeded the ${Math.round(job.timeoutMs / 1000)} second Job timeout.`;
+              job.finishedAt = new Date().toISOString();
+              spawnedAgent.kill();
+              void persistJob(job, "timeout", job.errors);
+            }, job.timeoutMs);
             spawnedAgent.stdout.on("data", (chunk) => {
               job.output += chunk;
+              job.threadId = codexThreadId(job.output, job.threadId);
               if (job.output.length > 250_000) spawnedAgent.kill();
             });
             spawnedAgent.stderr.on("data", (chunk) => {
@@ -1057,6 +1177,7 @@ After successful verification, return learningCandidate only when the pattern is
             });
             spawnedAgent.stdin.end(instruction);
             spawnedAgent.on("close", async (code) => {
+              clearTimeout(timeout);
               if (agent === spawnedAgent) agent = undefined;
               if (agentJobId === id) agentJobId = undefined;
               job.code = code;
@@ -1093,28 +1214,53 @@ After successful verification, return learningCandidate only when the pattern is
                   job.learningCandidate = applied.learningCandidate;
                 }
               }
+              await persistJob(job, job.status === "completed" ? "completed" : job.status, job.errors || undefined);
             });
             spawnedAgent.on("error", (error) => {
+              clearTimeout(timeout);
               job.errors += error.message;
               job.status = "error";
               job.finishedAt = new Date().toISOString();
               if (agent === spawnedAgent) agent = undefined;
               if (agentJobId === id) agentJobId = undefined;
+              void persistJob(job, "failed", job.errors);
             });
             return reply(response, 202, { jobId: id, status: job.status });
+          }
+          if (
+            /^\/api\/codex\/jobs\/[^/]+\/(?:resume|retry|restart)$/.test(url.pathname) &&
+            request.method === "POST"
+          ) {
+            const parts = url.pathname.split("/"), id = parts[4], action = parts[5] as "resume" | "retry" | "restart";
+            const source = jobs.get(id);
+            if (!source) return reply(response, 404, { error: "Operazione Codex non trovata" });
+            if (source.status === "running") return reply(response, 409, { error: "The Job is still running." });
+            if (source.status === "completed" && action === "retry")
+              return reply(response, 200, { jobId: source.id, status: source.status, reused: true });
+            const bridgeBase = `${url.protocol}//${request.headers.host ?? "127.0.0.1:4173"}`;
+            const retryRequest = {
+              ...source.request,
+              attempts: source.attempts + 1,
+              parentJobId: source.id,
+              ...(action === "resume" && source.threadId ? { threadId: source.threadId } : {}),
+              ...(action === "restart" && source.mode === "plan" ? { threadId: undefined } : {}),
+            };
+            const retried = await fetch(`${bridgeBase}/api/codex/jobs`, {
+              method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(retryRequest),
+            });
+            return reply(response, retried.status, await retried.json());
           }
           if (
             url.pathname.startsWith("/api/codex/jobs/") &&
             request.method === "GET"
           ) {
-            const job = jobs.get(url.pathname.split("/")[4]);
+            const id = url.pathname.split("/")[4];
+            const job = jobStore.get(id) ?? jobs.get(id);
             if (!job)
               return reply(response, 404, {
                 error: "Operazione Codex non trovata",
               });
-            return reply(response, 200, {
-              ...job,
-            });
+            return reply(response, 200, publicJob(job));
           }
           if (
             url.pathname.endsWith("/cancel") &&
@@ -1128,10 +1274,13 @@ After successful verification, return learningCandidate only when the pattern is
                 error: "Operazione non annullabile",
               });
             job.status = "cancelled";
+            job.stopReason = "cancelled";
+            job.finishedAt = new Date().toISOString();
             const cancelledAgent = agent;
             agent = undefined;
             agentJobId = undefined;
             cancelledAgent?.kill();
+            await persistJob(job, "cancelled");
             return reply(response, 200, { cancelled: true });
           }
           if (
@@ -1154,6 +1303,7 @@ After successful verification, return learningCandidate only when the pattern is
               id: crypto.randomUUID(), projectId: job.projectId,
               pageId: String(state.pageId), revision: Number(state.revision),
               tool: "undo_last_transaction", args: {}, status: "pending",
+              jobId: id,
             };
             commands.push(command);
             for (let attempt = 0; attempt < 40 && command.status === "pending"; attempt += 1)
@@ -1161,6 +1311,8 @@ After successful verification, return learningCandidate only when the pattern is
             if (command.status !== "applied")
               return reply(response, 409, { error: command.error || "The visual rollback did not complete." });
             job.status = "restored";
+            job.finishedAt = new Date().toISOString();
+            await persistJob(job, "restored");
             return reply(response, 200, { restored: [job.transactionId], transactionId: command.id, jobId: id });
           }
           if (request.url === "/api/codex/status" && request.method === "GET") {
@@ -1273,7 +1425,7 @@ After successful verification, return learningCandidate only when the pattern is
           }
           next();
         } catch (error) {
-          reply(response, 500, {
+          reply(response, error instanceof Error && error.name === "SecurityViolation" ? 403 : 500, {
             error: error instanceof Error ? error.message : String(error),
           });
         }

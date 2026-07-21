@@ -3,11 +3,30 @@
   "description": "Kyro is a local-first visual low-code studio with an integrated Codex agent.",
   "author": "Kyro contributors",
   "private": true,
-  "version": "0.1.15",
+  "version": "2.0.0",
   "main": "electron/main.cjs",
   "bin": {
     "kyro": "bin/frontend-editor.mjs"
   },
+  "files": [
+    ".agents/skills/kyro-actions",
+    ".agents/skills/kyro-app",
+    ".agents/skills/kyro-data",
+    ".agents/skills/kyro-design",
+    ".agents/skills/kyro-extensions",
+    ".agents/skills/kyro-live-context",
+    ".agents/skills/kyro-native",
+    ".agents/skills/kyro-publish",
+    ".agents/skills/kyro-test",
+    "bin",
+    "scripts/kyro-start.mjs",
+    "server",
+    "src",
+    "index.html",
+    "vite.config.ts",
+    "tsconfig*.json",
+    "CHANGELOG.md"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -28,7 +47,10 @@
     "export:specialized": "vite-node scripts/materialize-specialized-exports.ts",
     "export:native-verification": "vite-node scripts/materialize-native-export.ts",
     "test:generated": "playwright test --config=playwright.generated.config.ts",
-    "test:specialized": "playwright test --config=playwright.specialized.config.ts",
+    "build:specialized": "node node_modules/vite/bin/vite.js build out/experience-landing && node node_modules/vite/bin/vite.js build out/experience-dashboard",
+    "test:specialized": "npm run build:specialized && playwright test --config=playwright.specialized.config.ts",
+    "release:evidence": "node scripts/release-evidence.mjs",
+    "release:verify": "vitest run tests/release.test.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {

@@ -1,43 +1,35 @@
 import { operationDefinitions, type KyroOperationDomain } from "./agentRegistry";
+import { globalCapabilitySchema } from "./globalCapability";
 
 type GraphState = Record<string, unknown>;
 
-const domainTerms: Record<KyroOperationDomain, RegExp> = {
-  app: /\b(page|screen|route|navigation|app|website|pwa|theme|auth|role|offline)\b/i,
-  design: /\b(design|component|button|text|image|layout|column|color|font|spacing|responsive|animation|hover|focus)\b/i,
-  actions: /\b(flow|action|click|tap|submit|condition|loop|state|toast|modal|gesture|validate)\b/i,
-  data: /\b(data|database|record|crud|query|search|filter|sort|api|binding|persist)\b/i,
-  extensions: /\b(plugin|package|sdk|native|camera|bluetooth|location|notification|payment|sensor|custom code)\b/i,
-  publish: /\b(export|publish|android|apk|build|deploy|self-host)\b/i,
-};
-
-const transformTerms = /\b(transform|parse|format|normalize|convert|calculate|extract|map|aggregate)\b/i;
-const externalTerms = /\b(payment|stripe|email|sms|cloud|oauth|sdk|package|plugin|camera|bluetooth|sensor|push notification)\b/i;
-const words = (value: unknown) => new Set(String(value ?? "").toLocaleLowerCase().match(/[a-z0-9]{4,}/g) ?? []);
+const domains = new Set<KyroOperationDomain>(operationDefinitions.map(([, domain]) => domain));
+const object = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 export type CapabilityResolution = ReturnType<typeof resolveCapability>;
 
 export function resolveCapability(requestValue: unknown, state: GraphState = {}) {
-  const request = String(requestValue ?? "").trim().slice(0, 4_000);
-  const domains = (Object.entries(domainTerms) as [KyroOperationDomain, RegExp][])
-    .filter(([, terms]) => terms.test(request))
-    .map(([domain]) => domain);
-  if (!domains.length) domains.push("actions");
+  const input = typeof requestValue === "string" ? { request: requestValue } : object(requestValue);
+  const request = String(input.request ?? "").trim().slice(0, 4_000);
+  const selectedDomains = Array.isArray(input.domains)
+    ? input.domains.filter((domain): domain is KyroOperationDomain => domains.has(domain as KyroOperationDomain))
+    : [];
+  if (!selectedDomains.length) selectedDomains.push(...domains);
+  const capabilityIds = Array.isArray(input.capabilityIds) ? input.capabilityIds.map(String).slice(0, 24) : [];
   const operations = operationDefinitions
-    .filter(([, domain]) => domains.includes(domain))
+    .filter(([, domain]) => selectedDomains.includes(domain))
     .map(([type]) => type);
   const graphCapabilities = Array.isArray(state.capabilities) ? state.capabilities.slice(0, 24) : [];
-  const requestWords = words(request);
   const globalCapabilities = (Array.isArray(state.globalCapabilities) ? state.globalCapabilities : [])
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-    .filter((item) => {
-      const intentWords = words(item.generalizedIntent);
-      return [...intentWords].filter((word) => requestWords.has(word)).length >= 2;
-    })
+    .map((item) => globalCapabilitySchema.safeParse(item))
+    .filter((item) => item.success)
+    .map((item) => item.data)
+    .filter((item) => capabilityIds.includes(item.id) || capabilityIds.includes(item.capabilityId))
     .slice(0, 8);
-  const activeGlobal = globalCapabilities.find((item) => item.state === "active");
-  const hasExternalBoundary = externalTerms.test(request);
-  const prefersModule = !hasExternalBoundary && transformTerms.test(request);
+  const activeGlobal = globalCapabilities.find((item) => item.state === "active" && item.contract.implementation.status === "verified");
+  const hasExternalBoundary = input.requiresExternal === true;
+  const prefersModule = !hasExternalBoundary && input.prefersModule === true;
   const strategy = activeGlobal
     ? "reuse_global_capability"
     : hasExternalBoundary
@@ -49,17 +41,18 @@ export function resolveCapability(requestValue: unknown, state: GraphState = {})
   return {
     request,
     status: activeGlobal ? "resolvable" : hasExternalBoundary ? "extension_required" : operations.length ? "resolvable" : "extension_required",
-    codexRequired: true,
+    codexRequired: false,
     strategy,
-    domains,
+    domains: selectedDomains,
+    capabilityIds,
     registeredOperations: operations,
     graphCapabilities,
     globalCapabilities,
     fallback: {
       doesNotBlockOnMissingSkill: true,
       steps: [
-        "Codex solves the request with the smallest available typed graph operations.",
-        "If the graph cannot express it, Codex proposes a tested typed module.",
+        "Kyro composes the request with the smallest available typed graph operations.",
+        "Codex may propose a tested typed module when the graph cannot express it.",
         "If external code is required, Codex prepares a reviewed extension proposal and asks before installing anything.",
         "Kyro validates the result against the graph, runtime and visual preview, then records one undoable transaction.",
       ],

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("terminale locale reale, esplicito e limitato al progetto aperto", async ({
+test("task runner locale confinato, auditabile e limitato al progetto aperto", async ({
   page,
 }) => {
   await page.goto("/");
@@ -11,7 +11,7 @@ test("terminale locale reale, esplicito e limitato al progetto aperto", async ({
   await page.waitForTimeout(250);
   await page.getByRole("button", { name: "Terminal" }).click();
   await expect(
-    page.getByRole("heading", { name: "Project terminal" }),
+    page.getByRole("heading", { name: "Project tasks" }),
   ).toBeVisible();
   await expect(page.locator(".terminal-status")).toContainText("running");
   await expect(page.locator(".terminal-path code")).toContainText(
@@ -20,19 +20,18 @@ test("terminale locale reale, esplicito e limitato al progetto aperto", async ({
 
   await page
     .getByLabel("Command", { exact: true })
-    .fill("node -e \"console.log('FE_TERMINAL_OK')\"");
+    .fill("git status --short");
   await page.getByRole("button", { name: "Run" }).click();
   await expect(page.getByLabel("Terminal output")).toContainText(
-    "FE_TERMINAL_OK",
+    "> git status --short",
   );
 
-  await page.getByLabel("Command", { exact: true }).fill("Set-Location src");
-  await page.getByRole("button", { name: "Run" }).click();
   await page.getByLabel("Command", { exact: true }).fill('node -e "console.log(process.cwd())"');
   await page.getByRole("button", { name: "Run" }).click();
-  await expect(page.getByLabel("Terminal output")).toContainText(
-    "node editor\\src",
-  );
+  await expect(page.getByRole("alert")).toContainText("not allowed");
+  await page.getByLabel("Command", { exact: true }).fill("git status; powershell whoami");
+  await page.getByRole("button", { name: "Run" }).click();
+  await expect(page.getByRole("alert")).toContainText("shell operators");
   await page.screenshot({
     path: "artifacts/terminal-running.png",
     fullPage: true,

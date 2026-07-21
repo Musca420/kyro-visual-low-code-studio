@@ -40,7 +40,10 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   const directoryInput = page.locator("input[webkitdirectory]");
   await directoryInput.setInputFiles(source!);
 
-  await expect(page.getByLabel("Project name")).toHaveValue(/imported$/);
+  const projectName = page.locator(".project-title input[aria-label='Project name']");
+  await expect(projectName).not.toHaveValue(/imported$/);
+  await expect(projectName).not.toHaveValue("");
+  const importedName = await projectName.inputValue();
   await expect(page.locator(".import-source-banner")).toContainText(
     "Capacitor",
   );
@@ -78,10 +81,7 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   await page
     .getByRole("button", { name: "Close project and return to the dashboard" })
     .click();
-  await page
-    .getByRole("button", { name: /imported/ })
-    .first()
-    .click();
+  await page.locator(".project-card").filter({ has: page.getByText(importedName, { exact: true }) }).first().locator(".project-open").click();
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(
     page

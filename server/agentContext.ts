@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { redactSecrets } from "./security";
 
 type Item = Record<string, unknown>;
 
@@ -51,7 +52,7 @@ export function buildAgentContext(stateValue: unknown, focusValue: unknown) {
   if (focus.sourceId) sourceIds.add(focus.sourceId);
   const allSources = array(state.dataSources), dataSources = allSources.filter((source) => sourceIds.has(id(source.id)));
   const candidates = sourceIds.size ? [] : allSources.slice(0, 24).map((source) => ({ id: source.id, name: source.name, provider: source.provider, collection: source.collection }));
-  const base = compact({
+  const base = redactSecrets(compact({
     schemaVersion: 1,
     project: state.project ?? { id: state.projectId, revision: state.revision },
     focus,
@@ -70,7 +71,7 @@ export function buildAgentContext(stateValue: unknown, focusValue: unknown) {
     capabilities: state.capabilities ?? [],
     globalCapabilities: state.globalCapabilities ?? [],
     runtime: { validationErrors: state.validationErrors ?? [], consoleErrors: state.consoleErrors ?? [] },
-  }) as Item;
+  })) as Item;
   let json = JSON.stringify(base);
   if (Buffer.byteLength(json) > 24_000) {
     const dependencies = object(base.dependencies);

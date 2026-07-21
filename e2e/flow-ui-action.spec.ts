@@ -35,9 +35,37 @@ test("un flow cambia davvero un elemento della preview senza codice", async ({ p
 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
+  const projectId = await page.locator(".app-shell").getAttribute("data-project-id");
+  const readRuntimeState = () => page.evaluate(async (id) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("frontend-editor");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const read = <T,>(store: string, index?: string) => new Promise<T>((resolve, reject) => {
+      const objectStore = database.transaction(store).objectStore(store);
+      const request = index ? objectStore.index(index).getAll(id!) : objectStore.get(id!);
+      request.onsuccess = () => resolve(request.result as T);
+      request.onerror = () => reject(request.error);
+    });
+    const [project, runs] = await Promise.all([
+      read<{ revision: number }>("projects"),
+      read<Array<{ projectId: string; graphRevision: number }>>("runtimeRuns", "projectId"),
+    ]);
+    database.close();
+    return { revision: project.revision, runs };
+  }, projectId);
+  const beforeRun = await readRuntimeState();
   await preview.getByLabel("New task").fill("Azione grafica");
   await preview.getByRole("button", { name: "Add" }).click();
   await expect(preview.getByRole("button", { name: "Item added" })).toBeVisible();
   await expect(page.locator(".log-console")).toContainText("Visual confirmation: completed");
+  await expect.poll(async () => (await readRuntimeState()).runs.length).toBeGreaterThan(beforeRun.runs.length);
+  const afterRun = await readRuntimeState();
+  expect(afterRun.revision).toBe(beforeRun.revision);
+  expect(afterRun.runs.at(-1)?.graphRevision).toBe(beforeRun.revision);
+  await page.reload();
+  await page.getByRole("button", { name: /UI visuale/ }).click();
+  expect((await readRuntimeState()).runs.length).toBe(afterRun.runs.length);
   await page.screenshot({ path: "artifacts/frontend-editor-flow-ui-action.png", fullPage: true });
 });

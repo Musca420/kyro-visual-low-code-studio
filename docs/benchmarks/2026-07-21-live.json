@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-21T06:02:51.130Z",
+  "environment": {
+    "product": "Kyro 2.0.0",
+    "model": "gpt-5.6-sol",
+    "surface": "authenticated Codex through Kyro Live Bridge",
+    "browser": "headed Playwright Chromium",
+    "machine": "same local Windows workstation"
+  },
+  "runs": [
+    {
+      "task": "installed-cli-selected-button-label-and-preview",
+      "contextBytes": 5244,
+      "planMs": 17009,
+      "applyMs": 1674,
+      "usage": {
+        "inputTokens": 18028,
+        "cachedInputTokens": 0,
+        "outputTokens": 440,
+        "reasoningOutputTokens": 219,
+        "totalTokens": 18468
+      },
+      "result": "passed",
+      "checks": ["packed CLI used", "stable selection preserved", "rendered label verified", "undo verified"]
+    },
+    {
+      "task": "selected-button-label-and-preview",
+      "contextBytes": 5244,
+      "planMs": 17522,
+      "applyMs": 1634,
+      "usage": {
+        "inputTokens": 17197,
+        "cachedInputTokens": 0,
+        "outputTokens": 624,
+        "reasoningOutputTokens": 413,
+        "totalTokens": 17821
+      },
+      "result": "passed",
+      "checks": ["stable selection preserved", "rendered label verified", "undo verified"]
+    },
+    {
+      "task": "unsupported-signed-pdf-qr-smtp-capability",
+      "contextBytes": 5254,
+      "planMs": 41427,
+      "applyMs": 539,
+      "usage": {
+        "inputTokens": 54647,
+        "cachedInputTokens": 46336,
+        "outputTokens": 1571,
+        "reasoningOutputTokens": 202,
+        "totalTokens": 56218
+      },
+      "result": "passed",
+      "checks": ["global reusable draft created", "explicit review required", "no dependency installed", "no capability simulated"]
+    }
+  ],
+  "orchestrationComparison": {
+    "scope": "same 5220-byte graph context and same button-label request",
+    "separateRounds": { "elapsedMs": 41729, "totalTokens": 152778 },
+    "atomicVerifiedTransaction": { "elapsedMs": 22642, "totalTokens": 77823 },
+    "latencyReductionPercent": 45.7,
+    "tokenReductionPercent": 49.1
+  },
+  "limitations": [
+    "The orchestration comparison is a single controlled A/B, not a universal performance claim.",
+    "The fresh live runs validate current authenticated behavior but are not a matched repository-scan benchmark.",
+    "Apply jobs execute typed operations locally and therefore report zero model tokens."
+  ]
+}

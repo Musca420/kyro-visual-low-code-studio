@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Background, Controls, Handle, Position, ReactFlow, addEdge, type Connection, type Edge, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { flowNodeTypes, type EditorComponent, type Flow, type FlowNode, type Project } from './model'
@@ -43,8 +43,14 @@ export default function FlowEditor({ flow, flows, pages, components, sources, mo
     const module = modules.find((item) => item.id === node.config.moduleId)
     return module ? { input: module.inputType, output: module.outputType } : ports.module
   })() : ports[node.type]
-  const nodes: Node[] = (flow?.nodes ?? []).map((node) => ({ id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type, cases: node.type === 'switch' ? node.config.cases?.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 4) : undefined, onSelect: () => onNodeSelect?.(node.id), ...portFor(node) } }))
-  const edges: Edge[] = (flow?.edges ?? []).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.path, label: edge.path, animated: edge.path === 'success' }))
+  const nodes: Node[] = useMemo(() => (flow?.nodes ?? []).map((node) => {
+    const port = node.type === 'query' && node.config.mode === 'one' ? { input: 'unknown' as const, output: 'record' as const } : node.type === 'nativeAction' ? { input: 'unknown' as const, output: (nativeCapability(node.config.capability)?.actions.find((action) => action.id === node.config.action)?.output ?? 'unknown') as ValueType } : node.type === 'module' ? (() => {
+      const module = modules.find((item) => item.id === node.config.moduleId)
+      return module ? { input: module.inputType, output: module.outputType } : ports.module
+    })() : ports[node.type]
+    return { id: node.id, type: 'editor', position: node.position, selected: node.id === selectedNodeId, data: { label: node.label, type: node.type, cases: node.type === 'switch' ? node.config.cases?.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 4) : undefined, onSelect: () => onNodeSelect?.(node.id), ...port } }
+  }), [flow?.nodes, modules, onNodeSelect, selectedNodeId])
+  const edges: Edge[] = useMemo(() => (flow?.edges ?? []).map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.path, label: edge.path, animated: edge.path === 'success' })), [flow?.edges])
   const selected = flow?.nodes.find((node) => node.id === selectedNodeId)
   const selectedPaths = selected?.type === 'switch' ? [...(selected.config.cases ?? '').split(',').map((item) => `case:${item.trim()}`).filter((item) => item !== 'case:').slice(0, 4), 'error'] : selected?.type === 'loop' ? ['each', 'done'] : selected && ['validate', 'condition', 'requireRole', 'requestPermission', 'platformCondition'].includes(selected.type) ? ['success', 'error'] : ['success']
   const activeConnectionPath = selectedPaths.includes(connectionPath) ? connectionPath : selectedPaths[0]
@@ -130,7 +136,7 @@ export default function FlowEditor({ flow, flows, pages, components, sources, mo
       fitView
       onInit={setFlowInstance}
       deleteKeyCode={null}
-    ><Background /><Controls /></ReactFlow>
+    ><Background /><Controls onFitView={fitAll} /></ReactFlow>
     </div>
     <aside className="flow-inspector" aria-label="Configure selected step">
       {selected ? <>
