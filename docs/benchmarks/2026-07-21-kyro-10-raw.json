@@ -1,0 +1,369 @@
+{
+  "protocol": "Kyro vs Codex CLI — 10 cumulative Evaluation Prompts",
+  "results": [
+    {
+      "id": "primary-button",
+      "prompt": "Select the save button. Make the selected component the page's primary button. Change its text to \"Create Task\", apply a clearly visible blue style, and preserve its existing ID, actions, and flow connections. Verify the result in both desktop and mobile Preview.",
+      "selectedTarget": "Save button",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Save button"
+      },
+      "componentId": "9b386bbf-b5df-4827-bb76-cdcc0fd52a13",
+      "actionElapsedMs": 50493,
+      "verificationElapsedMs": 620,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 9022,
+      "usage": {
+        "inputTokens": 76189,
+        "cachedInputTokens": 56576,
+        "outputTokens": 2243,
+        "totalTokens": 78432
+      },
+      "planJobId": "29c3225f-1f7f-4115-9fd6-111b6bf5a280",
+      "applyJobId": "df569e39-3eab-4491-ae70-665b15c55066",
+      "transactionId": "3e75d4ad-f859-4772-925b-5a95e9c06437",
+      "planUi": "PLAN TO APPROVE\n\nUpdate the selected save button in place as the primary Create Task action, with a consistent blue treatment across desktop and mobile.\n\n7 visual changes proposed.\n\nWhat will change\nChange content\nImprove accessibility\nDescribe element intent\nChange appearance\nAdjust responsive design\nImpact\n\n7 design\n\nWhere\n\nSave button on Dashboard · revision 35\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n5 planned checks, plus Kyro runtime verification.\n\nDesktop Preview shows a clearly visible blue button labeled Create Task.\nMobile Preview shows the same blue button with readable white text.\nThe component ID remains 9b386bbf-b5df-4827-bb76-cdcc0fd52a13.\nThe button remains a submit control inside form f626ede5-d29e-4ab8-b520-b7a8c4adb8e6.\nThe form submit binding to flow 9deadeed-69b3-4138-b633-5f569ef0b22f and all existing flow connections remain unchanged.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Update the selected save button in place as the primary Create Task action, with a consistent blue treatment across desktop and mobile.\",\n  \"skill\": \"kyro-design + kyro-test\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_property\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_accessibility\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_intent\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_style\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_responsive_style\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"set_component_property\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"property\": \"label\",\n        \"value\": \"Create Task\"\n      }\n    },\n    {\n      \"type\": \"set_component_accessibility\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"label\": \"Create Task\",\n        \"role\": \"button\"\n      }\n    },\n    {\n      \"type\": \"set_component_intent\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"intent\": {\n          \"role\": \"primary\",\n          \"action\": \"create\",\n          \"entity\": \"task\",\n          \"expectedResult\": \"Create a task\",\n          \"requiredStates\": [],\n          \"permissions\": []\n        }\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"property\": \"background\",\n        \"value\": \"#2563eb\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"property\": \"color\",\n        \"value\": \"#ffffff\"\n      }\n    },\n    {\n      \"type\": \"set_responsive_style\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"breakpoint\": \"mobile\",\n        \"property\": \"background\",\n        \"value\": \"#2563eb\"\n      }\n    },\n    {\n      \"type\": \"set_responsive_style\",\n      \"pageId\": null,\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"breakpoint\": \"mobile\",\n        \"property\": \"color\",\n        \"value\": \"#ffffff\"\n      }\n    }\n  ],\n  \"checks\": [\n    \"Desktop Preview shows a clearly visible blue button labeled Create Task.\",\n    \"Mobile Preview shows the same blue button with readable white text.\",\n    \"The component ID remains 9b386bbf-b5df-4827-bb76-cdcc0fd52a13.\",\n    \"The button remains a submit control inside form f626ede5-d29e-4ab8-b520-b7a8c4adb8e6.\",\n    \"The form submit binding to flow 9deadeed-69b3-4138-b633-5f569ef0b22f and all existing flow connections remain unchanged.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Update the selected save button in place as the primary Create Task action, with a consistent blue treatment across desktop and mobile.\",\"transactionId\":\"3e75d4ad-f859-4772-925b-5a95e9c06437\",\"validation\":[\"Desktop Preview shows a clearly visible blue button labeled Create Task.\",\"Mobile Preview shows the same blue button with readable white text.\",\"The component ID remains 9b386bbf-b5df-4827-bb76-cdcc0fd52a13.\",\"The button remains a submit control inside form f626ede5-d29e-4ab8-b520-b7a8c4adb8e6.\",\"The form submit binding to flow 9deadeed-69b3-4138-b633-5f569ef0b22f and all existing flow connections remain unchanged.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-01-primary-button-preview.png"
+      }
+    },
+    {
+      "id": "form-card",
+      "prompt": "Select the form card. Improve the visual hierarchy of the selected card: set a maximum width of 640 px, center it, increase its internal spacing, add rounded corners, and apply a subtle shadow. Do not modify the internal components or the form logic. Verify that, on mobile, it uses the full available width with appropriate margins.",
+      "selectedTarget": "Task form card",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Task form card"
+      },
+      "componentId": "f626ede5-d29e-4ab8-b520-b7a8c4adb8e6",
+      "actionElapsedMs": 41651,
+      "verificationElapsedMs": 575,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 8990,
+      "usage": {
+        "inputTokens": 56298,
+        "cachedInputTokens": 42240,
+        "outputTokens": 1861,
+        "totalTokens": 58159
+      },
+      "planJobId": "db6b3de5-d1a3-4547-9ae2-cd82e5a828c1",
+      "applyJobId": "91a1802a-c430-4a48-8e74-eca0e57ad8aa",
+      "transactionId": "f2d2f844-8bb5-481c-8c34-0c4f67102277",
+      "planUi": "PLAN TO APPROVE\n\nRefine the existing Task form card with a centered 640 px desktop layout, increased padding, rounded corners, subtle shadow, and responsive mobile margins. Descendants and form behavior remain unchanged.\n\n9 visual changes proposed.\n\nWhat will change\nChange appearance\nAdjust responsive design\nImpact\n\n9 design\n\nWhere\n\nTitle field on Dashboard · revision 36\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n5 planned checks, plus Kyro runtime verification.\n\nOn desktop, the Task form card is no wider than 640 px and is horizontally centered.\nThe card has visibly increased internal spacing, 16 px rounded corners, and a subtle shadow.\nAt the mobile breakpoint, the card fills the available content width while retaining 16 px margins on both sides.\nThe Title field and Save button retain their existing properties, hierarchy, and behavior.\nThe form submit binding remains connected to flow 9deadeed-69b3-4138-b633-5f569ef0b22f.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Refine the existing Task form card with a centered 640 px desktop layout, increased padding, rounded corners, subtle shadow, and responsive mobile margins. Descendants and form behavior remain unchanged.\",\n  \"skill\": \"kyro-design\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_style\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_responsive_style\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"width\",\n        \"value\": \"100%\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"maxWidth\",\n        \"value\": \"640px\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"marginLeft\",\n        \"value\": \"auto\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"marginRight\",\n        \"value\": \"auto\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"padding\",\n        \"value\": \"32px\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"borderRadius\",\n        \"value\": \"16px\"\n      }\n    },\n    {\n      \"type\": \"set_component_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"property\": \"boxShadow\",\n        \"value\": \"0 8px 24px rgba(23, 32, 51, 0.08)\"\n      }\n    },\n    {\n      \"type\": \"set_responsive_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"breakpoint\": \"mobile\",\n        \"property\": \"width\",\n        \"value\": \"calc(100% - 32px)\"\n      }\n    },\n    {\n      \"type\": \"set_responsive_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"breakpoint\": \"mobile\",\n        \"property\": \"padding\",\n        \"value\": \"20px\"\n      }\n    }\n  ],\n  \"checks\": [\n    \"On desktop, the Task form card is no wider than 640 px and is horizontally centered.\",\n    \"The card has visibly increased internal spacing, 16 px rounded corners, and a subtle shadow.\",\n    \"At the mobile breakpoint, the card fills the available content width while retaining 16 px margins on both sides.\",\n    \"The Title field and Save button retain their existing properties, hierarchy, and behavior.\",\n    \"The form submit binding remains connected to flow 9deadeed-69b3-4138-b633-5f569ef0b22f.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Refine the existing Task form card with a centered 640 px desktop layout, increased padding, rounded corners, subtle shadow, and responsive mobile margins. Descendants and form behavior remain unchanged.\",\"transactionId\":\"f2d2f844-8bb5-481c-8c34-0c4f67102277\",\"validation\":[\"On desktop, the Task form card is no wider than 640 px and is horizontally centered.\",\"The card has visibly increased internal spacing, 16 px rounded corners, and a subtle shadow.\",\"At the mobile breakpoint, the card fills the available content width while retaining 16 px margins on both sides.\",\"The Title field and Save button retain their existing properties, hierarchy, and behavior.\",\"The form submit binding remains connected to flow 9deadeed-69b3-4138-b633-5f569ef0b22f.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-02-form-card-preview.png"
+      }
+    },
+    {
+      "id": "validation",
+      "prompt": "Select the title field. Make the selected field required. Accept values between 3 and 80 characters, display an accessible message when the value is invalid, and prevent saving until validation passes. Keep the data source unchanged.",
+      "selectedTarget": "Title field",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Title field"
+      },
+      "componentId": "e57a3838-2406-465d-b704-c822e26485d1",
+      "actionElapsedMs": 76087,
+      "verificationElapsedMs": 590,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 8992,
+      "usage": {
+        "inputTokens": 99493,
+        "cachedInputTokens": 81664,
+        "outputTokens": 3165,
+        "totalTokens": 102658
+      },
+      "planJobId": "6fbbbf45-5271-4562-bb9c-4372b6b1d927",
+      "applyJobId": "8f637a87-ce11-4031-a10e-0cd5afe19662",
+      "transactionId": "a2b2d57a-9396-408d-aaa5-a21f4bcde0cb",
+      "planUi": "PLAN TO APPROVE\n\nRequire the selected title field and extend its existing submit flow with 3–80 character validation before saving, while preserving the data source.\n\n11 visual changes proposed.\n\nWhat will change\nChange content\nUpdate an action step\nAdd an action step\nDisconnect action steps\nConnect action steps\nImpact\n\n6 design · 5 interactions\n\nWhere\n\nTitle field on Dashboard · revision 37\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n5 planned checks, plus Kyro runtime verification.\n\nThe selected component remains e57a3838-2406-465d-b704-c822e26485d1 and has required=true.\nEmpty, 1-character, 2-character, and over-80-character titles reach the error notification and never reach the insert node.\nTitles containing exactly 3 or exactly 80 characters pass validation and reach the existing insert node.\nThe invalid-title notification exposes a visible, accessible error message.\nData source efb1d98b-65bd-443d-a418-33967be24214 and its schema remain unchanged.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Require the selected title field and extend its existing submit flow with 3–80 character validation before saving, while preserving the data source.\",\n  \"skill\": \"kyro-actions\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_property\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"update_flow_node\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"add_flow_node\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"remove_flow_edge\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"connect_nodes\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"set_component_property\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"e57a3838-2406-465d-b704-c822e26485d1\",\n        \"property\": \"required\",\n        \"value\": true\n      }\n    },\n    {\n      \"type\": \"update_flow_node\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"nodeId\": \"244401bf-35e3-4d53-af9c-77d929a2c3ee\",\n        \"patch\": {\n          \"label\": \"Title required\",\n          \"config\": {\n            \"field\": \"text\",\n            \"rule\": \"required\",\n            \"message\": \"Enter a task title\"\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"update_flow_node\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"nodeId\": \"dc69dbdc-23a7-4538-ad39-be9d03d3d156\",\n        \"patch\": {\n          \"label\": \"Announce title error\",\n          \"config\": {\n            \"message\": \"Task title is required and must contain between 3 and 80 characters.\",\n            \"level\": \"error\"\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"add_flow_node\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"node\": {\n          \"id\": \"e3c0c698-e503-4a25-bf32-5bb282c796c3\",\n          \"label\": \"Title minimum length\",\n          \"position\": {\n            \"x\": 500,\n            \"y\": 80\n          },\n          \"type\": \"validate\",\n          \"config\": {\n            \"field\": \"text\",\n            \"rule\": \"minLength\",\n            \"value\": \"3\",\n            \"message\": \"Task title must contain at least 3 characters\"\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"add_flow_node\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"node\": {\n          \"id\": \"a0bd75e2-a834-4f99-bef8-71c18f516e55\",\n          \"label\": \"Title maximum length\",\n          \"position\": {\n            \"x\": 620,\n            \"y\": 80\n          },\n          \"type\": \"validate\",\n          \"config\": {\n            \"field\": \"text\",\n            \"rule\": \"maxLength\",\n            \"value\": \"80\",\n            \"message\": \"Task title must contain no more than 80 characters\"\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"remove_flow_edge\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"edgeId\": \"4674c18b-54b5-4880-8b56-4dea6c7fd952\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"244401bf-35e3-4d53-af9c-77d929a2c3ee\",\n        \"target\": \"e3c0c698-e503-4a25-bf32-5bb282c796c3\",\n        \"path\": \"success\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"e3c0c698-e503-4a25-bf32-5bb282c796c3\",\n        \"target\": \"a0bd75e2-a834-4f99-bef8-71c18f516e55\",\n        \"path\": \"success\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"a0bd75e2-a834-4f99-bef8-71c18f516e55\",\n        \"target\": \"a2be0de9-f786-4872-a693-a3dbd85296f8\",\n        \"path\": \"success\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"e3c0c698-e503-4a25-bf32-5bb282c796c3\",\n        \"target\": \"dc69dbdc-23a7-4538-ad39-be9d03d3d156\",\n        \"path\": \"error\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"a0bd75e2-a834-4f99-bef8-71c18f516e55\",\n        \"target\": \"dc69dbdc-23a7-4538-ad39-be9d03d3d156\",\n        \"path\": \"error\"\n      }\n    }\n  ],\n  \"checks\": [\n    \"The selected component remains e57a3838-2406-465d-b704-c822e26485d1 and has required=true.\",\n    \"Empty, 1-character, 2-character, and over-80-character titles reach the error notification and never reach the insert node.\",\n    \"Titles containing exactly 3 or exactly 80 characters pass validation and reach the existing insert node.\",\n    \"The invalid-title notification exposes a visible, accessible error message.\",\n    \"Data source efb1d98b-65bd-443d-a418-33967be24214 and its schema remain unchanged.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Require the selected title field and extend its existing submit flow with 3–80 character validation before saving, while preserving the data source.\",\"transactionId\":\"a2b2d57a-9396-408d-aaa5-a21f4bcde0cb\",\"validation\":[\"The selected component remains e57a3838-2406-465d-b704-c822e26485d1 and has required=true.\",\"Empty, 1-character, 2-character, and over-80-character titles reach the error notification and never reach the insert node.\",\"Titles containing exactly 3 or exactly 80 characters pass validation and reach the existing insert node.\",\"The invalid-title notification exposes a visible, accessible error message.\",\"Data source efb1d98b-65bd-443d-a418-33967be24214 and its schema remain unchanged.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-03-validation-preview.png"
+      }
+    },
+    {
+      "id": "data-evolution",
+      "prompt": "Select the `tasks` data source. Add an optional date field named `dueDate` to the selected data source. Add the corresponding control to the creation form and display the due date in the list only when it is present. Preserve all existing records and update both Preview and export.",
+      "selectedTarget": "Task list",
+      "requestedSelection": {
+        "kind": "dependency",
+        "name": "tasks",
+        "fallbackComponent": "Task list"
+      },
+      "componentId": "665163dd-2f1b-4f9c-a1f9-c47d70df64bd",
+      "actionElapsedMs": 57830,
+      "verificationElapsedMs": 590,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 10731,
+      "usage": {
+        "inputTokens": 78816,
+        "cachedInputTokens": 57600,
+        "outputTokens": 2729,
+        "totalTokens": 81545
+      },
+      "planJobId": "3be0e856-7981-462c-884c-e8af36a17286",
+      "applyJobId": "7fe32ee4-d6a5-4737-b2a2-192ccbaf4d04",
+      "transactionId": "a9404b7f-8e15-4e19-a949-b7b113d641f7",
+      "planUi": "PLAN TO APPROVE\n\nExtend the existing tasks schema, creation form, and bound list with an optional due date; Preview and web export inherit the updated graph.\n\n3 visual changes proposed.\n\nWhat will change\nUpdate a data source\nAdd a visual element\nChange content\nImpact\n\n1 data · 2 design\n\nWhere\n\nTask list on Dashboard · revision 38\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n6 planned checks, plus Kyro runtime verification.\n\nExisting task records remain valid without dueDate.\nSubmitting the form without a due date still creates a task through flow 9deadeed-69b3-4138-b633-5f569ef0b22f.\nSubmitting with a due date stores dueDate as datetime.\nList 665163dd-2f1b-4f9c-a1f9-c47d70df64bd shows a due date only for records where dueDate is present.\nPreview renders the new control and conditional list value.\nThe existing web export includes the same updated graph without changing its target.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Extend the existing tasks schema, creation form, and bound list with an optional due date; Preview and web export inherit the updated graph.\",\n  \"skill\": \"kyro-live-context, kyro-data, kyro-design, kyro-publish\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"update_data_source\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"add_component\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_property\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"update_data_source\",\n      \"pageId\": null,\n      \"args\": {\n        \"sourceId\": \"efb1d98b-65bd-443d-a418-33967be24214\",\n        \"patch\": {\n          \"schema\": {\n            \"date\": \"datetime\",\n            \"id\": \"string\",\n            \"text\": \"string\",\n            \"dueDate\": \"datetime\"\n          },\n          \"schemaVersion\": 2,\n          \"migrations\": [\n            {\n              \"version\": 2,\n              \"createdAt\": \"2026-07-21T00:00:00Z\",\n              \"previousSchema\": {\n                \"date\": \"datetime\",\n                \"id\": \"string\",\n                \"text\": \"string\"\n              },\n              \"nextSchema\": {\n                \"date\": \"datetime\",\n                \"id\": \"string\",\n                \"text\": \"string\",\n                \"dueDate\": \"datetime\"\n              }\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"type\": \"add_component\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentType\": \"input\",\n        \"name\": \"Due date field\",\n        \"parentId\": \"f626ede5-d29e-4ab8-b520-b7a8c4adb8e6\",\n        \"props\": {\n          \"fieldName\": \"dueDate\",\n          \"label\": \"Due date\",\n          \"inputType\": \"date\",\n          \"required\": false\n        },\n        \"accessibility\": {\n          \"label\": \"Due date\"\n        }\n      }\n    },\n    {\n      \"type\": \"set_component_property\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"665163dd-2f1b-4f9c-a1f9-c47d70df64bd\",\n        \"property\": \"secondaryField\",\n        \"value\": \"dueDate\"\n      }\n    }\n  ],\n  \"checks\": [\n    \"Existing task records remain valid without dueDate.\",\n    \"Submitting the form without a due date still creates a task through flow 9deadeed-69b3-4138-b633-5f569ef0b22f.\",\n    \"Submitting with a due date stores dueDate as datetime.\",\n    \"List 665163dd-2f1b-4f9c-a1f9-c47d70df64bd shows a due date only for records where dueDate is present.\",\n    \"Preview renders the new control and conditional list value.\",\n    \"The existing web export includes the same updated graph without changing its target.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Extend the existing tasks schema, creation form, and bound list with an optional due date; Preview and web export inherit the updated graph.\",\"transactionId\":\"a9404b7f-8e15-4e19-a949-b7b113d641f7\",\"validation\":[\"Existing task records remain valid without dueDate.\",\"Submitting the form without a due date still creates a task through flow 9deadeed-69b3-4138-b633-5f569ef0b22f.\",\"Submitting with a due date stores dueDate as datetime.\",\"List 665163dd-2f1b-4f9c-a1f9-c47d70df64bd shows a due date only for records where dueDate is present.\",\"Preview renders the new control and conditional list value.\",\"The existing web export includes the same updated graph without changing its target.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-04-data-evolution-preview.png"
+      }
+    },
+    {
+      "id": "complete-flow",
+      "prompt": "Select the \"Create Task\" button. Create a flow for the selected component that reads the form values, validates them, inserts the record into the `tasks` data source, refreshes the list, and displays a confirmation message. If an error occurs, show an accessible error message without clearing the entered data. Reuse any existing nodes or flows where possible.",
+      "selectedTarget": "Save button",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Save button"
+      },
+      "componentId": "9b386bbf-b5df-4827-bb76-cdcc0fd52a13",
+      "actionElapsedMs": 44926,
+      "verificationElapsedMs": 575,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 11595,
+      "usage": {
+        "inputTokens": 108739,
+        "cachedInputTokens": 79872,
+        "outputTokens": 1554,
+        "totalTokens": 110293
+      },
+      "planJobId": "bf797c45-6cf0-431e-b699-6d9bc8822f03",
+      "applyJobId": "e069a0e7-a65f-48a8-a80f-bdb86157c89c",
+      "transactionId": "53dd3a9b-be6b-4ba6-b207-d93a77551cbc",
+      "planUi": "PLAN TO APPROVE\n\nReuse the existing form-submit flow and add only the missing success confirmation after the task list refresh.\n\n2 visual changes proposed.\n\nWhat will change\nAdd an action step\nConnect action steps\nImpact\n\n1 interactions · 1 design\n\nWhere\n\nSave button on Dashboard · revision 39\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n4 planned checks, plus Kyro runtime verification.\n\nSubmitting the Create Task button passes the form record directly into the existing required, minimum-length, and maximum-length validation chain without readInput nodes.\nValid form data inserts one record into tasks, refreshes Task list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd, then announces “Task created successfully.”\nValidation or insertion failure follows the existing error notification path and no reset or value-clearing node runs, preserving entered data.\nSuccess and error notifications are exposed as accessible announcements.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Reuse the existing form-submit flow and add only the missing success confirmation after the task list refresh.\",\n  \"skill\": \"kyro-actions\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"add_flow_node\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"connect_nodes\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"add_flow_node\",\n      \"pageId\": null,\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"node\": {\n          \"id\": \"ac626781-c6b2-4c2f-a689-2af813e0f95f\",\n          \"label\": \"Confirm task created\",\n          \"position\": {\n            \"x\": 950,\n            \"y\": 40\n          },\n          \"type\": \"notify\",\n          \"config\": {\n            \"message\": \"Task created successfully.\",\n            \"level\": \"success\"\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": null,\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"7da0f972-2332-4858-8488-489bbd4698e1\",\n        \"target\": \"ac626781-c6b2-4c2f-a689-2af813e0f95f\",\n        \"path\": \"success\"\n      }\n    }\n  ],\n  \"checks\": [\n    \"Submitting the Create Task button passes the form record directly into the existing required, minimum-length, and maximum-length validation chain without readInput nodes.\",\n    \"Valid form data inserts one record into tasks, refreshes Task list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd, then announces “Task created successfully.”\",\n    \"Validation or insertion failure follows the existing error notification path and no reset or value-clearing node runs, preserving entered data.\",\n    \"Success and error notifications are exposed as accessible announcements.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Reuse the existing form-submit flow and add only the missing success confirmation after the task list refresh.\",\"transactionId\":\"53dd3a9b-be6b-4ba6-b207-d93a77551cbc\",\"validation\":[\"Submitting the Create Task button passes the form record directly into the existing required, minimum-length, and maximum-length validation chain without readInput nodes.\",\"Valid form data inserts one record into tasks, refreshes Task list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd, then announces “Task created successfully.”\",\"Validation or insertion failure follows the existing error notification path and no reset or value-clearing node runs, preserving entered data.\",\"Success and error notifications are exposed as accessible announcements.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-05-complete-flow-preview.png"
+      }
+    },
+    {
+      "id": "dependency-fix",
+      "prompt": "Intentionally introduce an issue: the list does not refresh after saving. Then select the list. After a task is created, the selected component does not display the new record until the page is reopened. Identify the root cause in the connected flow or bindings, correct it at the most appropriate shared point, and verify that saving, refreshing, and persistence work without regressions.",
+      "selectedTarget": "Task list",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Task list"
+      },
+      "componentId": "665163dd-2f1b-4f9c-a1f9-c47d70df64bd",
+      "actionElapsedMs": 44682,
+      "verificationElapsedMs": 619,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 11760,
+      "usage": {
+        "inputTokens": 61265,
+        "cachedInputTokens": 47360,
+        "outputTokens": 1944,
+        "totalTokens": 63209
+      },
+      "planJobId": "d366aa41-139f-46b5-ba78-b37b7d9d0e00",
+      "applyJobId": "a647479f-b31e-4ac1-acfe-ba1ed6f88238",
+      "transactionId": "7eea4868-1c26-4bcc-9b9a-fc21c3783456",
+      "planUi": "PLAN TO APPROVE\n\nRepair the shared refresh node so the successful task insert refreshes the bound tasks data source and selected list.\n\n1 visual change proposed.\n\nWhat will change\nUpdate an action step\nImpact\n\n1 interactions\n\nWhere\n\nTask list on Dashboard · revision 40\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n5 planned checks, plus Kyro runtime verification.\n\nSubmitting a valid task saves exactly one record and immediately displays it in list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd without reopening the page.\nThe success notification runs only after the insert and refresh succeed.\nReopening the page still displays the new record from IndexedDB source efb1d98b-65bd-443d-a418-33967be24214.\nRequired, minimum-length, and maximum-length validation paths still prevent invalid inserts and show the existing error notification.\nExisting tasks remain visible with no duplicates or data loss after saving and refreshing.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Repair the shared refresh node so the successful task insert refreshes the bound tasks data source and selected list.\",\n  \"skill\": \"kyro-actions, kyro-data, kyro-test\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"update_flow_node\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"update_flow_node\",\n      \"pageId\": null,\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"nodeId\": \"7da0f972-2332-4858-8488-489bbd4698e1\",\n        \"patch\": {\n          \"config\": {\n            \"componentId\": \"665163dd-2f1b-4f9c-a1f9-c47d70df64bd\",\n            \"sourceId\": \"efb1d98b-65bd-443d-a418-33967be24214\"\n          }\n        }\n      }\n    }\n  ],\n  \"checks\": [\n    \"Submitting a valid task saves exactly one record and immediately displays it in list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd without reopening the page.\",\n    \"The success notification runs only after the insert and refresh succeed.\",\n    \"Reopening the page still displays the new record from IndexedDB source efb1d98b-65bd-443d-a418-33967be24214.\",\n    \"Required, minimum-length, and maximum-length validation paths still prevent invalid inserts and show the existing error notification.\",\n    \"Existing tasks remain visible with no duplicates or data loss after saving and refreshing.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Repair the shared refresh node so the successful task insert refreshes the bound tasks data source and selected list.\",\"transactionId\":\"7eea4868-1c26-4bcc-9b9a-fc21c3783456\",\"validation\":[\"Submitting a valid task saves exactly one record and immediately displays it in list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd without reopening the page.\",\"The success notification runs only after the insert and refresh succeed.\",\"Reopening the page still displays the new record from IndexedDB source efb1d98b-65bd-443d-a418-33967be24214.\",\"Required, minimum-length, and maximum-length validation paths still prevent invalid inserts and show the existing error notification.\",\"Existing tasks remain visible with no duplicates or data loss after saving and refreshing.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-06-dependency-fix-preview.png"
+      }
+    },
+    {
+      "id": "flow-refactor",
+      "prompt": "Select the save flow. The selected flow contains steps that may be duplicated or unnecessary. Simplify it while preserving validation, insertion, refresh, confirmation, and error handling exactly as they currently behave. Do not change any visible behavior. Before applying the modification, clearly show which nodes will be removed or reused.",
+      "selectedTarget": "Save button",
+      "requestedSelection": {
+        "kind": "dependency",
+        "name": "Save task flow",
+        "fallbackComponent": "Save button"
+      },
+      "componentId": "9b386bbf-b5df-4827-bb76-cdcc0fd52a13",
+      "actionElapsedMs": 37667,
+      "verificationElapsedMs": 584,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "not-required",
+      "contextBytes": 11993,
+      "usage": {
+        "inputTokens": 78318,
+        "cachedInputTokens": 48384,
+        "outputTokens": 1344,
+        "totalTokens": 79662
+      },
+      "planJobId": "b33c031f-cf59-4a03-bba5-a67dca066c93",
+      "planUi": "PLAN TO APPROVE\n\nFlow 9deadeed-69b3-4138-b633-5f569ef0b22f is already minimal. Remove no nodes. Reuse event d6d8cc97-918e-480f-a0b2-38333d2289c4; validations 244401bf-35e3-4d53-af9c-77d929a2c3ee, e3c0c698-e503-4a25-bf32-5bb282c796c3, and a0bd75e2-a834-4f99-bef8-71c18f516e55; insertion a2be0de9-f786-4872-a693-a3dbd85296f8; refresh 7da0f972-2332-4858-8488-489bbd4698e1; shared error notification dc69dbdc-23a7-4538-ad39-be9d03d3d156; and confirmation ac626781-c6b2-4c2f-a689-2af813e0f95f. Every node has a distinct required responsibility, while all failure paths already reuse one error node.\n\nKyro checked the current project and no change is needed.\n\nRequired, minimum-length, and maximum-length validation remain unchanged.\nSuccessful validation still inserts into data source efb1d98b-65bd-443d-a418-33967be24214.\nSuccessful insertion still refreshes list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd.\nSuccessful refresh still shows the existing success confirmation.\nAll validation and insertion failures still converge on the existing shared error notification.\nNo visible behavior or graph topology changes.\nReject\nDone",
+      "plan": "{\n  \"summary\": \"Flow 9deadeed-69b3-4138-b633-5f569ef0b22f is already minimal. Remove no nodes. Reuse event d6d8cc97-918e-480f-a0b2-38333d2289c4; validations 244401bf-35e3-4d53-af9c-77d929a2c3ee, e3c0c698-e503-4a25-bf32-5bb282c796c3, and a0bd75e2-a834-4f99-bef8-71c18f516e55; insertion a2be0de9-f786-4872-a693-a3dbd85296f8; refresh 7da0f972-2332-4858-8488-489bbd4698e1; shared error notification dc69dbdc-23a7-4538-ad39-be9d03d3d156; and confirmation ac626781-c6b2-4c2f-a689-2af813e0f95f. Every node has a distinct required responsibility, while all failure paths already reuse one error node.\",\n  \"skill\": \"kyro-actions\",\n  \"requirements\": [],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [],\n  \"checks\": [\n    \"Required, minimum-length, and maximum-length validation remain unchanged.\",\n    \"Successful validation still inserts into data source efb1d98b-65bd-443d-a418-33967be24214.\",\n    \"Successful insertion still refreshes list 665163dd-2f1b-4f9c-a1f9-c47d70df64bd.\",\n    \"Successful refresh still shows the existing success confirmation.\",\n    \"All validation and insertion failures still converge on the existing shared error notification.\",\n    \"No visible behavior or graph topology changes.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": true,\n  \"capabilityProposal\": null\n}",
+      "result": "",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-07-flow-refactor-preview.png"
+      }
+    },
+    {
+      "id": "accessibility",
+      "prompt": "Select the form. Perform an accessibility review of the selected form and the components it depends on. Correct missing labels, tab order, focus behavior after errors, status messages, and insufficient contrast. Do not change the design more than necessary. Verify the entire workflow using only the keyboard.",
+      "selectedTarget": "Task form card",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Task form card"
+      },
+      "componentId": "f626ede5-d29e-4ab8-b520-b7a8c4adb8e6",
+      "actionElapsedMs": 83410,
+      "verificationElapsedMs": 592,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 11993,
+      "usage": {
+        "inputTokens": 92062,
+        "cachedInputTokens": 62464,
+        "outputTokens": 3531,
+        "totalTokens": 95593
+      },
+      "planJobId": "808bfd71-5819-44dd-935f-1eb25ab114ef",
+      "applyJobId": "f8f249f5-1c56-4673-a090-c848edc0528c",
+      "transactionId": "b4f19245-bb18-4dee-b475-b2417f9dd42e",
+      "planUi": "PLAN TO APPROVE\n\nTarget the selected button’s parent form and make the minimum accessibility corrections: add visible keyboard focus styles and return focus to the title field after validation errors. Existing labels, tab order, status notifications, and known button contrast already satisfy the review.\n\n11 visual changes proposed.\n\nWhat will change\nStyle an interaction state\nAdd an action step\nDisconnect action steps\nConnect action steps\nImpact\n\n7 design · 4 interactions\n\nWhere\n\nSave button on Dashboard · revision 41\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n7 planned checks, plus Kyro runtime verification.\n\nUsing only Tab and Shift+Tab, focus moves in DOM order: Task title, Due date, Create Task; no positive tabindex or reordering is introduced.\nEach interactive form component has a clearly visible focus outline with sufficient contrast against its adjacent background.\nSubmitting an empty, shorter-than-3-character, or longer-than-80-character title returns keyboard focus to Task title and announces the existing error status.\nSubmitting a valid title from the keyboard creates the task and announces “Task created successfully.”\nAccessible names remain “Create a task”, “Task title”, “Due date”, and “Create Task”.\nKnown submit-button text/background combinations retain sufficient contrast on desktop, tablet, and mobile.\nThe complete invalid-to-correction-to-success workflow can be completed without a pointer.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Target the selected button’s parent form and make the minimum accessibility corrections: add visible keyboard focus styles and return focus to the title field after validation errors. Existing labels, tab order, status notifications, and known button contrast already satisfy the review.\",\n  \"skill\": [\n    \"kyro-live-context\",\n    \"kyro-design\",\n    \"kyro-test\"\n  ],\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"set_component_state_style\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"add_flow_node\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"remove_flow_edge\"\n    },\n    {\n      \"kind\": \"operation\",\n      \"id\": \"connect_nodes\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"set_component_state_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"e57a3838-2406-465d-b704-c822e26485d1\",\n        \"state\": \"focus\",\n        \"property\": \"outline\",\n        \"value\": \"3px solid #2563eb\"\n      }\n    },\n    {\n      \"type\": \"set_component_state_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"ee6674f7-6449-4e37-ad5f-27c3efddedc2\",\n        \"state\": \"focus\",\n        \"property\": \"outline\",\n        \"value\": \"3px solid #2563eb\"\n      }\n    },\n    {\n      \"type\": \"set_component_state_style\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"componentId\": \"9b386bbf-b5df-4827-bb76-cdcc0fd52a13\",\n        \"state\": \"focus\",\n        \"property\": \"outline\",\n        \"value\": \"3px solid #172033\"\n      }\n    },\n    {\n      \"type\": \"add_flow_node\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"node\": {\n          \"id\": \"d1277ac8-e0df-4bfd-92dd-b357bff8d138\",\n          \"label\": \"Focus invalid title\",\n          \"position\": {\n            \"x\": 760,\n            \"y\": 180\n          },\n          \"type\": \"updateUI\",\n          \"config\": {\n            \"componentId\": \"e57a3838-2406-465d-b704-c822e26485d1\",\n            \"operation\": \"focus\"\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"remove_flow_edge\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"edgeId\": \"cca2b6be-df71-4e24-9e3a-f998044dec3c\"\n      }\n    },\n    {\n      \"type\": \"remove_flow_edge\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"edgeId\": \"10a29492-2497-46db-8020-0a77c9c5a087\"\n      }\n    },\n    {\n      \"type\": \"remove_flow_edge\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"edgeId\": \"07e68993-e9e2-40b8-932d-7b68f32bc1e8\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"244401bf-35e3-4d53-af9c-77d929a2c3ee\",\n        \"target\": \"d1277ac8-e0df-4bfd-92dd-b357bff8d138\",\n        \"path\": \"error\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"e3c0c698-e503-4a25-bf32-5bb282c796c3\",\n        \"target\": \"d1277ac8-e0df-4bfd-92dd-b357bff8d138\",\n        \"path\": \"error\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"a0bd75e2-a834-4f99-bef8-71c18f516e55\",\n        \"target\": \"d1277ac8-e0df-4bfd-92dd-b357bff8d138\",\n        \"path\": \"error\"\n      }\n    },\n    {\n      \"type\": \"connect_nodes\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"flowId\": \"9deadeed-69b3-4138-b633-5f569ef0b22f\",\n        \"source\": \"d1277ac8-e0df-4bfd-92dd-b357bff8d138\",\n        \"target\": \"dc69dbdc-23a7-4538-ad39-be9d03d3d156\",\n        \"path\": \"success\"\n      }\n    }\n  ],\n  \"checks\": [\n    \"Using only Tab and Shift+Tab, focus moves in DOM order: Task title, Due date, Create Task; no positive tabindex or reordering is introduced.\",\n    \"Each interactive form component has a clearly visible focus outline with sufficient contrast against its adjacent background.\",\n    \"Submitting an empty, shorter-than-3-character, or longer-than-80-character title returns keyboard focus to Task title and announces the existing error status.\",\n    \"Submitting a valid title from the keyboard creates the task and announces “Task created successfully.”\",\n    \"Accessible names remain “Create a task”, “Task title”, “Due date”, and “Create Task”.\",\n    \"Known submit-button text/background combinations retain sufficient contrast on desktop, tablet, and mobile.\",\n    \"The complete invalid-to-correction-to-success workflow can be completed without a pointer.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Target the selected button’s parent form and make the minimum accessibility corrections: add visible keyboard focus styles and return focus to the title field after validation errors. Existing labels, tab order, status notifications, and known button contrast already satisfy the review.\",\"transactionId\":\"b4f19245-bb18-4dee-b475-b2417f9dd42e\",\"validation\":[\"Using only Tab and Shift+Tab, focus moves in DOM order: Task title, Due date, Create Task; no positive tabindex or reordering is introduced.\",\"Each interactive form component has a clearly visible focus outline with sufficient contrast against its adjacent background.\",\"Submitting an empty, shorter-than-3-character, or longer-than-80-character title returns keyboard focus to Task title and announces the existing error status.\",\"Submitting a valid title from the keyboard creates the task and announces “Task created successfully.”\",\"Accessible names remain “Create a task”, “Task title”, “Due date”, and “Create Task”.\",\"Known submit-button text/background combinations retain sufficient contrast on desktop, tablet, and mobile.\",\"The complete invalid-to-correction-to-success workflow can be completed without a pointer.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-08-accessibility-preview.png"
+      }
+    },
+    {
+      "id": "pdf-capability",
+      "prompt": "Select the task detail card. Add an \"Export Summary as PDF\" action for the displayed task. If Kyro does not already provide the required capability, propose a reusable, versioned capability that defines its inputs, outputs, dependencies, permissions, error conditions, and tests. Do not install packages or activate services without explicit approval.",
+      "selectedTarget": "Task detail card",
+      "requestedSelection": {
+        "kind": "component",
+        "name": "Task detail card"
+      },
+      "componentId": "22bf5cca-1aa3-475a-9d5e-6fea6b07fea5",
+      "actionElapsedMs": 35128,
+      "verificationElapsedMs": 593,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 5156,
+      "usage": {
+        "inputTokens": 55168,
+        "cachedInputTokens": 39168,
+        "outputTokens": 1278,
+        "totalTokens": 56446
+      },
+      "planJobId": "a822624e-4a36-459d-be4c-d21d6fa87cdd",
+      "applyJobId": "70f0cc4e-b670-463d-9c03-1e2ede70c102",
+      "transactionId": "54e044cb-18a3-4d4b-8c49-2339a7793a0f",
+      "planUi": "PLAN TO APPROVE\n\nPropose an inactive reusable capability for exporting the displayed task summary as a PDF; the indexed graph contains no registered PDF capability.\n\n0 visual changes proposed.\n\nWhat will change\nImpact\n\nGlobal capability draft\n\nWhere\n\nTask detail placeholder on Dashboard · revision 42\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n4 planned checks, plus Kyro runtime verification.\n\nGlobal capability proposal: Task Summary PDF Export v1. Approving saves an inactive, versioned draft for every Kyro project; activation still requires its tests and review.\n\nThe action exports only the task currently displayed in Task detail card 22bf5cca-1aa3-475a-9d5e-6fea6b07fea5.\nThe downloaded file is a valid PDF with a deterministic, sanitized filename.\nNo selected task, rendering failure, blocked download, and invalid input each produce a typed error without an empty or corrupt file.\nNo package, service, or capability is installed or activated before explicit review.\n\nConfirmation required: Explicit approval is required before selecting or installing a PDF dependency.; Explicit review is required before activating the proposed capability.\n\nReject\nApprove global draft",
+      "plan": "{\n  \"summary\": \"Propose an inactive reusable capability for exporting the displayed task summary as a PDF; the indexed graph contains no registered PDF capability.\",\n  \"skill\": \"kyro-live-context + kyro-actions\",\n  \"requirements\": [],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [],\n  \"checks\": [\n    \"The action exports only the task currently displayed in Task detail card 22bf5cca-1aa3-475a-9d5e-6fea6b07fea5.\",\n    \"The downloaded file is a valid PDF with a deterministic, sanitized filename.\",\n    \"No selected task, rendering failure, blocked download, and invalid input each produce a typed error without an empty or corrupt file.\",\n    \"No package, service, or capability is installed or activated before explicit review.\"\n  ],\n  \"confirmations\": [\n    \"Explicit approval is required before selecting or installing a PDF dependency.\",\n    \"Explicit review is required before activating the proposed capability.\"\n  ],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": {\n    \"scope\": \"global\",\n    \"kind\": \"plugin\",\n    \"name\": \"Task Summary PDF Export v1\",\n    \"generalizedIntent\": \"Generate a downloadable PDF from a typed summary record in any project. Return typed success metadata or typed errors for missing input, invalid input, rendering failure, and blocked download.\",\n    \"inputs\": [\n      \"summary: record containing the displayed entity fields\",\n      \"documentTitle: string\",\n      \"fileName: string\"\n    ],\n    \"outputs\": [\n      \"success: boolean\",\n      \"fileName: string\",\n      \"mimeType: application/pdf\",\n      \"errorCode: NO_RECORD | INVALID_INPUT | RENDER_FAILED | DOWNLOAD_BLOCKED\",\n      \"errorMessage: string\"\n    ],\n    \"permissions\": [\n      \"browser file download initiated by an explicit user action\"\n    ],\n    \"dependencies\": [\n      \"One exact reviewed PDF-generation dependency with a pinned version; none selected or installed by this proposal\"\n    ],\n    \"validationTests\": [\n      \"A valid summary produces a parseable application/pdf document.\",\n      \"The PDF contains the supplied title and summary values.\",\n      \"The filename is deterministic and strips unsafe characters.\",\n      \"Missing summary returns NO_RECORD and creates no file.\",\n      \"Invalid input returns INVALID_INPUT and creates no file.\",\n      \"Renderer failure returns RENDER_FAILED and creates no corrupt file.\",\n      \"A blocked browser download returns DOWNLOAD_BLOCKED.\",\n      \"The capability remains inactive until dependency review and all tests pass.\"\n    ],\n    \"activation\": \"explicit_review\",\n    \"effects\": [],\n    \"platforms\": [\n      \"web\"\n    ]\n  }\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Propose an inactive reusable capability for exporting the displayed task summary as a PDF; the indexed graph contains no registered PDF capability.\",\"transactionId\":\"54e044cb-18a3-4d4b-8c49-2339a7793a0f\",\"validation\":[\"The action exports only the task currently displayed in Task detail card 22bf5cca-1aa3-475a-9d5e-6fea6b07fea5.\",\"The downloaded file is a valid PDF with a deterministic, sanitized filename.\",\"No selected task, rendering failure, blocked download, and invalid input each produce a typed error without an empty or corrupt file.\",\"No package, service, or capability is installed or activated before explicit review.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-09-pdf-capability-preview.png"
+      }
+    },
+    {
+      "id": "dashboard-filter-export",
+      "prompt": "Select the project or the Dashboard page. Add a status and priority filter to the Dashboard, a counter showing the number of visible tasks, and an empty state for cases where no records match the filters. Reuse the existing data source and components. Verify desktop and mobile behavior, persistence, accessibility, Preview, and Web export. Present a concise plan first, then apply everything as a single undoable modification.",
+      "selectedTarget": "Dashboard heading",
+      "requestedSelection": {
+        "kind": "page",
+        "name": "Dashboard",
+        "fallbackComponent": "Dashboard heading"
+      },
+      "componentId": "6b2b5143-1dbc-4830-a62d-db87e4a8bea8",
+      "actionElapsedMs": 37672,
+      "verificationElapsedMs": 605,
+      "success": true,
+      "planStatus": "completed",
+      "applyStatus": "completed",
+      "contextBytes": 9099,
+      "usage": {
+        "inputTokens": 56687,
+        "cachedInputTokens": 45312,
+        "outputTokens": 1587,
+        "totalTokens": 58274
+      },
+      "planJobId": "cca431a1-d178-4d22-8f82-83d0de655a7e",
+      "applyJobId": "a7588142-f028-4719-b2be-575aeb0b9f69",
+      "transactionId": "ba5ef6b4-dcf8-4178-b5f4-7e6406f5937c",
+      "planUi": "PLAN TO APPROVE\n\nAdd reusable status and priority filtering to the existing Dashboard task list as one atomic, undoable modification.\n\n1 visual change proposed.\n\nWhat will change\nConnect collection filters\nImpact\n\n1 design\n\nWhere\n\nDashboard heading on Dashboard · revision 42\n\nYour authorization\n\nNothing has changed yet. Approval allows only this listed plan on this revision.\n\nVerification\n\n8 planned checks, plus Kyro runtime verification.\n\nDesktop and mobile layouts expose both labeled filters without clipping or overlap.\nThe existing task list shows only records matching both selected filters.\nThe visible-task counter updates to the filtered record count.\nThe empty state appears only when no records match.\nTasks remain persisted through the existing IndexedDB source after Preview reload.\nFilter controls, counter, list, and empty state have accessible names and keyboard operation.\nPreview renders without runtime or validation errors.\nThe existing Web export configuration remains ready and the filtered Dashboard renders correctly in export.\nReject\nApprove and apply",
+      "plan": "{\n  \"summary\": \"Add reusable status and priority filtering to the existing Dashboard task list as one atomic, undoable modification.\",\n  \"skill\": \"kyro-data\",\n  \"requirements\": [\n    {\n      \"kind\": \"operation\",\n      \"id\": \"compose_collection_filter\"\n    }\n  ],\n  \"targetPlatforms\": [\n    \"web\"\n  ],\n  \"operations\": [\n    {\n      \"type\": \"compose_collection_filter\",\n      \"pageId\": \"c7085fbe-7b7a-48f2-b4e9-cff74de4dc35\",\n      \"args\": {\n        \"sourceId\": \"efb1d98b-65bd-443d-a418-33967be24214\",\n        \"listComponentId\": \"665163dd-2f1b-4f9c-a1f9-c47d70df64bd\",\n        \"parentId\": \"64c1c1c5-0b3f-4bc4-89bf-85b42dce75f3\",\n        \"counterLabel\": \"Visible tasks\",\n        \"emptyMessage\": \"No tasks match these filters.\",\n        \"filters\": [\n          {\n            \"field\": \"status\",\n            \"stateKey\": \"statusFilter\",\n            \"label\": \"Status\",\n            \"options\": \"All|To do|In progress|Done\"\n          },\n          {\n            \"field\": \"priority\",\n            \"stateKey\": \"priorityFilter\",\n            \"label\": \"Priority\",\n            \"options\": \"All|Low|Medium|High\"\n          }\n        ]\n      }\n    }\n  ],\n  \"checks\": [\n    \"Desktop and mobile layouts expose both labeled filters without clipping or overlap.\",\n    \"The existing task list shows only records matching both selected filters.\",\n    \"The visible-task counter updates to the filtered record count.\",\n    \"The empty state appears only when no records match.\",\n    \"Tasks remain persisted through the existing IndexedDB source after Preview reload.\",\n    \"Filter controls, counter, list, and empty state have accessible names and keyboard operation.\",\n    \"Preview renders without runtime or validation errors.\",\n    \"The existing Web export configuration remains ready and the filtered Dashboard renders correctly in export.\"\n  ],\n  \"confirmations\": [],\n  \"alreadySatisfied\": false,\n  \"capabilityProposal\": null\n}",
+      "result": "{\"status\":\"completed\",\"summary\":\"Applied approved Codex plan: Add reusable status and priority filtering to the existing Dashboard task list as one atomic, undoable modification.\",\"transactionId\":\"ba5ef6b4-dcf8-4178-b5f4-7e6406f5937c\",\"validation\":[\"Desktop and mobile layouts expose both labeled filters without clipping or overlap.\",\"The existing task list shows only records matching both selected filters.\",\"The visible-task counter updates to the filtered record count.\",\"The empty state appears only when no records match.\",\"Tasks remain persisted through the existing IndexedDB source after Preview reload.\",\"Filter controls, counter, list, and empty state have accessible names and keyboard operation.\",\"Preview renders without runtime or validation errors.\",\"The existing Web export configuration remains ready and the filtered Dashboard renders correctly in export.\"],\"visualResult\":\"The approved typed operations were applied to the live graph and persisted by Kyro.\",\"learningCandidate\":null}",
+      "errors": [],
+      "preview": {
+        "scrollWidth": 1183,
+        "clientWidth": 1183,
+        "text": "Dashboard\n\nDesign this screen visually or ask Codex to build it.\n\nFilter by Status\nAll\nTo do\nIn progress\nDone\nFilter by Priority\nAll\nLow\nMedium\nHigh\nVisible tasks\nTasks\nCreate a task\nTask title\nCreate Task\nDue date\nNo items yet. Add your first one.\nTask detail\nSelect a task to view its details.",
+        "screenshot": "C:\\Users\\david\\Desktop\\progetti\\node editor\\.kyro\\benchmarks\\evaluation-prompts-10\\kyro-10-dashboard-filter-export-preview.png"
+      }
+    }
+  ],
+  "consoleErrors": [
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating background backgroundImage",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating background backgroundPosition",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating background backgroundSize",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating borderRadius borderBottomLeftRadius",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating borderRadius borderBottomRightRadius",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating borderRadius borderTopLeftRadius",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating borderRadius borderTopRightRadius",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating padding paddingBottom",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating padding paddingLeft",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating padding paddingRight",
+    "%s a style property during rerender (%s) when a conflicting property is set (%s) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values. Updating padding paddingTop"
+  ]
+}

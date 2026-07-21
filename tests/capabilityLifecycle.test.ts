@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { capabilityRollbackTarget, createGlobalCapabilityVersion, finalizeCapabilityMigration, globalCapabilitySchema, transitionGlobalCapability } from "../src/globalCapability";
-import { nativeCapabilities, nativeCapabilityContracts } from "../src/nativeCapabilities";
+import { nativeAction, nativeCapabilities, nativeCapabilityContracts } from "../src/nativeCapabilities";
 
 const proposal = {
   scope: "global" as const,
@@ -22,6 +22,16 @@ const evidence = (kind: "test" | "runtime", check: string) => ({
 });
 
 describe("capability lifecycle", () => {
+  it("converts descriptive signatures into bounded contract port names", () => {
+    const draft = createGlobalCapabilityVersion({
+      ...proposal,
+      name: "PDF Summary Export v1",
+      outputs: ["error: missing_input|render_failed|dependency_unavailable|download_blocked|unsupported_platform"],
+    }, { jobId: "pdf-job", prompt: "Export the selected record as PDF" });
+    expect(draft.contract.outputs).toEqual([{ name: "error", type: "unknown", required: true }]);
+    expect(draft.state).toBe("draft");
+  });
+
   it("keeps a capability inactive until its implementation and evidence pass", () => {
     const draft = createGlobalCapabilityVersion(proposal, { jobId: "job-1", prompt: "Normalize contacts" });
     expect(draft.state).toBe("draft");
@@ -61,5 +71,20 @@ describe("capability lifecycle", () => {
     expect(() => globalCapabilitySchema.parse({ ...legacy, state: "active" })).toThrow(/verified implementation/i);
     expect(nativeCapabilityContracts).toHaveLength(nativeCapabilities.length);
     expect(nativeCapabilityContracts.every((contract) => contract.implementation.status === "verified" && contract.effects.includes("native"))).toBe(true);
+  });
+
+  it("types high-risk native inputs, outputs, prerequisites and errors", () => {
+    const write = nativeAction("bluetooth", "write")!;
+    expect(write.inputSchema.safeParse({ deviceId: "d", service: "s", characteristic: "c", value: "AA==" }).success).toBe(true);
+    expect(write.inputSchema.safeParse({ deviceId: "d" }).success).toBe(false);
+    expect(write.outputSchema.safeParse({ written: true }).success).toBe(true);
+    expect(write.requires).toContain("bluetooth.connected");
+    expect(write.errors).toContain("write_failed");
+    for (const [capability, action] of [["files", "deleteFile"], ["push", "register"], ["location", "getCurrentPosition"], ["clipboard", "write"]]) {
+      const definition = nativeAction(capability, action)!;
+      expect(definition.errors.length).toBeGreaterThan(0);
+      expect(definition.inputSchema).toBeTruthy();
+      expect(definition.outputSchema).toBeTruthy();
+    }
   });
 });

@@ -7,6 +7,8 @@ describe("plain-language change summary", () => {
     const plan: AgentPlan = {
       summary: "Build and connect a task list",
       skill: "kyro-app",
+      requirements: ["add_component", "create_data_source", "create_flow", "set_export_config"].map((id) => ({ kind: "operation" as const, id })),
+      targetPlatforms: ["web"],
       operations: [
         { type: "add_component", pageId: "home", args: { componentType: "list" } },
         { type: "create_data_source", pageId: "home", args: { name: "Tasks" } },

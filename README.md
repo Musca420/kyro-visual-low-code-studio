@@ -39,32 +39,43 @@ The goal is not to replace the user with AI. It is to let a visual thinker keep 
 | --- | --- |
 | ![Node-RED-style flow with validation and success/error branches](./docs/images/kyro-visual-flow.png) | ![Local data source, schema, and visual bindings](./docs/images/kyro-data-model.png) |
 
-## Measured: graph context versus repository-first Codex
+## Measured: Kyro versus Codex CLI in PowerShell
 
-We ran the same two prompts through two authenticated GPT‑5.6 paths on the same Windows workstation:
+The release benchmark starts with one minimal project built visually in Kyro, exports it, and creates two byte-identical copies. Ten cumulative prompts are then sent in the same order:
 
-- **Kyro:** selected component + approximately 5.2 KB indexed graph slice + specialized typed tools.
-- **Repository CLI:** Codex at the same repository root and commit, with Kyro project skills disabled and no Live Bridge.
+- **Kyro path:** Ask Codex receives the live selection, stable IDs, compact Graph slice, linked flows and data, typed operation contracts, and current revision. Every change requires approval, a transaction, and Preview verification.
+- **PowerShell path:** Codex CLI starts inside the exported project folder in a fresh ephemeral session for every prompt, without the Live Bridge or active visual selection.
 
-Both paths used `gpt-5.6-sol`, low reasoning effort, read-only planning, and no mutation. Each cell is the median of three fresh runs.
+The prompt set covers styling, responsive layout, validation, schema evolution, CRUD flows, dependency repair, flow refactoring, accessibility, a missing PDF capability, and a filtered dashboard export.
 
-| Identical prompt | Kyro median | Repository CLI median | Result |
-| --- | ---: | ---: | --- |
-| Change the selected button, preserve ID/styles, verify Preview | **15.6 s · 18.4k tokens** | 47.5 s · 229.8k tokens | **3.05× faster, 92.0% fewer tokens** |
-| Signed PDF + QR + SMTP; derive a reusable capability if missing | **22.2 s · 18.9k tokens** | 71.7 s · 253.6k tokens | **3.23× faster, 92.6% fewer tokens** |
+| Ten identical cumulative prompts | Kyro | Codex CLI |
+| --- | ---: | ---: |
+| Functionally accepted | **10/10** | **0/10** |
+| Process exit reported success | 10/10 | 10/10 |
+| Median wall time per turn | 44.8 s | **27.0 s** |
+| Total wall time | 509.5 s | **274.7 s** |
+| Median tokens per turn | **79.0k** | 82.2k |
+| Total tokens | 784.3k | **763.6k** |
+| Output project | Changed and independently verified | Byte-identical to baseline |
 
-![Benchmark comparing graph-indexed Kyro and repository-first Codex](./docs/images/kyro-vs-repository-benchmark.svg)
+![Ten-prompt Kyro and Codex CLI benchmark](./docs/images/kyro-vs-codex-cli-10.svg)
 
-Quality mattered as much as speed. Kyro produced a stable-ID typed operation in 3/3 button trials and a schema-valid, review-gated global capability proposal in 3/3 capability trials. The CLI produced useful reasoning, especially for the capability, but it could not bind a transaction to the active visual selection because that selection does not exist in source files.
+This result is deliberately not presented as a latency or token win. Codex CLI was faster and used slightly fewer total tokens, but all ten turns explained that they could not safely target the active Kyro component or apply a verified Graph transaction. Exit code zero meant “the agent answered,” not “the task worked.” The CLI output tree retained the baseline SHA-256; Kyro produced a different verified tree and completed the workflow.
 
-This is a small local engineering benchmark, not a universal performance claim. The paths intentionally differ in context because that is the feature under test. Exact prompts, trial values, method, limitations, and the reproducible runner are in [`docs/benchmarks/2026-07-21-kyro-vs-repo.json`](./docs/benchmarks/2026-07-21-kyro-vs-repo.json) and [`scripts/benchmark-codex-context.mjs`](./scripts/benchmark-codex-context.mjs).
+Kyro's final checkpoint was then tested as a real user in a headed browser: invalid submit and focus recovery, optional due date, filters, empty state, desktop/mobile layout, persistence after reload, export, clean install, production build, and independent runtime. Console and runtime errors were zero.
+
+| Headed Kyro Preview | Mobile breakpoint |
+| --- | --- |
+| ![Final benchmark project running in Kyro Preview](./docs/images/kyro-benchmark-10-desktop.png) | ![Final benchmark project at the mobile breakpoint](./docs/images/kyro-benchmark-10-mobile.png) |
+
+This is a local product-context benchmark, not a universal claim about Codex CLI. The prompts intentionally depend on live visual selection and Graph context because that is the feature under test. The repository publishes the [protocol](./docs/benchmarks/kyro-vs-codex-cli-10-prompts.json), [scored result](./docs/benchmarks/2026-07-21-kyro-vs-codex-cli-10-results.json), [raw Kyro run](./docs/benchmarks/2026-07-21-kyro-10-raw.json), [raw CLI run](./docs/benchmarks/2026-07-21-codex-cli-10-raw.json), and both runners: [`benchmark-kyro-vs-cli-10.mjs`](./scripts/benchmark-kyro-vs-cli-10.mjs) and [`benchmark-codex-cli-10.ps1`](./scripts/benchmark-codex-cli-10.ps1).
 
 ## Install in one command
 
-Supported: **Windows, macOS, and Linux**, with Node.js 20+, npm, Git, and a Chromium-based browser.
+The CLI is designed for **Windows, macOS, and Linux** with Node.js 20+, npm, Git, and a Chromium-based browser. The v2.1.0 release installation below was freshly verified on Windows; the repository CI verifies the portable Node/Vite path.
 
 ```bash
-npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.0.0/kyro-studio-2.0.0.tgz
+npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.1.0/kyro-studio-2.1.0.tgz
 kyro --home
 ```
 
@@ -75,7 +86,9 @@ Then:
 - run `kyro path/to/project` to choose a folder explicitly;
 - run `kyro --check` to inspect what Kyro would open without starting it.
 
-Kyro binds only to `127.0.0.1`, and project state stays in local IndexedDB. Android export additionally requires the Android SDK. The repository contains desktop-shell source for continued development, but no unsigned Windows installer is presented as a supported judge install.
+Kyro binds only to `127.0.0.1`, and project state stays in local IndexedDB. A complete Android build additionally requires Java 21 and the Android SDK. The supported install is the cross-platform `kyro` CLI; the discontinued unsigned desktop installer is not distributed.
+
+![Kyro 2.1.0 running from a clean CLI installation](./docs/images/kyro-2.1-fresh-install.png)
 
 ### Build from source
 
@@ -131,9 +144,11 @@ npm --prefix generated-app run build
 npm run test:generated
 ```
 
-Current release evidence records **161 unit/integration tests passed** and **58 Playwright scenarios passed**, with three explicitly environment-gated scenarios. Fresh installed-CLI acceptance also covered beginner onboarding, Canva-style editing, a multipage Web app, a four-page data app, responsive Preview, persistence, CRUD with five UI-created records, export, Android `assembleDebug`, `adb install -r`, and launch on a physical phone.
+Current release evidence records **241 unit/integration tests passed** and **55 standard Playwright scenarios passed**, with two explicitly environment-gated scenarios. The same release run completed the headed ten-prompt workflow, independent Web export installation/build/runtime verification, and fresh installed-CLI acceptance. The dedicated headed Android scenario also passed: Kyro generated a project through Publish, installed only reviewed dependencies, built the web bundle, added and synced Capacitor 8, ran Gradle `assembleDebug`, produced a 4,144,292-byte APK, and verified manifest permissions, version, orientation, keyboard behavior, theme resources, and the final UI status.
 
-The reproducible manifest and proof bundle are in [`release/kyro-2.0.0-evidence.zip`](./release/kyro-2.0.0-evidence.zip). Additional reports: [`NEXUSFIELD_VALIDATION_REPORT.md`](./NEXUSFIELD_VALIDATION_REPORT.md), [`CHANGELOG.md`](./CHANGELOG.md), and [`ROLLBACK.md`](./ROLLBACK.md).
+![Kyro completing the independently verified Android debug build](./docs/images/kyro-android-build-verified.png)
+
+The reproducible manifest and proof bundle are in [`release/kyro-2.1.0-evidence.zip`](./release/kyro-2.1.0-evidence.zip). Additional reports: [`NEXUSFIELD_VALIDATION_REPORT.md`](./NEXUSFIELD_VALIDATION_REPORT.md), [`CHANGELOG.md`](./CHANGELOG.md), and [`ROLLBACK.md`](./ROLLBACK.md).
 
 ## Architecture in one minute
 

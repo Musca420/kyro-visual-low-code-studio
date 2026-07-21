@@ -15,6 +15,7 @@ export default tseslint.config(
       "android-builds",
       "artifacts",
       "out",
+      ".kyro",
     ],
   },
   {

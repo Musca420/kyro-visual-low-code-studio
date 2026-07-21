@@ -602,7 +602,7 @@ Current Focus
 
 Obiettivo
 
-- Kyro 2.0 conforme ai Contract e alla Checklist, con tutte le aree DONE.
+- Kyro 2.1 conforme ai Contract e alla Checklist, con benchmark riproducibile, installazione fresca, build Android reale e pubblicazione GitHub.
 
 Attività
 
@@ -610,11 +610,11 @@ Attività
 
 Rischi
 
-- Il bundle principale dell'editor misura 645,8 kB minificato (190,3 kB gzip); il warning è noto e non ha prodotto regressioni. Una futura ottimizzazione richiede una misura utente, non uno split speculativo.
+- Il bundle principale dell'editor supera 500 kB minificato; il warning è noto e non ha prodotto regressioni. Una futura ottimizzazione richiede una misura utente, non uno split speculativo.
 
 Decisioni
 
-- Nessuna pubblicazione, firma o installazione di dipendenze esterne è stata eseguita implicitamente. CLI repository-first e desktop locale verificato restano percorsi compatibili; i pacchetti pubblici richiedono firma separata.
+- La pubblicazione `v2.1.0` è stata autorizzata esplicitamente. Il percorso supportato è la CLI repository-first; il canale desktop Electron non funzionante resta rimosso.
 
 ---
 
@@ -661,7 +661,173 @@ Problemi
 
 ---
 
+# TOOL AND CAPABILITY STABILITY CYCLE (2026-07-21)
+
+Area
+
+- Agent registry, typed planning, Capability Resolver, MCP, native contracts and installed-CLI UX.
+
+Gap Analysis
+
+- Current: Graph, Transaction, Verification and Security were stable, but schema, prompt and MCP duplicated parts of the contract; `argsJson` deferred failures; the resolver confused available operations with proven coverage. Problem: accepted plans could fail late (`invalid index`, invalid API schema, unrecognized plan). Target: one authoritative registry, typed requirements, honest platform results and verified apply. Plan: `KYRO_TOOL_CAPABILITY_STABILITY_PLAN.md` implemented without rewriting stable subsystems.
+
+Decisioni
+
+- `src/agentRegistry.ts` is the single source for 42 operations: Zod arguments, description, effects, permissions, platforms, support, prerequisites, verification, limits and confirmation.
+- New plans use object `args`; `argsJson` remains read compatibility only. Every operation is validated before approval. Controlled defaults apply only to harmless planner metadata.
+- Resolver routing uses only typed `operation/capability/effect` IDs and target platforms. It returns `supported`, `composable`, `partial`, `unsupported` or `unknown`, with covered, missing and blocked requirements.
+- The complete JSON schema remains the local validation contract. It is not sent as API `response_format`, because the API strict subset rejects the dynamic objects required by style, binding and patch operations. Returned JSON is validated locally before authorization.
+- `kyro_describe_tools` exposes the generated catalog. File, Bluetooth, push, location and clipboard actions now declare typed input/output, prerequisites and errors. Global capabilities require runtime evidence for the requested platform.
+
+File modificati
+
+- Registry, plan parser, resolver, capability/native contracts, MCP bridge, Codex UI state, Open Mode evidence, runtime/editor regression fixes and their focused tests.
+
+Test
+
+- `npm run check`: PASS; typecheck, lint, 220 tests in 40 files and production build.
+- Operation matrix: every registered operation executed; atomic mixed failure; every reorder permutation for 2-8 siblings with index and stable sibling IDs.
+- MCP, registry, resolver, lifecycle, security, transaction and verification suites: PASS.
+- Real Codex CLI: reproduced two `invalid_json_schema` API failures, then verified a raw typed JSON plan with stable IDs, `args`, requirements and target platform.
+- Fresh global CLI tarball tested in a visible browser using real clicks: Home/recent project -> Design -> select heading -> context-menu Ask Codex -> Analyze -> approve -> apply -> Home -> reopen -> Preview.
+
+Evidenze
+
+- Installed transaction `c8a675f1-b145-4769-827d-ff817706f2aa`: plan 20.187 s, verified apply 0.522 s, no console errors.
+- Repeated installed flow changed `Make progress visible.` to `Design with certainty.`, advanced the revision, reopened the project from Home and showed the persisted result in Preview.
+- Screenshots: `artifacts/stability/stability-04-01-installed-home.png` through `artifacts/stability/stability-04-05-reopened-preview.png`.
+
+Compatibilita'
+
+- No direct Graph mutation. Transaction Engine, revision authorization, Verification, Preview, audit and undo remain the application boundaries. Existing project format and historical `argsJson` plans remain readable.
+
+Problemi aperti
+
+- Known Vite warning for the main chunk over 500 kB; no functional regression observed.
+- Visual testing found and fixed two blocking UX issues: harmless plan metadata was too rigid, and the approval dialog stayed open after a completed apply. The repeated path has no observed blocker.
+
+Prossimo passo
+
+- No TODO remains in the stability plan. Git publication remains a separate explicitly authorized action.
+
+---
+
+# MONOLITH AND DEPENDENCY HARDENING CYCLE (2026-07-21)
+
+Area
+
+- Confini applicativi, Verification, dipendenze, CI e pacchetto CLI.
+
+Stato
+
+- DONE
+
+Gap Analysis
+
+- Current: comportamento e Graph erano stabili, ma Live Bridge viveva in `vite.config.ts`, generator e UI concentravano responsabilità e la toolchain desktop non supportata introduceva 25 advisory. Problem: modifiche locali caricavano confini troppo ampi; Verification produceva falsi negativi per flow, eventi, intenti e nomi dei layer; l'installer desktop non funzionava. Target: estrazioni meccaniche, stessa API pubblica, verifica pertinente agli effetti e un solo canale installabile supportato. Plan: spostare un confine alla volta, caratterizzare ogni output, rimuovere Electron su richiesta esplicita, verificare CI, pacchetto e uso visuale installato.
+
+Decisioni
+
+- `vite.config.ts` contiene soltanto la configurazione Vite e registra `server/liveBridge.ts`; URL, status, payload, autorizzazione, deadline e audit delle route restano invariati.
+- Preview ed export continuano a usare l'unico renderer puro in `runtimeProgram.ts`; sono state eliminate implementazioni legacy irraggiungibili, senza creare un secondo renderer.
+- Il generator mantiene la stessa API e gli stessi file prodotti, separando backend generato, capacità native e runtime flow in moduli foglia.
+- Da `App.tsx` sono stati estratti chrome e console flow; da `CodexPanel.tsx` parser output e lista trace. Stato, polling e lifecycle restano negli orchestratori.
+- Verification osserva ora anche nome, eventi e intento mostrati dall'editor. Le modifiche flow non emettono `set_page_components` quando gli eventi non cambiano; il Plugin Manager non emette aggiornamenti tema no-op.
+- Electron, Forge, installer, update/signing desktop, workflow, test e dipendenze sono stati rimossi. Web, PWA, Android, CLI, Graph, Transaction, Verification, Security e rollback non sono cambiati.
+
+File modificati
+
+- `server/liveBridge.ts`, `vite.config.ts`, `src/generator.ts`, `src/generator/backendFiles.ts`, `src/generator/nativeFiles.ts`, `src/generator/flowRuntime.ts`, `src/PreviewFrame.tsx`, `src/App.tsx`, `src/editor/EditorChrome.tsx`, `src/editor/flow/*`, `src/CodexPanel.tsx`, `src/codex/*`, `src/verification.ts`, `tests/verification.test.ts`, `package.json`, `package-lock.json`, `.github/workflows/verify.yml`, `README.md`, `SECURITY_DEPENDENCY_STATUS.md` e rimozioni desktop dedicate.
+
+Test
+
+- `npm run check`: PASS; typecheck, lint, 220/220 test in 39 file e build production.
+- `npm run test:e2e`: PASS; 55/55 scenari eseguiti, 2 skip ambientali dichiarati.
+- Test mirati generator/runtime/Preview/native/backend: PASS, inclusi 34 golden test di parità dopo le estrazioni.
+- Audit completo: 0 advisory su 439 dipendenze. Audit runtime: 0 advisory su 197 dipendenze di produzione.
+- Pacchetto: `npm pack` produce 95 file, 258.591 byte compressi, 1.086.524 byte estratti e zero dipendenze bundled; install pulito locale, `kyro --version` = 2.0.0 e `kyro --check` PASS.
+
+Evidenze
+
+- Test visuale sul pacchetto installato e sulla cartella `e2e/fixtures/react-import`: Design → selezione titolo → menu contestuale Ask Codex → piano tipizzato → approve/apply → reload → Preview.
+- Risultato persistito: `Portfolio React` → `Release path verified.`; nessun errore console e nessuna risposta HTTP fallita.
+- Screenshot: `artifacts/stability/monolith-hardening-clean-01-installed-home.png` fino a `monolith-hardening-clean-05-reopened-preview.png`.
+- Dimensioni dopo l'estrazione: `vite.config.ts` 12 righe, `generator.ts` 648, `PreviewFrame.tsx` 495, `CodexPanel.tsx` 771, `App.tsx` 5.046. Nessun file è stato diviso per una soglia arbitraria.
+
+Compatibilità
+
+- Project format, migrazioni, autosave, import cartella, CLI, Preview, export Web/PWA/Android, Codex/MCP, capability, undo e audit restano compatibili. La vecchia chiave workspace desktop è letta solo come fallback di migrazione.
+
+Problemi aperti
+
+- Il warning Vite sul chunk principale oltre 500 kB resta noto e non produce regressioni osservate.
+- La cartella repository completa supera intenzionalmente il limite di import 500 file/4 MB; il collaudo installato usa una cartella progetto rappresentativa sotto il limite.
+- Nessun canale desktop è supportato o distribuito. Il percorso pubblico documentato è `kyro` da terminale.
+
+Prossimo passo
+
+- Ripetere i 10 benchmark Kyro vs Codex CLI sulla nuova baseline; non fanno parte di questo ciclo di hardening.
+
+---
+
 # Next Cycle
+
+---
+
+# RELEASE 2.1 AND TEN-PROMPT BENCHMARK CYCLE (2026-07-21)
+
+Area
+
+- Release, benchmark comparativo, installazione CLI, export Web e build Android.
+
+Stato
+
+- DONE
+
+Gap Analysis
+
+- Current: il ciclo di hardening era verde, ma mancavano il confronto cumulativo sui dieci prompt, una nuova installazione del pacchetto 2.1 e una build Android eseguita dalla UI corrente. Problem: i risultati precedenti non dimostravano la release aggiornata end-to-end e il percorso Android poteva fallire senza feedback rapido. Target: stesso progetto e stessi prompt per Kyro e Codex CLI, prove raw pubblicate, pacchetto installato da zero, Preview/export verificati e APK reale. Plan: ricreare la baseline visualmente, eseguire entrambi i runner, correggere soltanto difetti generali riproducibili, poi eseguire suite, packaging e pubblicazione.
+
+Decisioni
+
+- Il benchmark non viene presentato come vantaggio universale di latenza o token: Kyro completa 10/10 richieste con transazioni verificate; la CLI isolata completa 0/10 perché non possiede selezione, Graph e strumenti Kyro. La CLI è più rapida nel rispondere e usa leggermente meno token totali.
+- Il risultato CLI con exit code zero ma nessuna modifica non è conteggiato come successo funzionale. Hash baseline, output finali, prompt, raw run e metodologia sono pubblicati.
+- `@capacitor/app` e `@capacitor/status-bar` alle versioni esatte generate da Kyro sono dipendenze Capacitor ufficiali già revisionate. Pacchetti sconosciuti continuano a richiedere approvazione esatta.
+- I progetti senza flow espongono un fallback `runGraph` tipizzato: il runtime CRUD resta compilabile e un riferimento corrotto fallisce esplicitamente, senza introdurre un secondo runtime.
+- Il test Android rileva immediatamente un rifiuto UI prima della creazione del job; non attende più quindici minuti simulando un blocco.
+
+File modificati
+
+- Registry e operazioni agente, resolver/capability, MCP, editor/flow, Preview/runtime/export, `server/liveBridge.ts`, `src/generator.ts`, test operazioni/generatore/Android, runner e report benchmark, README/Devpost/compliance/changelog/rollback, immagini e bundle Release.
+
+Test
+
+- Kyro: 10/10 prompt pianificati, approvati e applicati; checkpoint headed con validazione/focus, due date, filtri, empty state, desktop/mobile, reload e persistenza PASS; console/runtime errori zero.
+- Export Web: ZIP estratto, dipendenze installate, build production e runtime indipendente PASS; due date e persistenza confermate.
+- Codex CLI PowerShell: stessi dieci prompt e stessa baseline byte-identica; 10/10 processi exit zero, 0/10 modifiche funzionali, output SHA-256 invariato.
+- Benchmark Kyro: 509.546 ms totali, mediana 44.804 ms, 784.271 token. CLI: 274.656 ms totali, mediana 27.002 ms, 763.568 token.
+- Android headed: generazione da Publish, dipendenze, build Vite, `cap add`, configurazione, `cap sync`, Gradle `assembleDebug` e APK 4.144.292 byte PASS; manifest, permessi, versione, orientamento, keyboard resize, tema e stato UI verificati.
+- Pacchetto CLI 2.1.0: installazione pulita, `kyro --version`, `kyro --check --home`, creazione visuale, Preview, reload e riapertura con persistenza PASS.
+
+Evidenze
+
+- `docs/benchmarks/2026-07-21-kyro-vs-codex-cli-10-results.json`, raw run e protocollo; `docs/images/kyro-vs-codex-cli-10.svg`; screenshot desktop/mobile.
+- `docs/images/kyro-2.1-fresh-install.png` e `docs/images/kyro-android-build-verified.png`.
+- `release/kyro-studio-2.1.0.tgz`, `release/kyro-2.1.0-evidence.zip`, manifest SHA-256 e video silenzioso locale da 167,5 secondi.
+- Release pubblica: `https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v2.1.0`.
+
+Compatibilità
+
+- Project format 1, Graph unico, Transaction Engine, Verification, Security, undo, progetto importato, CLI, Preview ed export Web/PWA/Android restano compatibili. Nessuna mutazione diretta del Graph e nessun bypass di sicurezza sono stati introdotti.
+
+Problemi aperti
+
+- Il warning Vite sul chunk principale oltre 500 kB resta noto e non ha causato regressioni osservate.
+- Firma store Android, registrazione vocale umana, upload YouTube e invio Devpost restano azioni esterne dell'entrante; non sono dichiarate completate.
+
+Prossimo passo
+
+- Registrare la voce umana indicata in `testo.md`, caricare il video su YouTube e completare il form Devpost.
 
 L'agente deve iniziare sempre dalla prima attività
 

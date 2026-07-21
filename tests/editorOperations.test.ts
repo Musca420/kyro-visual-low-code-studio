@@ -86,6 +86,19 @@ describe('structured editor operations', () => {
     expect(project.pages[0].components.find((item) => item.id === third.id)?.parentId).toBeUndefined()
   })
 
+  it('riordina un nuovo componente dopo un fratello tramite ID stabile', () => {
+    const project = createProject('Stable reorder')
+    const first = { ...makeComponent('title'), id: 'heading' }
+    const second = { ...makeComponent('text'), id: 'copy' }
+    const button = { ...makeComponent('button'), id: 'action' }
+    project.pages.push({ id: 'page', name: 'Home', path: '/', components: [first, second, button] })
+    const reordered = applyEditorOperation(project, 'page', { type: 'reorder_component', args: { componentId: button.id, afterComponentId: second.id } })
+    expect(reordered.pages[0].components.map((item) => item.id)).toEqual(['heading', 'copy', 'action'])
+    const before = applyEditorOperation(project, 'page', { type: 'reorder_component', args: { componentId: button.id, beforeComponentId: second.id } })
+    expect(before.pages[0].components.map((item) => item.id)).toEqual(['heading', 'action', 'copy'])
+    expect(() => applyEditorOperation(project, 'page', { type: 'reorder_component', args: { componentId: button.id, afterComponentId: 'missing' } })).toThrow('Invalid sibling target')
+  })
+
   it('crea una schermata completa con componente, dati, flow e configurazione app', () => {
     const project = createProject('DailyFlow')
     project.pages.push({ id: 'home', name: 'Oggi', path: '/', components: [] })
@@ -126,8 +139,19 @@ describe('structured editor operations', () => {
     project.flows.push({ id: 'create-task', name: 'Crea attivita', nodes: [], edges: [] })
     const connected = applyEditorOperation(project, 'tasks', { type: 'set_component_event', args: { componentId: form.id, event: 'submit', flowId: 'create-task' } })
     expect(connected.pages[0].components[0].events.submit).toBe('create-task')
+    expect(connected.flows[0].nodes[0]).toMatchObject({ type: 'event', config: { trigger: 'submit', componentId: form.id } })
     const removed = applyEditorOperation(connected, 'tasks', { type: 'remove_component_event', args: { componentId: form.id, event: 'submit' } })
     expect(removed.pages[0].components[0].events.submit).toBeUndefined()
+  })
+
+  it('normalizza i token visuali e li propaga ai componenti predefiniti', () => {
+    const project = createProject('Theme')
+    const button = makeComponent('button')
+    project.pages.push({ id: 'home', name: 'Home', path: '/', components: [button] })
+    const next = applyEditorOperation(project, 'home', { type: 'set_theme_tokens', args: { tokens: { background: '#fff8f2', primary: '#e85d3f', text: '#1c1917' } } })
+    expect(next.theme.tokens).toMatchObject({ pageBackground: '#fff8f2', primary: '#e85d3f', text: '#1c1917' })
+    expect(next.theme.tokens.background).toBeUndefined()
+    expect(next.pages[0].components[0].styles.desktop).toMatchObject({ background: '#e85d3f', color: '#ffffff' })
   })
 
   it('keeps visual flow names and IDs unique', () => {

@@ -156,20 +156,6 @@ label {
     radial-gradient(circle at 92% 88%, #ff6b5f18 0, transparent 28%),
     var(--workspace);
 }
-.desktop-update-status {
-  width: min(760px, calc(100% - 32px));
-  margin: 12px auto 0;
-  padding: 10px 14px;
-  border: 1px solid var(--data);
-  border-radius: 10px;
-  background: rgba(34, 211, 238, 0.12);
-  color: var(--ink);
-  text-align: center;
-}
-.desktop-update-status.rejected {
-  border-color: var(--danger);
-  background: rgba(239, 68, 68, 0.10);
-}
 .hero {
   padding-top: 20px;
 }

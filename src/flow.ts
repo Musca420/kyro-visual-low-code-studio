@@ -10,7 +10,7 @@ export type FlowContext = {
   refresh: (componentId?: string) => Promise<void>
   navigate?: (path: string, mode: "page" | "back" | "url") => Promise<void> | void
   openModal?: (componentId: string, operation: "open" | "close") => Promise<void> | void
-  updateUI?: (componentId: string, operation: string, value: string) => Promise<void> | void
+  updateUI?: (componentId: string, operation: string, value: unknown) => Promise<void> | void
   notify?: (message: string, level: string) => Promise<void> | void
   localNotification?: (title: string, body: string, delayMs: number) => Promise<void> | void
   requestPermission?: (permission: string, rationale: string) => Promise<boolean> | boolean
@@ -99,13 +99,13 @@ export async function runFlow(flow: Flow, context: FlowContext): Promise<FlowLog
       }
       if (node.type === 'update') value = await guarded(required(context.update, 'Data updates are unavailable')(value, node.config.sourceId), context)
       if (node.type === 'delete') value = await guarded(required(context.delete, 'Data deletion is unavailable')(value, node.config.sourceId), context)
-      if (node.type === 'filter') value = filter(value, node.config.field, node.config.value)
+      if (node.type === 'filter') value = filter(value, node.config.field, node.config.stateKey ? context.getState?.(node.config.stateKey) : node.config.value)
       if (node.type === 'sort') value = sort(value, node.config.field, node.config.direction === 'desc')
       if (node.type === 'kpi') value = aggregate(value, node.config.operation, node.config.field)
       if (node.type === 'refresh') await guarded(context.refresh(node.config.componentId), context)
       if (node.type === 'navigate') { const mode = node.config.mode === 'back' || node.config.mode === 'url' ? node.config.mode : 'page'; if (mode === 'url') safeHttpUrl(node.config.path); await context.navigate?.(node.config.path || '/', mode) }
       if (node.type === 'openModal') await context.openModal?.(node.config.componentId || '', node.config.operation === 'close' ? 'close' : 'open')
-      if (node.type === 'updateUI') await required(context.updateUI, 'UI updates are unavailable')(node.config.componentId || '', node.config.operation || 'show', node.config.value || '')
+      if (node.type === 'updateUI') await required(context.updateUI, 'UI updates are unavailable')(node.config.componentId || '', node.config.operation || 'show', uiValue(value, node.config.value))
       if (node.type === 'notify') await context.notify?.(node.config.message || String(value), node.config.level || path)
       if (node.type === 'localNotification') await required(context.localNotification, 'Local notifications are not available')(node.config.title || 'Reminder', node.config.body || String(value ?? ''), Math.min(604800000, Math.max(0, Number(node.config.delayMs) || 0)))
       if (node.type === 'nativeAction') value = await guarded(Promise.resolve(required(context.nativeAction, 'Device actions are not available')(node.config.capability || '', node.config.action || '', value, node.config)), context)
@@ -171,15 +171,19 @@ const validate = (value: unknown, key = '', rule = 'required', expected = '', me
   const valid = rule === 'required' ? actual !== undefined && actual !== null && String(actual).trim() !== ''
     : rule === 'email' ? /^\S+@\S+\.\S+$/.test(String(actual ?? ''))
       : rule === 'minLength' ? String(actual ?? '').length >= Math.max(0, Number(expected) || 0)
+        : rule === 'maxLength' ? String(actual ?? '').length <= Math.max(0, Number(expected) || 0)
         : rule === 'min' ? Number(actual) >= Number(expected)
           : rule === 'max' ? Number(actual) <= Number(expected)
             : false
   if (!valid) throw new Error(message || `The ${key || 'current'} field is not valid`)
 }
 
-const filter = (value: unknown, key = '', expected = '') => {
+const uiValue = (value: unknown, template = '') => template === '{{value}}' ? value : template.replaceAll('{{value}}', String(value ?? ''))
+
+const filter = (value: unknown, key = '', expected: unknown = '') => {
   if (!Array.isArray(value)) throw new Error('The filter step needs a list')
-  const needle = expected.toLowerCase()
+  const needle = String(expected ?? '').trim().toLowerCase()
+  if (!needle || /^all\b/.test(needle)) return value
   return value.filter((item) => String(field(item, key) ?? '').toLowerCase().includes(needle))
 }
 

@@ -1,0 +1,39 @@
+name: Verify Kyro
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Capture full toolchain audit
+        run: npm audit --json > npm-audit-full.json || true
+      - name: Verify runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Capture runtime audit
+        run: npm audit --omit=dev --json > npm-audit-runtime.json
+      - run: npm pack --dry-run
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - run: npm run check
+      - run: npm run release:verify
+      - run: npm run test:e2e
+      - run: npm run export:sample
+      - run: npm run test:generated
+      - run: npm run export:specialized
+      - run: npm run test:specialized
+      - run: npm run export:native-verification
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audits
+          path: npm-audit-*.json
+          if-no-files-found: warn

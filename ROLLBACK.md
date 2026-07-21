@@ -1,6 +1,6 @@
-# Kyro 2.0 rollback
+# Kyro 2.1 rollback
 
-Kyro 2.0 keeps project `formatVersion: 1`, so existing projects remain readable by the previous supported release. Always create a Kyro backup before changing the editor version.
+Kyro 2.1 keeps project `formatVersion: 1`, so existing projects remain readable by the previous supported release. Always create a Kyro backup before changing the editor version.
 
 ## Editor rollback
 
@@ -11,7 +11,7 @@ Kyro 2.0 keeps project `formatVersion: 1`, so existing projects remain readable 
    ```bash
    git clone https://github.com/Musca420/kyro-visual-low-code-studio.git kyro-rollback
    cd kyro-rollback
-   git switch --detach v0.1.15
+   git switch --detach v2.0.0
    npm ci --omit=dev
    npm link
    kyro --version
@@ -19,7 +19,7 @@ Kyro 2.0 keeps project `formatVersion: 1`, so existing projects remain readable 
 
 4. Start `kyro --home`. Restore the backup only if the existing browser profile is unavailable.
 
-The current checkout and its uncommitted files are not reset or overwritten. Returning to 2.0.0 consists of relinking from the 2.0.0 checkout.
+The current checkout and its uncommitted files are not reset or overwritten. Returning to 2.0.0 consists of relinking from the separate 2.0.0 checkout.
 
 ## Generated product rollback
 

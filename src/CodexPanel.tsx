@@ -13,6 +13,8 @@ import type { CapabilityProposal } from "./globalCapability";
 import type { GlobalCapability } from "./globalCapability";
 import type { VerificationReport } from "./verification";
 import { createArtifact, createScreenshotArtifact, verifyArtifact, type ArtifactRecord } from "./artifactRegistry";
+import { readOutput, type Trace } from "./codex/readOutput";
+import { TraceList } from "./codex/TraceList";
 
 export type CodexContext = {
   projectId: string;
@@ -47,13 +49,6 @@ export type CodexContext = {
   installedSkills: string[];
   globalCapabilities: GlobalCapability[];
 };
-
-type Trace = {
-  commands: { command: string; output: string; exitCode: number | null }[];
-  files: string[];
-  diff: string;
-  tests: { command: string; passed: boolean; output: string }[];
-};
 type CodexJob = {
   id: string;
   projectId?: string;
@@ -75,53 +70,6 @@ type CodexJob = {
   stopReason?: "cancelled" | "timeout" | "interrupted";
   git?: { status?: string; diff?: string };
 };
-
-function readOutput(raw: string, git?: { status?: string; diff?: string }) {
-  const events = raw.split("\n").flatMap((line) => {
-    try {
-      return [JSON.parse(line)];
-    } catch {
-      return [];
-    }
-  });
-  const messages = events
-    .filter((event) => event.item?.type === "agent_message" && event.item.text)
-    .map((event) => event.item.text as string);
-  const commands = events
-    .filter(
-      (event) =>
-        event.item?.type === "command_execution" &&
-        event.item.status === "completed",
-    )
-    .map((event) => ({
-      command: String(event.item.command ?? ""),
-      output: String(event.item.aggregated_output ?? ""),
-      exitCode:
-        typeof event.item.exit_code === "number" ? event.item.exit_code : null,
-    }));
-  const tests = commands
-    .filter((item) =>
-      /(?:npm|pnpm|yarn|npx)\s+(?:run\s+)?(?:test|check|lint|typecheck|build)|pytest|vitest|playwright/i.test(
-        item.command,
-      ),
-    )
-    .map((item) => ({
-      command: item.command,
-      passed: item.exitCode === 0,
-      output: item.output,
-    }));
-  return {
-    text: messages.at(-1) || raw,
-    trace: {
-      commands,
-      tests,
-      files: String(git?.status ?? "")
-        .split("\n")
-        .filter(Boolean),
-      diff: String(git?.diff ?? ""),
-    } as Trace,
-  };
-}
 
 export function CodexPanel({
   open,
@@ -404,6 +352,10 @@ export function CodexPanel({
         setPlanThreadId(String(value.threadId ?? ""));
       }
       const appliedResult = mode === "apply" ? parseAgentApply(text) : undefined;
+      if (appliedResult) {
+        setPlan("");
+        setPlanThreadId("");
+      }
       const plainResult = completedPlan
         ? `${completedPlan.summary}\nReview the proposed scope, checks, and authorization before applying anything.`
         : appliedResult
@@ -817,31 +769,5 @@ export function CodexPanel({
         </main>
       </div>
     </section>
-  );
-}
-
-function TraceList({
-  items,
-  empty,
-}: {
-  items: { title: string; body: string }[];
-  empty: string;
-}) {
-  return items.length ? (
-    <div className="trace-list">
-      {items.map((item, index) => (
-        <article key={index}>
-          <strong>{item.title}</strong>
-          <pre>{item.body}</pre>
-        </article>
-      ))}
-    </div>
-  ) : (
-    <div className="codex-welcome">
-      <strong>{empty}</strong>
-      <p>
-        This section updates automatically after analysis or application.
-      </p>
-    </div>
   );
 }

@@ -84,9 +84,14 @@ export async function verifyOpenModeModule(session: OpenModeSession, capability:
   }
   const createdAt = new Date().toISOString();
   const verifiedReport = { ...report, status: "verified" as const };
+  const implementationHash = await hash(module);
+  const evidenceEnvironment = {
+    platform: capability.contract.platforms[0], runtimeVersion: capability.contract.implementation.version,
+    dependencyVersions: Object.fromEntries(capability.contract.dependencies.map((item) => [item.name, item.version])), implementationHash,
+  };
   const evidence = await Promise.all([
-    ...capability.validationTests.map(async (check, index) => capabilityEvidenceSchema.parse({ id: crypto.randomUUID(), kind: "test", check, passed: true, hash: await hash({ module, result: results[index] }), createdAt })),
-    capabilityEvidenceSchema.parse({ id: crypto.randomUUID(), kind: "runtime", check: `Transaction ${transactionId} verified the shared runtime`, passed: true, hash: await hash(verifiedReport), createdAt }),
+    ...capability.validationTests.map(async (check, index) => capabilityEvidenceSchema.parse({ id: crypto.randomUUID(), kind: "test", check, passed: true, hash: await hash({ module, result: results[index] }), ...evidenceEnvironment, createdAt })),
+    capabilityEvidenceSchema.parse({ id: crypto.randomUUID(), kind: "runtime", check: `Transaction ${transactionId} verified the shared runtime`, passed: true, hash: await hash(verifiedReport), ...evidenceEnvironment, createdAt }),
   ]);
   const testing = capability.state === "testing" ? capability : transitionGlobalCapability(capability, "testing");
   const implemented = { ...testing, contract: { ...testing.contract, implementation: { kind: "typed_module" as const, reference: `global-module:${module.id}`, version: testing.version, status: "verified" as const } } };

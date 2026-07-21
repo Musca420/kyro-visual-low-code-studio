@@ -62,6 +62,23 @@ const buildOperations = new Set([
   "set_project_plugins", "set_app_config",
 ]);
 const graphOnlyOperations = new Set(["set_project_property"]);
+const observableVisualOperations = new Set([
+  "add_page", "update_page", "remove_page", "add_component", "compose_screen",
+  "move_component", "resize_component", "reorder_component", "wrap_component",
+  "remove_component", "set_page_components", "set_component_property",
+  "set_component_style", "set_responsive_style", "set_component_state_style",
+  "set_component_accessibility", "set_theme_token", "set_theme_tokens",
+]);
+
+const visualProjection = (project: Project) => ({
+  theme: Object.fromEntries(["pageBackground", "pageBackgroundImage", "primary", "surface", "text", "accent"]
+    .flatMap((token) => project.theme.tokens[token] === undefined ? [] : [[token, project.theme.tokens[token]]])),
+  pages: project.pages.map((page) => ({ id: page.id, name: page.name, path: page.path, components: page.components.map((component) => ({
+    id: component.id, name: component.name, type: component.type, parentId: component.parentId, props: component.props,
+    styles: component.styles, states: component.states, accessibility: component.accessibility,
+    events: component.events, intent: component.intent,
+  })) })),
+});
 
 export function transactionEffects(operations: EditorOperation[]): TransactionEffect[] {
   const effects = new Set<TransactionEffect>(["graph", "runtime"]);
@@ -96,6 +113,10 @@ export const verificationAdapters: VerificationAdapters = {
     if (failingModules.length) throw new Error(`Module tests failed: ${[...new Set(failingModules)].join(", ")}`);
     if (runtime.bindings.some((binding) => !runtime.flows.some((flow) => flow.id === binding.flowId)))
       throw new Error("Runtime contains an unresolved flow binding");
+    for (const page of project.pages) for (const component of page.components) for (const flowId of Object.values(component.events)) {
+      const flow = project.flows.find((item) => item.id === flowId);
+      if (!flow?.nodes.some((node) => node.type === "event")) throw new Error(`Flow ${flowId} bound to ${component.id} has no executable event node`);
+    }
     return `${runtime.flows.length} flows and ${runtime.bindings.length} bindings are structurally executable`;
   },
   visual(_project, runtime) {
@@ -157,7 +178,12 @@ export async function verifyProjectTransaction(
     return `RuntimeProgram v${runtime.contractVersion} compiled from revision ${runtime.graphRevision}`;
   }, () => runtime);
   await run("behavior", effects.includes("behavior"), () => adapters.behavior(after, runtime!), () => ({ flows: runtime!.flows, bindings: runtime!.bindings, dataSources: runtime!.dataSources }));
-  await run("visual", effects.includes("visual"), () => adapters.visual(after, runtime!), () => runtime!.pages.map(({ id, markup }) => ({ id, markup })));
+  await run("visual", effects.includes("visual"), () => {
+    if (operations.some((operation) => observableVisualOperations.has(operation.type))
+      && JSON.stringify(canonical(visualProjection(before))) === JSON.stringify(canonical(visualProjection(after))))
+      throw new Error("The visual operation produced no observable render change");
+    return adapters.visual(after, runtime!);
+  }, () => ({ pages: runtime!.pages.map(({ id, markup }) => ({ id, markup })), projection: visualProjection(after) }));
   await run("build", effects.includes("build"), () => adapters.build(after), () => ({ exportConfig: after.exportConfig, dependencies: after.dependencies, approvals: after.extensionApprovals, modules: after.codeModules }));
 
   return {

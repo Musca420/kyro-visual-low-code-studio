@@ -1,68 +1,73 @@
 {
   "schemaVersion": 1,
   "product": "Kyro",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "releaseDate": "2026-07-21",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "bytes": 1747,
-      "sha256": "8c21b21947f8677d7ce124ccdc1228782952ca17cde25bba7d6605404be6e6af"
+      "bytes": 3595,
+      "sha256": "5766005356a4b2aac80c1aa6c2387708f0cb636ae1fcfec8ef062af7142ee2df"
     },
     {
       "path": "CODEX_SESSION_EVIDENCE.md",
-      "bytes": 4912,
-      "sha256": "3224e577f7b6721b4c9a0122d8f2d61e0306e4c7cd5704a5d87a7461aa97d386"
+      "bytes": 4922,
+      "sha256": "c02727c95b3851770dd737783e2423758a5e0a626ccd7c49b7a536648f97f075"
     },
     {
       "path": "DEMO_SCRIPT.md",
-      "bytes": 4205,
-      "sha256": "63c6414b8f1489afbd4d0ff01bdbb4d49db218f1bb3712191b08dddf5a1a0da8"
+      "bytes": 4256,
+      "sha256": "91594f95504eccf7aa9bda6976841d1caf56bc3fc67d6e9422f26433a4655282"
     },
     {
       "path": "DEVPOST_SUBMISSION.md",
-      "bytes": 5310,
-      "sha256": "fdeb535c5ec9aa77abd180dbb31462d6b7752718a5d03ce6776f5c5b5971f6c9"
+      "bytes": 5485,
+      "sha256": "bbfdfa6783e2acd714d2ece469cbd10198940b7a471cbc54967fc4617f681363"
     },
     {
       "path": "HACKATHON_COMPLIANCE.md",
-      "bytes": 5405,
-      "sha256": "008468ea3be2587d0c3e8c5ba31a3a47a673f47f862db13e139ae31042e92343"
+      "bytes": 5371,
+      "sha256": "222c4e8f6bfd912f4826b44ffeefb91e98b0ec369382ba02247fb729455f0114"
     },
     {
       "path": "README.md",
-      "bytes": 12054,
-      "sha256": "4108c994a2fbd38dea6bf53d1d7a8dfca44e58b9b3b4eb7b825dcc582c2557a1"
+      "bytes": 13981,
+      "sha256": "888a2a9cbe55dfec7dd6e1229dfe5d16b47c6645010bc0cf6a0aafe2a73afb60"
     },
     {
       "path": "ROLLBACK.md",
-      "bytes": 1579,
-      "sha256": "f174bdef7171d94b350cf08fe1fe36d83a2f64895d0fd008bcdb72d4ebfe6d7c"
+      "bytes": 1583,
+      "sha256": "e745bb68fa8a3583793106a70a41170ce66320f96e6de743b5fa340cf31f9513"
+    },
+    {
+      "path": "VIDEO.md",
+      "bytes": 2058,
+      "sha256": "d1f2a8cb4b6dc185b832e8fa07b02e2d7bc8ee36b171f7a852aecaadc667382a"
     },
     {
       "path": "artifacts/demo-a-existing-project.zip",
-      "bytes": 279050,
-      "sha256": "e2ad3da9c075e1c1b61a3cf0359a93971677934abc6e44f23a19763986e67281"
+      "bytes": 393501,
+      "sha256": "37bb06eaf1e504bac7b471b34a3e5dd9584b3e3b0d0cb30484b40f6d668c55fe"
     },
     {
       "path": "artifacts/demo-a-standalone.png",
-      "bytes": 9426,
-      "sha256": "d8ebe655acb9c3f928de9c0c2dc30acb09a8a2af9ff92f2faa9acf4b93fbb625"
+      "bytes": 9396,
+      "sha256": "15f4450e5141805849426401928b5f30f03c67219961731406589fa84502de6a"
     },
     {
       "path": "artifacts/demo-b-global-standalone.png",
-      "bytes": 62136,
-      "sha256": "ac7301d43ff8742436c2d13a01b492dd23c1e1d5ee01af607be1320fd7be9846"
+      "bytes": 66655,
+      "sha256": "6620026773a07d3c3c57209785cb0a799e0f8ea7cdcd13677a7692204819cddc"
     },
     {
       "path": "artifacts/demo-b-global-web-app.zip",
-      "bytes": 796313,
-      "sha256": "c83984cb45fc03e0419eb9c62f312d3bb82dbe9a45d586bd4cf6d3f7ea18dcd2"
+      "bytes": 800092,
+      "sha256": "c5ad13ada1d36b6039a0029c7b24a7b067b46042f3fe83049979c29639836cb4"
     },
     {
       "path": "artifacts/demo-c-four-page-app.zip",
-      "bytes": 1169328,
-      "sha256": "dfc29b3a9e98681dca33aca37080edb91f5886bf9947f0c0ebd4f26cdf1ef3ca"
+      "bytes": 1174922,
+      "sha256": "1de41ab6878bea3774a8a817ab2779485543fe503d23daf38cd470e3b2490c91"
     },
     {
       "path": "artifacts/demo-c-mobile-runtime.png",
@@ -71,13 +76,13 @@
     },
     {
       "path": "artifacts/demo-c-standalone-runtime.png",
-      "bytes": 62046,
-      "sha256": "c3c986b5aef65e0437b9e1cacf99656521cd6faa0f3a30d1fd53903630deb96a"
+      "bytes": 61234,
+      "sha256": "6bc46f4f561470fe9c7956df2cca1856fd4bf57bef91f698c2690f1fce40ee3a"
     },
     {
       "path": "docs/20-KYRO_CHECKLIST.md",
-      "bytes": 23851,
-      "sha256": "094d1baffeec9a4656b83299fe376837b4fb4096ab2c754879858b0dbc33fde1"
+      "bytes": 36492,
+      "sha256": "60fda1082ee400b0d5d0ea4bf35dd8d315082ed6d2439ec50b3970fdd38bfda0"
     },
     {
       "path": "docs/21-ARCHITECTURE_REVIEW.md",
@@ -90,14 +95,54 @@
       "sha256": "ec5b335f4eaac59562aff3ce3d6e70baf8d82b07bc9661ebfe7c48b4e1809f56"
     },
     {
+      "path": "docs/benchmarks/2026-07-21-codex-cli-10-raw.json",
+      "bytes": 16003,
+      "sha256": "eea0ada53cd18657bce2facf47dc60278e9e9688012e4234bd97064963008b01"
+    },
+    {
+      "path": "docs/benchmarks/2026-07-21-kyro-10-raw.json",
+      "bytes": 71923,
+      "sha256": "eb2210158352d5863896d3bba9fc41ef9444de65758069eec593a3d2dbccdd03"
+    },
+    {
+      "path": "docs/benchmarks/2026-07-21-kyro-vs-codex-cli-10-results.json",
+      "bytes": 15528,
+      "sha256": "a931f1bb8f01afdd29f7dbb83ac749ec70ca5c275342f29f934f53b2732e573d"
+    },
+    {
       "path": "docs/benchmarks/2026-07-21-kyro-vs-repo.json",
-      "bytes": 3500,
-      "sha256": "1ea63795bd169c4e2e6bf2601a906bc03d93c7770f1e2b58b8928489dffd02d5"
+      "bytes": 3577,
+      "sha256": "4cb3bcbd33b9d4afc5c2efeea7ee939321f95a79d74c03c59b501ed731f7a909"
     },
     {
       "path": "docs/benchmarks/2026-07-21-live.json",
       "bytes": 2454,
       "sha256": "585d69bd53963bc77e6d7e755ae1a42bf36a0663af95cfd371830144375407f1"
+    },
+    {
+      "path": "docs/benchmarks/kyro-vs-codex-cli-10-prompts.json",
+      "bytes": 7414,
+      "sha256": "8539ce18b7b67dfa7dc35da76537be0087c9c348272c8dbc97169d90e57dafa8"
+    },
+    {
+      "path": "docs/images/kyro-2.1-fresh-install.png",
+      "bytes": 48448,
+      "sha256": "bc04f844cbc454a83383e62d4a51e58133151614d81959981fd2e13a94daf8e9"
+    },
+    {
+      "path": "docs/images/kyro-android-build-verified.png",
+      "bytes": 77937,
+      "sha256": "6383a52123987bf08656c5cc29c6a6e4f5bb377524c0b6837d643b9f584965ec"
+    },
+    {
+      "path": "docs/images/kyro-benchmark-10-desktop.png",
+      "bytes": 53698,
+      "sha256": "9a63007cc631ef687852221afed2600f11a3d29918fdbaf2d715e116da2f7252"
+    },
+    {
+      "path": "docs/images/kyro-benchmark-10-mobile.png",
+      "bytes": 36328,
+      "sha256": "f23d4f1fd59d754bfdcc582750a61643d82820566ba1a11a2fb8830445fa00c4"
     },
     {
       "path": "docs/images/kyro-global-capability-draft.png",
@@ -110,14 +155,19 @@
       "sha256": "82e6531d1f23338feb0927d0a8cfa9fd0b1a720f361fafb1ceec4cbd220a06d8"
     },
     {
+      "path": "docs/images/kyro-vs-codex-cli-10.svg",
+      "bytes": 2281,
+      "sha256": "912204d13f08eb40bf601d78a7bd3e2226570683722a346b7d02306d29bd8b74"
+    },
+    {
       "path": "docs/images/kyro-vs-repository-benchmark.png",
       "bytes": 40741,
       "sha256": "7915103c8a9e6a12c2dfc070d540afce17be7de8ed806afce00180919ec4f6a4"
     },
     {
       "path": "docs/images/kyro-vs-repository-benchmark.svg",
-      "bytes": 3470,
-      "sha256": "1e62543bb5a3c5bf52b8a292981f6e59946dad2a17acd93d7af7c975a8add4bb"
+      "bytes": 3510,
+      "sha256": "c37e58f14985f828bbb2bdbfb44a937641155dde9ef0731c4a503e2625a96ae9"
     },
     {
       "path": "e2e/demo-a.spec.ts",
@@ -136,18 +186,33 @@
     },
     {
       "path": "package.json",
-      "bytes": 4109,
-      "sha256": "bc6884e94f8fe75aef1fbc8b2fbb7db72d3ef4a00412b7f3f184a2c9caf4ffd1"
+      "bytes": 3210,
+      "sha256": "19db1749fb64f07499ba0984dc77bd88984e5d98b39cba65ef1065265aea6d7b"
+    },
+    {
+      "path": "scripts/benchmark-codex-cli-10.ps1",
+      "bytes": 2363,
+      "sha256": "2616beb79f082b477710e0c2188a9abbd9f09f50cb52199c5a113e2c0967bffc"
     },
     {
       "path": "scripts/benchmark-codex-context.mjs",
-      "bytes": 6560,
-      "sha256": "5dcea967b43ea53f7dbcd6a67511b246ec20e1991ece98ca5c41017cda4673f6"
+      "bytes": 6683,
+      "sha256": "a8b9ee5e1c61083002c72eedb5f29b0c110fb2981ee6f90391be8a889860e248"
+    },
+    {
+      "path": "scripts/benchmark-kyro-vs-cli-10.mjs",
+      "bytes": 15947,
+      "sha256": "8dc6458daa1bf102de2d76d3b6d5f45210fa54d1eb784503026667c12b3e3699"
+    },
+    {
+      "path": "scripts/report-10-prompt-benchmark.mjs",
+      "bytes": 7177,
+      "sha256": "5aeb820c83b53abd3b9eee09227a0be261844a85e6a03f24b055c40c4eb3dbba"
     },
     {
       "path": "testo.md",
-      "bytes": 3798,
-      "sha256": "229234f53f88ac0363d95aa00cc0d5e69c28b4e7076987b0789707a4ba6893f9"
+      "bytes": 2495,
+      "sha256": "8bbe6c0afdd975045528285fe58d053d820a195fc0ef7073331fec4663a0663b"
     }
   ]
 }

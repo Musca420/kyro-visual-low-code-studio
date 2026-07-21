@@ -7,6 +7,34 @@ export type EditorOperation = { type: string; pageId?: string; args?: Record<str
 
 const object = (value: unknown) => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 
+const themeTokenAliases: Record<string, string> = {
+  background: 'pageBackground',
+  backgroundImage: 'pageBackgroundImage',
+  foreground: 'text',
+}
+
+export const normalizeThemeTokens = (tokens: Record<string, unknown>) => Object.fromEntries(
+  Object.entries(tokens).map(([token, value]) => [themeTokenAliases[token] ?? token, value]),
+)
+
+const applyThemeTokens = (project: Project, input: Record<string, unknown>) => {
+  const tokens = normalizeThemeTokens(input)
+  const primary = typeof tokens.primary === 'string' ? tokens.primary : undefined
+  const surface = typeof tokens.surface === 'string' ? tokens.surface : undefined
+  const text = typeof tokens.text === 'string' ? tokens.text : undefined
+  const pages = project.pages.map((page) => ({ ...page, components: page.components.map((component) => {
+    const desktop = component.styles.desktop
+    const background = primary && component.type === 'button' && ['#6d5dfc', 'var(--kyro-primary, #6d5dfc)'].includes(desktop.background)
+      ? primary
+      : surface && ['#ffffff', 'var(--kyro-surface, #ffffff)'].includes(desktop.background)
+        ? surface
+        : desktop.background
+    const color = text && ['#172033', 'var(--kyro-text, #172033)'].includes(desktop.color) ? text : desktop.color
+    return { ...component, styles: { ...component.styles, desktop: { ...desktop, background, color } } }
+  }) }))
+  return parseProject({ ...project, pages, theme: { tokens: { ...project.theme.tokens, ...tokens } } })
+}
+
 const componentIn = (project: Project, pageId: string, componentId: unknown) => {
   const page = project.pages.find((item) => item.id === pageId)
   const component = page?.components.find((item) => item.id === componentId)
@@ -31,8 +59,7 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     return restored
   }
   if (operation.type === 'set_theme_tokens') {
-    const tokens = object(args.tokens)
-    return parseProject({ ...project, theme: { tokens: { ...project.theme.tokens, ...tokens } } })
+    return applyThemeTokens(project, object(args.tokens))
   }
   if (operation.type === 'set_project_assets') {
     if (!Array.isArray(args.assets)) throw new Error('Assets must be a list')
@@ -92,9 +119,10 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     return parseProject({ ...project, pages: project.pages.filter((item) => item.id !== id), flows: project.flows.filter((flow) => !flowIds.has(flow.id)) })
   }
   if (operation.type === 'set_theme_token') {
-    const token = String(args.token ?? '').trim(), value = String(args.value ?? '').trim()
+    const requestedToken = String(args.token ?? '').trim(), value = String(args.value ?? '').trim()
+    const token = themeTokenAliases[requestedToken] ?? requestedToken
     if (!token || !value) throw new Error('Token and value are required')
-    return parseProject({ ...project, theme: { tokens: { ...project.theme.tokens, [token]: value } } })
+    return applyThemeTokens(project, { [token]: value })
   }
   if (operation.type === 'set_project_property') {
     if (args.property !== 'name' || !String(args.value ?? '').trim()) throw new Error('Unsupported project property')
@@ -229,7 +257,66 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   }
   if (operation.type === 'create_flow') {
     const flow = args.flow as Flow
-    return parseProject({ ...project, flows: [...project.flows, flow] })
+    const existing = project.flows.findIndex((item) => item.id === flow.id)
+    return parseProject({ ...project, flows: existing < 0 ? [...project.flows, flow] : project.flows.map((item, index) => index === existing ? flow : item) })
+  }
+  if (operation.type === 'compose_collection_filter') {
+    let next = project
+    const sourceId = String(args.sourceId), source = next.dataSources.find((item) => item.id === sourceId)
+    if (!source) throw new Error('Collection filters require an existing data source')
+    const list = componentIn(next, pageId, args.listComponentId).component
+    if (list.type !== 'list' || list.binding?.sourceId !== sourceId) throw new Error('Collection filters require a list bound to the selected data source')
+    const parentId = typeof args.parentId === 'string' ? args.parentId : list.parentId
+    const rawFilters = Array.isArray(args.filters) ? args.filters as { componentId?: string; field: string; stateKey: string; label?: string; options?: string }[] : []
+    const controls: { componentId?: string; field: string; stateKey: string; label?: string; options?: string; component: EditorComponent }[] = []
+    for (const filter of rawFilters) {
+      const id = filter.componentId || crypto.randomUUID()
+      if (!filter.componentId) next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentId: id, componentType: 'select', name: `${filter.label || filter.field} filter`, parentId, props: { label: filter.label || filter.field, options: filter.options || '' }, accessibility: { label: `Filter by ${filter.label || filter.field}`, role: 'combobox' }, styles: { desktop: { width: 'min(100%, 280px)' }, mobile: { width: '100%' } } } })
+      const component = componentIn(next, pageId, id).component
+      if (component.type !== 'select') throw new Error('Collection filter controls must be selects')
+      const options = String(component.props.options ?? '').split('|').map((item) => item.trim()).filter(Boolean)
+      if (options.length < 2 || !/^all\b/i.test(options[0])) throw new Error(`${component.name} needs pipe-separated options beginning with All`)
+      controls.push({ ...filter, component })
+    }
+    const counterId = typeof args.counterComponentId === 'string' ? args.counterComponentId : crypto.randomUUID()
+    if (typeof args.counterComponentId !== 'string') next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentId: counterId, componentType: 'text', name: 'Visible record counter', parentId, props: { label: String(args.counterLabel || '0 visible records') }, accessibility: { label: 'Number of visible records', role: 'status' } } })
+    const emptyIdValue = typeof args.emptyComponentId === 'string' ? args.emptyComponentId : crypto.randomUUID()
+    if (typeof args.emptyComponentId !== 'string') next = applyEditorOperation(next, pageId, { type: 'add_component', args: { componentId: emptyIdValue, componentType: 'empty', name: 'Filtered empty state', parentId, props: { label: String(args.emptyMessage || 'No records match the selected filters.') }, accessibility: { label: String(args.emptyMessage || 'No records match the selected filters.'), role: 'status' }, styles: { desktop: { display: 'none' } } } })
+    const counter = componentIn(next, pageId, counterId).component
+    const empty = componentIn(next, pageId, emptyIdValue).component
+    if (!['text', 'title', 'badge'].includes(counter.type) || !['text', 'empty', 'alert'].includes(empty.type)) throw new Error('Collection filters require text-compatible counter and empty-state components')
+    const mainId = crypto.randomUUID(), eventId = crypto.randomUUID(), queryId = crypto.randomUUID()
+    const filterNodes = controls.map((filter, index) => ({ id: crypto.randomUUID(), type: 'filter' as const, label: `Filter by ${filter.field}`, position: { x: 440 + index * 220, y: 80 }, config: { field: filter.field, stateKey: filter.stateKey } }))
+    const listId = crypto.randomUUID(), countId = crypto.randomUUID(), counterNodeId = crypto.randomUUID(), emptyNodeId = crypto.randomUUID()
+    const nodes: Flow['nodes'] = [
+      { id: eventId, type: 'event', label: 'Apply collection filters', position: { x: 0, y: 80 }, config: { trigger: 'manual' } },
+      { id: queryId, type: 'query', label: `Load ${source.name}`, position: { x: 220, y: 80 }, config: { sourceId, mode: 'all' } },
+      ...filterNodes,
+      { id: listId, type: 'updateUI', label: `Update ${list.name}`, position: { x: 440 + filterNodes.length * 220, y: 80 }, config: { componentId: list.id, operation: 'data', value: '{{value}}' } },
+      { id: countId, type: 'kpi', label: 'Count visible records', position: { x: 660 + filterNodes.length * 220, y: 80 }, config: { operation: 'count' } },
+      { id: counterNodeId, type: 'updateUI', label: `Update ${counter.name}`, position: { x: 880 + filterNodes.length * 220, y: 80 }, config: { componentId: counter.id, operation: 'text', value: '{{value}} visible tasks' } },
+      { id: emptyNodeId, type: 'updateUI', label: `Toggle ${empty.name}`, position: { x: 1100 + filterNodes.length * 220, y: 80 }, config: { componentId: empty.id, operation: 'visibleWhenZero', value: '{{value}}' } },
+    ]
+    const chain = nodes.map((node) => node.id)
+    const main: Flow = { id: mainId, name: `Filter ${source.name}`, nodes, edges: chain.slice(0, -1).map((source, index) => ({ id: crypto.randomUUID(), source, target: chain[index + 1], path: 'success' })) }
+    const controlFlows = controls.map((filter, index) => {
+      const flowId = crypto.randomUUID(), startId = crypto.randomUUID(), stateId = crypto.randomUUID(), runId = crypto.randomUUID()
+      return { filter, flow: { id: flowId, name: `Set ${filter.field} filter`, nodes: [
+        { id: startId, type: 'event' as const, label: `${filter.component.name} changed`, position: { x: 0, y: index * 40 }, config: { trigger: 'change', componentId: filter.component.id } },
+        { id: stateId, type: 'setState' as const, label: `Store ${filter.field}`, position: { x: 220, y: index * 40 }, config: { key: filter.stateKey } },
+        { id: runId, type: 'runFlow' as const, label: main.name, position: { x: 440, y: index * 40 }, config: { flowId: main.id } },
+      ], edges: [
+        { id: crypto.randomUUID(), source: startId, target: stateId, path: 'success' },
+        { id: crypto.randomUUID(), source: stateId, target: runId, path: 'success' },
+      ] } satisfies Flow }
+    })
+    const missingFields = rawFilters.map((filter) => filter.field).filter((field) => !Object.hasOwn(source.schema, field))
+    const nextSchema = { ...source.schema, ...Object.fromEntries(missingFields.map((field) => [field, 'string' as const])) }
+    const nextVersion = (source.schemaVersion ?? 1) + (missingFields.length ? 1 : 0)
+    return parseProject({ ...next, dataSources: next.dataSources.map((item) => item.id === source.id && missingFields.length ? { ...item, schema: nextSchema, schemaVersion: nextVersion, migrations: [...(item.migrations ?? []), { version: nextVersion, createdAt: new Date().toISOString(), previousSchema: item.schema, nextSchema }] } : item), flows: [...next.flows, main, ...controlFlows.map((item) => item.flow)], pages: next.pages.map((page) => page.id === pageId ? { ...page, components: page.components.map((component) => {
+      const control = controlFlows.find((item) => item.filter.component.id === component.id)
+      return control ? { ...component, events: { ...component.events, change: control.flow.id } } : component
+    }) } : page) })
   }
   if (operation.type === 'compose_record_action') {
     const { component } = componentIn(project, pageId, args.componentId)
@@ -380,7 +467,18 @@ export function applyEditorOperation(project: Project, pageId: string, operation
   } else if (operation.type === 'set_component_event') {
     const event = String(args.event ?? '').trim(), flowId = String(args.flowId ?? '').trim()
     if (!event || !project.flows.some((flow) => flow.id === flowId)) throw new Error('Invalid event or flow')
+    const flows = project.flows.map((flow) => {
+      if (flow.id !== flowId || flow.nodes.some((node) => node.type === 'event')) return flow
+      const first = flow.nodes[0]
+      const eventNode = { id: crypto.randomUUID(), type: 'event' as const, label: `On ${event}`, position: { x: 0, y: 0 }, config: { trigger: event, componentId: component.id } }
+      return {
+        ...flow,
+        nodes: [eventNode, ...flow.nodes],
+        edges: first ? [{ id: crypto.randomUUID(), source: eventNode.id, target: first.id, path: 'success' as const }, ...flow.edges] : flow.edges,
+      }
+    })
     nextComponent = { ...component, events: { ...component.events, [event]: flowId } }
+    return parseProject({ ...project, flows, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.map((item) => item.id === component.id ? nextComponent : item) } : page) })
   } else if (operation.type === 'remove_component_event') {
     const event = String(args.event ?? '').trim()
     if (!event) throw new Error('An event is required')
@@ -422,7 +520,11 @@ export function applyEditorOperation(project: Project, pageId: string, operation
     const removed = descendantIds(project.pages.find((item) => item.id === pageId)!.components, component.id); removed.add(component.id)
     return parseProject({ ...project, pages: project.pages.map((page) => page.id === pageId ? { ...page, components: page.components.filter((item) => !removed.has(item.id)) } : page) })
   } else if (operation.type === 'reorder_component') {
-    const page = project.pages.find((item) => item.id === pageId)!, siblings = page.components.filter((item) => item.parentId === component.parentId), from = siblings.findIndex((item) => item.id === component.id), to = Number(args.index)
+    const page = project.pages.find((item) => item.id === pageId)!, siblings = page.components.filter((item) => item.parentId === component.parentId), from = siblings.findIndex((item) => item.id === component.id)
+    const stableTarget = typeof args.afterComponentId === 'string' ? args.afterComponentId : typeof args.beforeComponentId === 'string' ? args.beforeComponentId : undefined
+    const target = stableTarget ? siblings.filter((item) => item.id !== component.id).findIndex((item) => item.id === stableTarget) : -1
+    const to = typeof args.afterComponentId === 'string' ? target + 1 : typeof args.beforeComponentId === 'string' ? target : Number(args.index)
+    if (stableTarget && target < 0) throw new Error('Invalid sibling target')
     if (!Number.isInteger(to) || to < 0 || to >= siblings.length) throw new Error('Invalid index')
     const ordered = [...siblings], [moved] = ordered.splice(from, 1); ordered.splice(to, 0, moved)
     let siblingIndex = 0; const components = page.components.map((item) => item.parentId === component.parentId ? ordered[siblingIndex++] : item)

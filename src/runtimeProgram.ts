@@ -62,7 +62,8 @@ export function runtimeComponentHtml(component: EditorComponent, children = "") 
   if (component.type === "badge") return `<span ${common} class="chip">${text}</span>`;
   if (component.type === "accordion") return `<details ${common}><summary>${text}</summary>${children || `<p>${escapeHtml(component.props.description || "Expandable content")}</p>`}</details>`;
   if (canContain(component)) {
-    const ownContent = `${text ? `<strong>${text}</strong>` : ""}${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
+    const visibleText = children && String(component.props.label ?? "").toLowerCase() === component.type ? "" : text;
+    const ownContent = `${visibleText ? `<strong>${visibleText}</strong>` : ""}${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
     const tag = ["header", "footer", "section", "form"].includes(component.type) ? component.type : ["sidebar", "drawer", "menu"].includes(component.type) ? "aside" : component.type === "navbar" ? "nav" : "div";
     const role = component.type === "modal" ? "dialog" : component.accessibility.role || (component.type === "hero" ? "region" : "group");
     return `<${tag} ${legacyCommon} class="generated-container generated-${component.type}" ${runtimeId} role="${escapeHtml(role)}">${ownContent}${children}</${tag}>`;

@@ -24,18 +24,18 @@ Projects use an open versioned graph and export readable TypeScript/Vite, instal
 
 Kyro uses React, TypeScript, Vite, IndexedDB, Playwright, a local Live Bridge, and Capacitor. Codex with GPT-5.6 was the primary engineering and verification collaborator. The main Codex Session ID is `019f7465-48aa-78e3-8531-1e4b6342b31e`.
 
-We also measured the embedded approach against repository-first Codex CLI using the same two prompts, model, reasoning effort, machine, and three read-only planning runs per path. For a selected-button task, median planning fell from 47.5 to 15.6 seconds and from 229.8k to 18.4k tokens. For a missing signed-PDF, QR, and SMTP capability, it fell from 71.7 to 22.2 seconds and from 253.6k to 18.9k tokens. The repository includes exact prompts, raw values, limitations, and the runner; this is a local engineering benchmark, not a universal claim.
+We also ran ten cumulative prompts against byte-identical exported projects: once through Ask Codex in Kyro and once through Codex CLI in PowerShell. Kyro completed and verified 10/10 changes. CLI returned exit code zero for every turn but applied 0/10 because it had no active visual selection, Live Bridge, or authorized Graph transaction; its output tree remained byte-identical to the baseline. CLI was faster (27.0 s versus 44.8 s median) and total token use was similar (763.6k versus 784.3k), so we do not claim a latency or token win. We claim verified contextual execution. The repository includes the exact prompts, raw records, hash evidence, screenshots, limitations, and both runners.
 
 We validated the system by creating two separate visual projects entirely through Kyro: NexusField Web and NexusField Mobile. They model a multi-role marketplace with 17 screens, local/generated data, authentication, reusable flows, protected mutations, payment/refund actions, signature, offline behavior, and native Android capabilities. The exported PWA and APK were built and run independently and share the same local backend during the final test.
 
 ## What changed during Build Week
 
-Kyro existed as an early local visual-editor prototype. From 13 July 2026 onward we added and substantially extended the unified program graph, stable contextual selection, Live Bridge, embedded Codex transactions/undo, Capability Resolver, reusable Node-RED-style flows, data bindings and generated backend, native capability nodes, project-folder import, repository-first CLI, Web/PWA/Android export, and real NexusField browser/device validation. Git history documents the boundary.
+Kyro existed as an early local visual-editor prototype. The imported baseline commit dated 18 July 2026 marks the judging boundary. Work after that point added and substantially extended the unified program graph, stable contextual selection, Live Bridge, embedded Codex transactions/undo, Capability Resolver, reusable Node-RED-style flows, data bindings and generated backend, native capability nodes, project-folder import, repository-first CLI, Web/PWA/Android export, and real browser/device validation.
 
 ## Testing instructions
 
 1. Install Node.js 20+.
-2. Run `npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.0.0/kyro-studio-2.0.0.tgz`.
+2. Run `npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.1.0/kyro-studio-2.1.0.tgz`.
 3. Run `kyro --home`.
 4. Create a project or import a folder.
 5. Add a page and components, style them, then use Actions or Ask Codex.
@@ -62,6 +62,6 @@ Production signing and store distribution, hosted collaboration, additional revi
 ## Links to complete in Devpost
 
 - Source: https://github.com/Musca420/kyro-visual-low-code-studio
-- Public test build: https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15
+- Public test build: https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v2.1.0
 - Public YouTube demo: add the recorded voice to `Kyro-Hackathon-Demo-2m47-Silent.mp4`, upload the final video, and paste the URL
 - Codex feedback session: `019f7465-48aa-78e3-8531-1e4b6342b31e`

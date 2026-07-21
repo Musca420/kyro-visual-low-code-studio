@@ -6,8 +6,8 @@ export const capabilityProposalSchema = z.object({
   kind: z.enum(["reusable_flow", "typed_module", "plugin"]),
   name: z.string().trim().min(3).max(80),
   generalizedIntent: z.string().trim().min(8).max(1_000),
-  inputs: z.array(z.string().trim().min(1).max(80)).max(24),
-  outputs: z.array(z.string().trim().min(1).max(80)).max(24),
+  inputs: z.array(z.string().trim().min(1).max(160)).max(24),
+  outputs: z.array(z.string().trim().min(1).max(160)).max(24),
   permissions: z.array(z.string().trim().min(1).max(80)).max(24),
   dependencies: z.array(z.string().trim().min(1).max(160)).max(24),
   validationTests: z.array(z.string().trim().min(1).max(240)).min(1).max(24),
@@ -15,6 +15,7 @@ export const capabilityProposalSchema = z.object({
   effects: z.array(capabilityEffectSchema).max(8).default([]),
   platforms: z.array(capabilityPlatformSchema).min(1).max(5).default(["web"]),
 });
+export const capabilityProposalJsonSchema = z.toJSONSchema(capabilityProposalSchema, { target: "draft-7", unrepresentable: "any" });
 
 export type CapabilityProposal = z.infer<typeof capabilityProposalSchema>;
 
@@ -43,7 +44,7 @@ const currentGlobalCapabilitySchema = globalCapabilityRecordSchema.superRefine((
   if (capability.activation === "explicit_review" && !capability.evidence.some((item) => item.kind === "approval" && item.passed)) context.addIssue({ code: "custom", path: ["evidence"], message: "An active capability needs approval evidence" });
 });
 
-const port = (name: string) => ({ name, type: "unknown" as const, required: true });
+const port = (description: string) => ({ name: description.split(":", 1)[0].trim(), type: "unknown" as const, required: true });
 const legacyToCurrent = (value: unknown) => {
   if (!value || typeof value !== "object") return value;
   const item = value as Record<string, unknown>;

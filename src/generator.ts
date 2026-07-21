@@ -2,11 +2,12 @@ import JSZip from "jszip";
 import type { Breakpoint, EditorComponent, Project } from "./model";
 import { parseProject, serializeProject } from "./model";
 import { buildExperienceAssets } from "./PreviewFrame";
-import { canContain } from "./hierarchy";
-import { generateCodeModule } from "./codeModules";
-import { nativePackagesForProject, nativePermissionsForProject } from "./nativeCapabilities";
+import { nativePermissionsForProject } from "./nativeCapabilities";
 import { compileRuntimeProgram, exportRuntimeAdapter, runtimeComponentCss, runtimeComponentHtml } from "./runtimeProgram";
 import { assertProductConsistency } from "./productConsistency";
+import { withGeneratedBackend } from "./generator/backendFiles";
+import { withNativeCapabilities } from "./generator/nativeFiles";
+import { generatedFlowRuntime, moduleImports, modulePipeline, withCodeModules } from "./generator/flowRuntime";
 
 const htmlEscape = (value: unknown) =>
   String(value ?? "").replace(
@@ -14,114 +15,12 @@ const htmlEscape = (value: unknown) =>
     (character) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]!,
   );
-const cssEscape = (value: unknown) => String(value ?? "").replace(/[{};]/g, "");
-
 export function componentHtml(component: EditorComponent, children = "") {
   return runtimeComponentHtml(component, children);
-  /* Legacy implementation retained temporarily for format-1 fixture comparison. */
-  const label = htmlEscape(component.props.label ?? component.name);
-  const fieldName = htmlEscape(component.props.fieldName || component.id);
-  const attributes = `${component.props.tooltip ? ` title="${htmlEscape(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
-  const viewState = component.type === "loader"
-    ? "loading"
-    : component.type === "empty"
-      ? "empty"
-      : component.props.viewState === "error" || (component.type === "alert" && /(^|\s)error(\s|$)/i.test(`${component.name} ${component.intent.role}`))
-        ? "error"
-        : undefined;
-  if (viewState)
-    return `<div id="${component.id}" data-view-state="${viewState}" role="${viewState === "error" ? "alert" : "status"}" hidden>${label}</div>`;
-  if (component.type === "input")
-    return `<label>${htmlEscape(component.accessibility.label)}<input id="${component.id}" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date", "time"].includes(String(component.props.inputType)) ? htmlEscape(component.props.inputType) : "text"}" placeholder="${htmlEscape(component.props.placeholder)}"${component.props.required === true ? " required" : ""} /></label>`;
-  if (component.type === "button")
-    return `<button id="${component.id}" type="${["button", "submit", "reset"].includes(String(component.props.buttonType)) ? htmlEscape(component.props.buttonType) : "button"}"${attributes}${component.props.disabled === true ? " disabled" : ""}>${label}</button>`;
-  if (component.type === "list")
-    return `<section id="${component.id}" aria-label="${htmlEscape(component.accessibility.label)}"><div class="status" role="status">Loading…</div><ul></ul></section>`;
-  if (component.type === "title")
-    return `<h1 id="${component.id}">${label}</h1>`;
-  if (component.type === "textarea")
-    return `<label>${htmlEscape(component.accessibility.label)}<textarea id="${component.id}" name="${fieldName}" placeholder="${htmlEscape(component.props.placeholder)}"${component.props.required === true ? " required" : ""}></textarea></label>`;
-  if (component.type === "select")
-    return `<label>${htmlEscape(component.accessibility.label)}<select id="${component.id}" name="${fieldName}">${String(component.props.options || component.props.label || component.name).split("|").map((option) => `<option>${htmlEscape(option)}</option>`).join("")}</select></label>`;
-  if (component.type === "checkbox" || component.type === "radio")
-    return `<label id="${component.id}" class="choice-control"${attributes}><input id="${component.id}-control" name="${fieldName}" type="${component.type}" /> <span>${label}</span></label>`;
-  if (component.type === "toast")
-    return `<div id="${component.id}" role="status" aria-live="polite" hidden>${label}</div>`;
-  if (component.type === "image")
-    return `<img id="${component.id}" src="${htmlEscape(component.props.src || "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22160%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e8eaf2%22/%3E%3C/svg%3E")}" alt="${htmlEscape(component.accessibility.label)}">`;
-  if (component.type === "link")
-    return `<a id="${component.id}" href="${htmlEscape(component.props.href || component.props.path || "#")}">${label}</a>`;
-  if (component.type === "upload")
-    return `<label>${label}<input id="${component.id}" type="file"></label>`;
-  if (component.type === "signature")
-    return `<label id="${component.id}" class="signature-pad">${label}<canvas data-signature-canvas role="img" aria-label="${htmlEscape(component.accessibility.label)}"></canvas><input type="hidden" name="${fieldName}"><button type="button" data-clear-signature>Clear signature</button></label>`;
-  if (component.type === "progress")
-    return `<label>${label}<progress id="${component.id}" max="100" value="${htmlEscape(component.props.value || 60)}"></progress></label>`;
-  if (component.type === "table")
-    return `<div id="${component.id}" class="table-scroll"><table><caption>${label}</caption><thead><tr><th>Name</th><th>Status</th><th>Date</th></tr></thead><tbody><tr><td>Example item</td><td>Active</td><td>Today</td></tr></tbody></table></div>`;
-  if (component.type === "chart")
-    return `<figure id="${component.id}" data-kind="chart"><svg viewBox="0 0 320 140" role="img" aria-label="${htmlEscape(component.accessibility.label)}"><rect x="18" y="70" width="34" height="54" rx="6"></rect><rect x="60" y="38" width="34" height="86" rx="6"></rect><rect x="102" y="52" width="34" height="72" rx="6"></rect><rect x="144" y="18" width="34" height="106" rx="6"></rect><rect x="186" y="58" width="34" height="66" rx="6"></rect><rect x="228" y="44" width="34" height="80" rx="6"></rect><rect x="270" y="30" width="34" height="94" rx="6"></rect></svg><figcaption>${label}</figcaption></figure>`;
-  if (component.type === "calendar")
-    return `<section id="${component.id}" data-kind="calendar"><label>${label}<input id="${component.id}-control" type="date"></label><ul aria-live="polite"></ul></section>`;
-  if (component.type === "audio" || component.type === "video")
-    return `<${component.type} id="${component.id}" controls src="${htmlEscape(component.props.src || "")}">${label}</${component.type}>`;
-  if (component.type === "avatar")
-    return `<span id="${component.id}" class="avatar" role="img" aria-label="${htmlEscape(component.accessibility.label)}">${htmlEscape(
-      String(component.props.initials || label)
-        .slice(0, 2)
-        .toUpperCase(),
-    )}</span>`;
-  if (component.type === "badge")
-    return `<span id="${component.id}" class="chip">${label}</span>`;
-  if (component.type === "accordion")
-    return `<details id="${component.id}"><summary>${label}</summary>${children || `<p>${htmlEscape(component.props.description || "Expandable content")}</p>`}</details>`;
-  if (canContain(component)) {
-    const showsDescription = ["card", "hero", "modal"].includes(component.type);
-    const ownContent = `${label ? `<strong>${label}</strong>` : ""}${showsDescription && component.props.description ? `<p>${htmlEscape(component.props.description)}</p>` : ""}`;
-    const content = `${ownContent}${children}`;
-    const tag =
-      component.type === "header" ||
-      component.type === "footer" ||
-      component.type === "section" ||
-      component.type === "form"
-        ? component.type
-        : component.type === "sidebar" ||
-            component.type === "drawer" ||
-            component.type === "menu"
-          ? "aside"
-          : component.type === "navbar"
-            ? "nav"
-            : "div";
-    const role =
-      component.type === "modal"
-        ? "dialog"
-        : component.accessibility.role ||
-          (component.type === "hero" ? "region" : "group");
-    return `<${tag} id="${component.id}" class="generated-container generated-${component.type}" role="${htmlEscape(role)}">${content}</${tag}>`;
-  }
-  return `<div id="${component.id}" role="${htmlEscape(component.accessibility.role || "group")}">${label}</div>`;
 }
 
 function componentCss(component: EditorComponent, breakpoint: Breakpoint) {
   return runtimeComponentCss(component, breakpoint);
-  /* Legacy implementation retained temporarily for format-1 fixture comparison. */
-  const style = {
-    ...component.styles.desktop,
-    ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
-  };
-  const declarations = (value: Record<string, unknown>) =>
-    Object.entries(value)
-      .map(
-        ([key, item]) =>
-          `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${cssEscape(item)}`,
-      )
-      .join(";");
-  const rules = (target: string) =>
-    `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`;
-  return (
-    rules(`[id="${component.id}"]`) +
-    rules(`[data-component="${component.id}"]`)
-  );
 }
 
 function pageBackgroundCss(project: Project) {
@@ -503,71 +402,6 @@ ${project.appConfig.realtime.mode === "sse" ? `const updates = new EventSource($
   };
 }
 
-function withGeneratedBackend(project: Project, files: Record<string, string>) {
-  if (!project.dataSources.some((source) => source.provider === "generated"))
-    return files;
-  const pkg = JSON.parse(files["package.json"]) as {
-    scripts: Record<string, string>;
-  };
-  pkg.scripts.server = "node server/index.mjs";
-  files["package.json"] = JSON.stringify(pkg, null, 2);
-  files["server/data.json"] = "[]";
-  files["server/users.json"] = "[]";
-  files["server/index.mjs"] = `import { createServer } from 'node:http'
-import { readFile, writeFile } from 'node:fs/promises'
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
-const file = new URL('./data.json', import.meta.url)
-const usersFile = new URL('./users.json', import.meta.url)
-const read = async () => JSON.parse(await readFile(file, 'utf8'))
-const save = async (records) => writeFile(file, JSON.stringify(records, null, 2))
-const readUsers = async () => JSON.parse(await readFile(usersFile, 'utf8'))
-const saveUsers = async (users) => writeFile(usersFile, JSON.stringify(users, null, 2))
-const body = async (request) => { let value = ''; for await (const chunk of request) value += chunk; return value ? JSON.parse(value) : {} }
-const authEnabled = ${JSON.stringify(project.appConfig.authentication.mode === "generated")}
-const allowedRoles = ${JSON.stringify(project.appConfig.authentication.roles)}
-const readOnlyRoles = new Set(['viewer'])
-const canWrite = (role) => role === 'admin' || (allowedRoles.includes(role) && !readOnlyRoles.has(role))
-const authSecret = process.env.AUTH_SECRET || ''
-const port = Number(process.env.PORT || 8787)
-const configuredOrigin = process.env.ALLOWED_ORIGIN || ''
-const corsOrigin = (origin) => { try { const value = new URL(origin), local = ['http:', 'https:'].includes(value.protocol) && ['127.0.0.1', 'localhost'].includes(value.hostname); return local || origin === configuredOrigin ? origin : '' } catch { return '' } }
-if (authEnabled && !authSecret) throw new Error('AUTH_SECRET is required: copy .env.example and configure a secure value')
-const sign = (user) => { const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, exp: Date.now() + 8 * 60 * 60 * 1000 })).toString('base64url'); return payload + '.' + createHmac('sha256', authSecret).update(payload).digest('base64url') }
-const session = (request) => { if (!authEnabled) return { role: 'admin' }; const token = String(request.headers.authorization || '').replace(/^Bearer /, ''), [payload, signature] = token.split('.'); if (!payload || !signature) return; const expected = Buffer.from(createHmac('sha256', authSecret).update(payload).digest('base64url')), actual = Buffer.from(signature); if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return; const value = JSON.parse(Buffer.from(payload, 'base64url')); return value.exp > Date.now() ? value : undefined }
-const clients = new Set()
-const broadcast = () => clients.forEach((client) => client.write('event: records\\ndata: changed\\n\\n'))
-createServer(async (request, response) => {
-  try {
-    response.setHeader('content-type', 'application/json')
-    const origin = String(request.headers.origin || ''), allowedOrigin = corsOrigin(origin)
-    if (allowedOrigin) { response.setHeader('access-control-allow-origin', allowedOrigin); response.setHeader('vary', 'origin') }
-    response.setHeader('access-control-allow-headers', 'content-type,authorization')
-    response.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS')
-    if (request.method === 'OPTIONS') { response.writeHead(origin && !allowedOrigin ? 403 : 204); return response.end() }
-    const url = new URL(request.url, 'http://127.0.0.1')
-    if (url.pathname === '/events' && request.method === 'GET') { response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' }); response.write('event: ready\\ndata: connected\\n\\n'); clients.add(response); request.on('close', () => clients.delete(response)); return }
-    if (url.pathname === '/auth/register' && request.method === 'POST') { const users = await readUsers(); if (users.length) { response.writeHead(409); return response.end(JSON.stringify({ error: 'The first account already exists' })) } const input = await body(request); if (!/^\\S+@\\S+\\.\\S+$/.test(input.email) || String(input.password || '').length < 8) { response.writeHead(400); return response.end(JSON.stringify({ error: 'A valid email and a password of at least 8 characters are required' })) } const salt = randomBytes(16).toString('hex'), hash = scryptSync(input.password, salt, 64).toString('hex'), user = { id: crypto.randomUUID(), email: input.email.toLowerCase(), salt, hash, role: allowedRoles.includes('admin') ? 'admin' : allowedRoles[0] || 'viewer' }; users.push(user); await saveUsers(users); response.writeHead(201); return response.end(JSON.stringify({ id: user.id, email: user.email, role: user.role })) }
-    if (url.pathname === '/auth/login' && request.method === 'POST') { const input = await body(request), user = (await readUsers()).find((item) => item.email === String(input.email || '').toLowerCase()); if (!user) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Invalid credentials' })) } const actual = scryptSync(String(input.password || ''), user.salt, 64), expected = Buffer.from(user.hash, 'hex'); if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Invalid credentials' })) } return response.end(JSON.stringify({ token: sign(user), role: user.role })) }
-    const current = session(request)
-    if (url.pathname === '/auth/session' && request.method === 'GET') { if (!current) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Session expired' })) } return response.end(JSON.stringify({ id: current.id, role: current.role })) }
-    if (authEnabled && !current) { response.writeHead(401); return response.end(JSON.stringify({ error: 'Sign in to continue' })) }
-    const records = await read(), id = url.pathname.split('/')[2]
-    if (url.pathname === '/records' && request.method === 'GET') return response.end(JSON.stringify(records))
-    if (url.pathname === '/records' && request.method === 'POST') { if (!canWrite(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'This role has read-only access' })) } const input = await body(request), record = { ...input, id: crypto.randomUUID(), date: new Date().toISOString() }; records.push(record); await save(records); broadcast(); response.writeHead(201); return response.end(JSON.stringify(record)) }
-    const index = records.findIndex((record) => record.id === id)
-    if (index < 0) { response.writeHead(404); return response.end(JSON.stringify({ error: 'Record not found' })) }
-    if (request.method === 'PUT') { if (!canWrite(current.role)) { response.writeHead(403); return response.end(JSON.stringify({ error: 'This role has read-only access' })) } records[index] = { ...records[index], ...(await body(request)), id }; await save(records); broadcast(); return response.end(JSON.stringify(records[index])) }
-    if (request.method === 'DELETE') { if (current.role !== 'admin') { response.writeHead(403); return response.end(JSON.stringify({ error: 'Only an administrator can delete records' })) } records.splice(index, 1); await save(records); broadcast(); response.writeHead(204); return response.end() }
-    response.writeHead(404); response.end(JSON.stringify({ error: 'Route not found' }))
-  } catch (error) { response.writeHead(500); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) })) }
-}).listen(port, '127.0.0.1', () => console.log('Backend ready at http://127.0.0.1:' + port))
-`;
-  files[".env.example"] = `${files[".env.example"] ? `${files[".env.example"]}\n\n` : ""}# Optional non-local frontend origin allowed by CORS\nALLOWED_ORIGIN=`;
-  files["README-BACKEND.md"] =
-    `# Generated backend\n\nRun \`npm run server\`, then \`npm run dev\` in another process. Records are stored in \`server/data.json\`. The API listens only on 127.0.0.1:8787 by default and accepts GET/POST/PUT/DELETE on /records; set PORT to use another local port. Localhost origins are accepted on any port; set ALLOWED_ORIGIN for one deployed frontend.${project.appConfig.authentication.mode === "generated" ? " Access is protected: configure AUTH_SECRET before starting; the first registration creates the administrator." : " Configure authentication before public deployment."}`;
-  return files;
-}
-
 export function generateFiles(input: Project): Record<string, string> {
   const project = parseProject(input);
   const runtime = compileRuntimeProgram(project);
@@ -731,7 +565,7 @@ const beginViewState = (element: Element) => { const route = viewStateRoot(eleme
 const finishViewState = (element: Element, count: number, failed = false) => { const route = viewStateRoot(element); if (!route) return; const current = viewStates.get(route) ?? { pending: 1, empty: true, error: false }; current.pending = Math.max(0, current.pending - 1); current.empty = current.empty && count === 0; current.error = current.error || failed; viewStates.set(route, current); if (current.pending === 0) showViewState(element, current.error ? 'error' : current.empty ? 'empty' : 'ready') }
 const fillForm = (form: HTMLFormElement, item: Item) => { Object.entries(item as Record<string, unknown>).forEach(([name, value]) => { const field = form.elements.namedItem(name) as HTMLInputElement | null; if (!field) return; if (field.type === 'checkbox') field.checked = Boolean(value); else field.value = String(value ?? '') }); form.dataset.editingId = item.id; form.dataset.sourceId = item.sourceId }
 async function saveEdit(form: HTMLFormElement) { if (!form.checkValidity()) return form.reportValidity(); const id = form.dataset.editingId, selectedSourceId = form.dataset.sourceId; if (!id || !selectedSourceId) return; const previous = (await query(selectedSourceId)).find((item) => item.id === id); if (!previous) throw new Error('Item to edit was not found'); const fields: Record<string, unknown> = Object.fromEntries(new FormData(form)); form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((field) => fields[field.name] = field.checked); await update({ ...previous, ...fields, id, sourceId: selectedSourceId, text: String(fields.title ?? fields.name ?? previous.text) }, selectedSourceId); delete form.dataset.editingId; delete form.dataset.sourceId; form.reset(); await refreshRoute(form) }
-const makeRow = (item: Item, binding: DataBinding, root: HTMLElement, state: HTMLElement) => { const row = document.createElement('li'), title = document.createElement('strong'), description = document.createElement('p'), actions = document.createElement('div'); row.dataset.id = item.id; title.textContent = item.text; description.textContent = String((item as Record<string, unknown>).description ?? (item as Record<string, unknown>).frequency ?? ''); actions.className = 'record-actions'; if (binding.editable) { const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit'; edit.addEventListener('click', () => { const form = root.closest('[data-route]')?.querySelector<HTMLFormElement>('form'); if (form) { fillForm(form, item); form.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }); actions.append(edit) } if (binding.completion !== 'none') { const record = item as Record<string, unknown>, done = binding.completion === 'streak' ? Boolean(record.completedToday) : Boolean(record.completed) || record.status === 'Completed'; const complete = document.createElement('button'); complete.type = 'button'; complete.textContent = done ? 'Completed' : 'Complete'; complete.disabled = done; complete.addEventListener('click', async () => { const streak = Number(record.currentStreak) || 0, value = binding.completion === 'streak' ? { ...item, completedToday: true, currentStreak: streak + 1, bestStreak: Math.max(Number(record.bestStreak)||0,streak+1), lastCompletedAt:new Date().toISOString() } : { ...item, completed:true, status:'Completed' }; if (binding.updateFlowId) await runGraph(binding.updateFlowId, value); else await update(value,binding.sourceId); await refresh(binding.componentId) }); actions.append(complete) } if (binding.removable) { const removeButton = document.createElement('button'); removeButton.type = 'button'; removeButton.textContent = 'Delete'; removeButton.addEventListener('click', async () => { if (!confirm('Delete ' + item.text + '?')) return; lastDeleted = { item, sourceId: binding.sourceId, componentId: binding.componentId }; if (binding.deleteFlowId) await runGraph(binding.deleteFlowId,item); else await remove(item,binding.sourceId); await refresh(binding.componentId); const undo=document.createElement('button'); undo.type='button'; undo.textContent='Undo'; undo.addEventListener('click',async()=>{if(!lastDeleted)return;await insert(lastDeleted.item,lastDeleted.sourceId);const target=lastDeleted.componentId;lastDeleted=undefined;await refresh(target)}); state.replaceChildren(document.createTextNode('Item deleted. '),undo) }); actions.append(removeButton) } row.append(title, description); if (actions.childElementCount) row.append(actions); return row }
+const makeRow = (item: Item, binding: DataBinding, root: HTMLElement, state: HTMLElement) => { const row = document.createElement('li'), title = document.createElement('strong'), description = document.createElement('p'), actions = document.createElement('div'), record = item as Record<string, unknown>, dateValue = String(record.dueDate ?? record.date ?? '').trim(); row.dataset.id = item.id; title.textContent = item.text; description.textContent = String(record.description ?? record.frequency ?? ''); actions.className = 'record-actions'; if (binding.editable) { const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit'; edit.addEventListener('click', () => { const form = root.closest('[data-route]')?.querySelector<HTMLFormElement>('form'); if (form) { fillForm(form, item); form.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }); actions.append(edit) } if (binding.completion !== 'none') { const done = binding.completion === 'streak' ? Boolean(record.completedToday) : Boolean(record.completed) || record.status === 'Completed'; const complete = document.createElement('button'); complete.type = 'button'; complete.textContent = done ? 'Completed' : 'Complete'; complete.disabled = done; complete.addEventListener('click', async () => { const streak = Number(record.currentStreak) || 0, value = binding.completion === 'streak' ? { ...item, completedToday: true, currentStreak: streak + 1, bestStreak: Math.max(Number(record.bestStreak)||0,streak+1), lastCompletedAt:new Date().toISOString() } : { ...item, completed:true, status:'Completed' }; if (binding.updateFlowId) await runGraph(binding.updateFlowId, value); else await update(value,binding.sourceId); await refresh(binding.componentId) }); actions.append(complete) } if (binding.removable) { const removeButton = document.createElement('button'); removeButton.type = 'button'; removeButton.textContent = 'Delete'; removeButton.addEventListener('click', async () => { if (!confirm('Delete ' + item.text + '?')) return; lastDeleted = { item, sourceId: binding.sourceId, componentId: binding.componentId }; if (binding.deleteFlowId) await runGraph(binding.deleteFlowId,item); else await remove(item,binding.sourceId); await refresh(binding.componentId); const undo=document.createElement('button'); undo.type='button'; undo.textContent='Undo'; undo.addEventListener('click',async()=>{if(!lastDeleted)return;await insert(lastDeleted.item,lastDeleted.sourceId);const target=lastDeleted.componentId;lastDeleted=undefined;await refresh(target)}); state.replaceChildren(document.createTextNode('Item deleted. '),undo) }); actions.append(removeButton) } row.append(title, description); if (dateValue) { const time = document.createElement('time'); time.dateTime = dateValue; time.textContent = new Date(dateValue).toLocaleDateString('en'); row.append(time) } if (actions.childElementCount) row.append(actions); return row }
 const itemDate = (item: Item) => String((item as Record<string, unknown>).dueDate ?? item.date ?? (item as Record<string, unknown>).lastCompletedAt ?? '').slice(0, 10)
 const itemDone = (item: Item) => { const value = item as Record<string, unknown>; return Boolean(value.completed || value.completedToday) || /complet/i.test(String(value.status ?? '')) }
 const renderBoundData = (binding: DataBinding, root: HTMLElement, items: Item[]) => { if (binding.kind === 'chart') { const today = new Date(), days = Array.from({ length: 7 }, (_, index) => { const day = new Date(today); day.setDate(today.getDate() - 6 + index); return day.toISOString().slice(0, 10) }), values = days.map((day) => items.filter((item) => itemDate(item) === day && (binding.metric !== 'completed' || itemDone(item))).length), max = Math.max(1, ...values); root.querySelectorAll('rect').forEach((bar, index) => { const height = Math.max(4, Math.round((values[index] || 0) / max * 106)); bar.setAttribute('y', String(124 - height)); bar.setAttribute('height', String(height)) }); root.querySelector('svg')?.setAttribute('aria-label', 'Last seven days: ' + values.join(', ')); const caption = root.querySelector<HTMLElement>('figcaption'); if (caption) { const label = caption.dataset.label || caption.textContent || 'Chart'; caption.dataset.label = label.split(' · ')[0]; caption.textContent = caption.dataset.label + ' · ' + values.reduce((sum, value) => sum + value, 0) + ' total' } return } if (binding.kind === 'calendar') { const input = root.querySelector<HTMLInputElement>('input[type="date"]'), list = root.querySelector<HTMLUListElement>('ul'); if (!input || !list) return; if (!input.value) input.value = new Date().toISOString().slice(0, 10); const renderDay = () => { const shown = items.filter((item) => itemDate(item) === input.value); list.replaceChildren(...(shown.length ? shown.map((item) => { const row = document.createElement('li'), value = item as Record<string, unknown>; row.textContent = String(value.title ?? value.name ?? item.text) + (value.time ? ' · ' + String(value.time) : ''); return row }) : [Object.assign(document.createElement('li'), { textContent: 'No items on this date' })])) }; renderDay(); if (!input.dataset.bound) { input.dataset.bound = 'true'; input.addEventListener('change', renderDay) } return } if (binding.metric) { const values = items.map((item) => item as Record<string, unknown>), number = binding.metric === 'completed' ? items.filter(itemDone).length : binding.metric === 'active' ? items.filter((item) => !itemDone(item)).length : binding.metric === 'maxStreak' ? Math.max(0, ...values.map((item) => Number(item.bestStreak ?? item.currentStreak) || 0)) : items.length, target = root.querySelector<HTMLElement>('strong') ?? root; target.textContent = String(number) + (binding.suffix ? ' ' + binding.suffix : '') } }
@@ -745,7 +579,8 @@ document.addEventListener('click', (event) => { const button = (event.target as 
 const routeMatches = (pattern: string, path: string) => { const expected = pattern.split('/').filter(Boolean), actual = path.split('/').filter(Boolean); return expected.length === actual.length && expected.every((part, index) => part.startsWith(':') || part === actual[index]) }
 function route() { const path = decodeURIComponent(location.hash.slice(1) || ${JSON.stringify(project.pages[0].path)}); document.querySelectorAll<HTMLElement>('[data-route]').forEach((section) => { section.hidden = !routeMatches(section.dataset.route || '', path) }); document.querySelectorAll<HTMLAnchorElement>('nav a').forEach((link) => link.toggleAttribute('aria-current', link.hash === '#' + path)); const more = document.querySelector<HTMLDetailsElement>('.app-nav-more'), active = more?.querySelector('a[aria-current]'); more?.querySelector('summary')?.toggleAttribute('aria-current', Boolean(active)); if (active) more?.removeAttribute('open') }
 addEventListener('hashchange', route); addEventListener('hashchange', () => { const path = decodeURIComponent(location.hash.slice(1)); void Promise.all(dataBindings.filter((binding) => routeMatches(document.getElementById(binding.componentId)?.closest<HTMLElement>('[data-route]')?.dataset.route || '', path)).map((binding) => refresh(binding.componentId))) }); route()
-${project.flows.length ? generatedFlowRuntime(project) : `const graphNotify = (message: string, error = false) => { let toast = document.querySelector<HTMLElement>('[data-flow-status]'); if (!toast) { toast = document.createElement('div'); toast.dataset.flowStatus = ''; toast.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white'; document.body.append(toast) } toast.setAttribute('role', error ? 'alert' : 'status'); toast.style.background = error ? '#b42318' : '#172033'; toast.textContent = message; toast.hidden = false; window.setTimeout(() => { if (toast) toast.hidden = true }, 2600) }
+${project.flows.length ? generatedFlowRuntime(project) : `async function runGraph(flowId: string, _input: unknown = ''): Promise<never> { throw new Error('Flow not found: ' + flowId) }
+const graphNotify = (message: string, error = false) => { let toast = document.querySelector<HTMLElement>('[data-flow-status]'); if (!toast) { toast = document.createElement('div'); toast.dataset.flowStatus = ''; toast.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white'; document.body.append(toast) } toast.setAttribute('role', error ? 'alert' : 'status'); toast.style.background = error ? '#b42318' : '#172033'; toast.textContent = message; toast.hidden = false; window.setTimeout(() => { if (toast) toast.hidden = true }, 2600) }
 document.getElementById('${button?.id ?? ""}')?.addEventListener('click', async () => {
   const input = document.getElementById('${inputComponent?.id ?? ""}') as HTMLInputElement | null
   if (!input?.value.trim()) { input?.setAttribute('aria-invalid', 'true'); status!.textContent = 'A value is required'; return }
@@ -811,187 +646,6 @@ void refresh()
       .join("\n\n");
   Object.assign(files, preservedSourceFiles(project));
   return withNativeCapabilities(project, withCodeModules(project, withGeneratedBackend(project, files)));
-}
-
-function withNativeCapabilities(project: Project, files: Record<string, string>) {
-  if (!usesNativeRuntime(project)) return files;
-  const requested = new Set(project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "requestPermission").map((node) => node.config.permission)));
-  const packages: Record<string, string> = { "@capacitor/core": "^8.0.0", ...nativePackagesForProject(project) };
-  if (project.flows.some((flow) => flow.nodes.some((node) => node.type === "platformCondition"))) packages["@capacitor/device"] = "^8.0.0";
-  if (requested.has("camera")) packages["@capacitor/camera"] = "^8.0.0";
-  if (requested.has("geolocation")) packages["@capacitor/geolocation"] = "^8.0.0";
-  if (requested.has("notifications")) packages["@capacitor/local-notifications"] = "^8.0.0";
-  const pkg = JSON.parse(files["package.json"]) as { dependencies?: Record<string, string> };
-  pkg.dependencies = { ...pkg.dependencies, ...packages };
-  files["package.json"] = JSON.stringify(pkg, null, 2);
-  const has = (name: string) => Boolean(packages[name]);
-  const imports = [
-    "import { Capacitor } from '@capacitor/core'",
-    has("@capacitor/camera") ? "import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'" : "",
-    has("@capacitor/geolocation") ? "import { Geolocation } from '@capacitor/geolocation'" : "",
-    has("@capacitor/device") ? "import { Device } from '@capacitor/device'" : "",
-    has("@capacitor/network") ? "import { Network } from '@capacitor/network'" : "",
-    has("@capacitor/haptics") ? "import { Haptics, ImpactStyle } from '@capacitor/haptics'" : "",
-    has("@capacitor/share") ? "import { Share } from '@capacitor/share'" : "",
-    has("@capacitor/clipboard") ? "import { Clipboard } from '@capacitor/clipboard'" : "",
-    has("@capacitor/filesystem") ? "import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'" : "",
-    has("@capacitor/motion") ? "import { Motion } from '@capacitor/motion'" : "",
-    has("@capacitor/local-notifications") ? "import { LocalNotifications } from '@capacitor/local-notifications'" : "",
-    has("@capacitor/push-notifications") ? "import { PushNotifications } from '@capacitor/push-notifications'" : "",
-    has("@capacitor-community/bluetooth-le") ? "import { BleClient } from '@capacitor-community/bluetooth-le'" : "",
-    has("@capacitor-mlkit/barcode-scanning") ? "import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning'" : "",
-  ].filter(Boolean).join("\n");
-  files["src/native.ts"] = `${imports}
-type Options = Record<string, string>
-const parseOptions = (text = ''): Options => Object.fromEntries(text.split(/\\r?\\n|,/).map((line) => line.split('=')).filter((pair) => pair.length > 1).map(([key, ...rest]) => [key.trim(), rest.join('=').trim()]))
-const webInfo = () => ({ platform: 'web', version: navigator.userAgent })
-export async function getPlatformInfo() { ${has("@capacitor/device") ? "if (Capacitor.isNativePlatform()) { const info = await Device.getInfo(); return { platform: info.platform, version: info.osVersion } }" : ""} return webInfo() }
-export async function requestNativePermission(permission: string, _rationale = '') { if (!Capacitor.isNativePlatform()) { if (permission === 'notifications' && 'Notification' in window) return (Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission) === 'granted'; if (permission === 'geolocation' && navigator.permissions) return (await navigator.permissions.query({ name: 'geolocation' })).state === 'granted'; return false }
-  ${has("@capacitor/camera") ? "if (permission === 'camera') return (await Camera.requestPermissions({ permissions: ['camera', 'photos'] })).camera === 'granted'" : ""}
-  ${has("@capacitor-mlkit/barcode-scanning") ? "if (permission === 'camera') return (await BarcodeScanner.requestPermissions()).camera === 'granted'" : ""}
-  ${has("@capacitor/geolocation") ? "if (permission === 'geolocation') return (await Geolocation.requestPermissions()).location === 'granted'" : ""}
-  ${has("@capacitor/local-notifications") ? "if (permission === 'notifications') return (await LocalNotifications.requestPermissions()).display === 'granted'" : ""}
-  return false }
-export async function runNativeAction(capability: string, action: string, value: unknown, raw: Options) { const options = { ...raw, ...parseOptions(raw.options) }
-  ${has("@capacitor/camera") ? "if (capability === 'camera') { const photo = await Camera.getPhoto({ resultType: CameraResultType.Uri, source: action === 'takePhoto' ? CameraSource.Camera : CameraSource.Photos, quality: Math.min(100, Math.max(1, Number(options.quality) || 85)) }); return { path: photo.path, webPath: photo.webPath, format: photo.format, saved: photo.saved } }" : ""}
-  ${has("@capacitor/geolocation") ? "if (capability === 'location' && action === 'getCurrentPosition') { const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: options.highAccuracy === 'true', timeout: 10000 }); return { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy } }" : ""}
-  ${has("@capacitor/device") ? "if (capability === 'device' && action === 'getInfo') return Device.getInfo(); if (capability === 'device' && action === 'getBattery') return Device.getBatteryInfo()" : ""}
-  ${has("@capacitor/network") ? "if (capability === 'network' && action === 'getStatus') return Network.getStatus()" : ""}
-  ${has("@capacitor/haptics") ? "if (capability === 'haptics') { if (action === 'vibrate') await Haptics.vibrate({ duration: Math.min(1000, Math.max(20, Number(options.duration) || 100)) }); else await Haptics.impact({ style: options.style === 'heavy' ? ImpactStyle.Heavy : options.style === 'light' ? ImpactStyle.Light : ImpactStyle.Medium }); return value }" : ""}
-  ${has("@capacitor/share") ? "if (capability === 'share' && action === 'share') return Share.share({ title: options.title, text: options.text || String(value || ''), url: options.url || undefined })" : ""}
-  ${has("@capacitor/clipboard") ? "if (capability === 'clipboard' && action === 'write') { await Clipboard.write({ string: options.value || String(value || '') }); return value } if (capability === 'clipboard' && action === 'read') return Clipboard.read()" : ""}
-  ${has("@capacitor/filesystem") ? "if (capability === 'files' && action === 'writeFile') return Filesystem.writeFile({ path: options.path || 'file.txt', data: options.data || String(value || ''), directory: Directory.Data, encoding: Encoding.UTF8 }); if (capability === 'files' && action === 'readFile') return Filesystem.readFile({ path: options.path || 'file.txt', directory: Directory.Data, encoding: Encoding.UTF8 }); if (capability === 'files' && action === 'deleteFile') return Filesystem.deleteFile({ path: options.path || 'file.txt', directory: Directory.Data })" : ""}
-  ${has("@capacitor/push-notifications") ? "if (capability === 'push' && action === 'register') { const permission = await PushNotifications.requestPermissions(); if (permission.receive !== 'granted') throw new Error('Push notification permission was denied'); await PushNotifications.register(); return { registered: true } }" : ""}
-  ${has("@capacitor-community/bluetooth-le") ? "if (capability === 'bluetooth') { await BleClient.initialize(); if (action === 'requestDevice') return BleClient.requestDevice({ optionalServices: (options.services || '').split(',').filter(Boolean) }); if (action === 'scan') { const devices: unknown[] = []; await BleClient.requestLEScan({}, (result) => devices.push(result)); await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Number(options.duration) || 3000))); await BleClient.stopLEScan(); return devices } if (action === 'connect') return BleClient.connect(String(options.deviceId || (value as { deviceId?: string })?.deviceId || '')); if (action === 'disconnect') return BleClient.disconnect(String(options.deviceId || (value as { deviceId?: string })?.deviceId || '')) }" : ""}
-  ${has("@capacitor-mlkit/barcode-scanning") ? "if (capability === 'barcode') { const result = await BarcodeScanner.scan(action === 'scanQr' ? { formats: [BarcodeFormat.QrCode], autoZoom: true } : { autoZoom: true }); const barcode = result.barcodes[0]; if (!barcode) throw new Error('No QR code or barcode was detected'); return barcode }" : ""}
-  if (capability === 'location' && action === 'openMap') { const input = value as { latitude?: number; longitude?: number }; location.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(String(options.latitude || input?.latitude || '') + ',' + String(options.longitude || input?.longitude || '')); return value }
-  throw new Error('This device action is not available in the current target: ' + capability + '.' + action)
-}
-`;
-  if (has("@capacitor-mlkit/barcode-scanning")) files["scripts/configure-android.mjs"] += `
-manifest = await readFile(manifestPath, 'utf8')
-const barcodeMetadata = '<meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />'
-if (!manifest.includes(barcodeMetadata)) manifest = manifest.replace('</application>', '    ' + barcodeMetadata + '\\n    </application>')
-await writeFile(manifestPath, manifest)
-`;
-  return files;
-}
-
-function withCodeModules(project: Project, files: Record<string, string>) {
-  if (!project.codeModules.length) return files;
-  for (const module of project.codeModules)
-    files[`src/extensions/${moduleFile(module.id)}.ts`] = generateCodeModule(module);
-  return files;
-}
-
-const moduleFile = (id: string) => `module-${id.replace(/[^a-z0-9-]/gi, "").slice(0, 36)}`;
-
-function referencedModules(project: Project) {
-  const ids = project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "module").map((node) => node.config.moduleId));
-  return project.codeModules.filter((module) => ids.includes(module.id));
-}
-
-function moduleImports(project: Project) {
-  const extensions = referencedModules(project).map((module, index) => `import { run as runExtension${index} } from './extensions/${moduleFile(module.id)}'`);
-  if (usesNativeRuntime(project)) extensions.push("import { getPlatformInfo, requestNativePermission, runNativeAction } from './native'");
-  return extensions.join("\n");
-}
-
-const usesNativeRuntime = (project: Project) => project.flows.some((flow) => flow.nodes.some((node) => ["requestPermission", "nativeAction", "platformCondition"].includes(node.type)));
-
-function modulePipeline(project: Project, initial: string) {
-  return referencedModules(project).reduce((value, _module, index) => `runExtension${index}(${value} as never)`, initial);
-}
-
-function generatedFlowRuntime(project: Project) {
-  const runners = referencedModules(project).map((module, index) => `${JSON.stringify(module.id)}: runExtension${index}`).join(",");
-  const bindings = project.pages.flatMap((page) => page.components.flatMap((component) => Object.entries(component.events).map(([event, flowId]) => ({ componentId: component.id, event, flowId }))));
-  const automatic = project.flows.flatMap((flow) => flow.nodes.filter((node) => node.type === "event" && ["pageLoad", "timer", "pageVisible", "pageHidden", "online", "offline", "deviceShake", "deepLink"].includes(node.config.trigger)).map((node) => ({ flowId: flow.id, trigger: node.config.trigger, interval: Math.min(3600000, Math.max(500, Number(node.config.interval) || 5000)), pagePath: project.pages.find((page) => page.id === node.config.pageId)?.path })));
-  const nativeFallback = usesNativeRuntime(project) ? "" : `const requestNativePermission = async (_permission: string, _rationale = '') => false
-const getPlatformInfo = async () => ({ platform: 'web', version: navigator.userAgent })
-const runNativeAction = async (capability: string, action: string, _value: unknown, _config: Record<string, string>): Promise<never> => { throw new Error('Device action is not available: ' + capability + '.' + action) }`;
-  return `type GraphNode = { id: string; type: string; label: string; position: { x: number; y: number }; config: Record<string, string> }
-type GraphFlow = { id: string; name: string; nodes: GraphNode[]; edges: { id: string; source: string; target: string; path: string }[] }
-const graphFlows: GraphFlow[] = ${JSON.stringify(project.flows)}
-const graphState: Record<string, unknown> = ${JSON.stringify(project.state)}
-const graphDebounce = new Map<string, number>()
-const graphQuery = query as (sourceId?: string) => Promise<unknown[]>
-const graphInsert = insert as (value: unknown, sourceId?: string) => Promise<unknown>
-const graphUpdate = update as (value: unknown, sourceId?: string) => Promise<unknown>
-const graphRemove = remove as (value: unknown, sourceId?: string) => Promise<unknown>
-const graphRefresh = refresh as (componentId?: string) => Promise<unknown>
-const extensionRunners: Record<string, (value: never) => unknown> = { ${runners} }
-${nativeFallback}
-const graphField = (value: unknown, key = '') => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
-const graphElement = (id = '') => document.getElementById(id) ?? document.querySelector<HTMLElement>('[data-component="' + CSS.escape(id) + '"]')
-const graphListen = (element: HTMLElement | null, name: string, run: (event: Event) => void) => { if (!element) return; const native: Record<string, string> = { doubleClick: 'dblclick', pointerEnter: 'pointerenter', pointerLeave: 'pointerleave', keyDown: 'keydown' }; if (native[name]) return element.addEventListener(native[name], run); if (name === 'longPress') { let timer = 0, start: { x: number; y: number; time: number } | undefined; const cancel = () => { clearTimeout(timer); timer = 0 }; element.addEventListener('pointerdown', (event) => { start = { x: event.clientX, y: event.clientY, time: Date.now() }; timer = window.setTimeout(() => start && run(new CustomEvent('longPress', { detail: { kyroGesture: true, x: start.x, y: start.y, duration: Date.now() - start.time } })), 600) }); element.addEventListener('pointerup', cancel); element.addEventListener('pointercancel', cancel); element.addEventListener('pointerleave', cancel); return } if (name === 'swipeLeft' || name === 'swipeRight') { let start: { x: number; y: number; time: number } | undefined; element.addEventListener('pointerdown', (event) => { start = { x: event.clientX, y: event.clientY, time: Date.now() } }); element.addEventListener('pointerup', (event) => { if (!start) return; const dx = event.clientX - start.x, dy = event.clientY - start.y, duration = Math.max(1, Date.now() - start.time), matches = Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) && (name === 'swipeLeft' ? dx < 0 : dx > 0); if (matches) run(new CustomEvent(name, { detail: { kyroGesture: true, distanceX: dx, distanceY: dy, duration, velocity: dx / duration } })); start = undefined }); return } element.addEventListener(name, run) }
-const graphMatches = (value: unknown, key = '', operator = 'equals', expected = '') => { const actual = key ? graphField(value, key) : value; if (operator === 'exists') return actual !== undefined && actual !== null && actual !== ''; if (operator === 'notEquals') return String(actual) !== expected; if (operator === 'contains') return String(actual).toLowerCase().includes(expected.toLowerCase()); if (operator === 'greater') return Number(actual) > Number(expected); if (operator === 'less') return Number(actual) < Number(expected); return String(actual) === expected }
-const graphPlatformMatches = (info: { platform: string; version: string }, platform = '', minimum = '', maximum = '') => { if (platform && info.platform.toLowerCase() !== platform.toLowerCase()) return false; const current = Number.parseInt(info.version, 10), min = minimum ? Number.parseInt(minimum, 10) : undefined, max = maximum ? Number.parseInt(maximum, 10) : undefined; return !(min !== undefined && (!Number.isFinite(current) || current < min)) && !(max !== undefined && (!Number.isFinite(current) || current > max)) }
-const graphNavigate = (mode = 'page', path = '/') => { if (mode === 'back') return history.back(); if (mode === 'url') { const url = new URL(path); if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo HTTP o HTTPS'); return location.assign(url.toString()) } location.hash = path }
-const graphRole = () => { try { const payload = authToken.split('.')[0]; return String(JSON.parse(atob(payload.replaceAll('-', '+').replaceAll('_', '/'))).role || 'viewer') } catch { return 'viewer' } }
-const graphSignOut = () => { authToken = ''; localStorage.removeItem('frontend-editor-session'); location.reload() }
-const graphNotify = (message: string, error = false) => { let toast = document.querySelector<HTMLElement>('[data-flow-status]'); if (!toast) { toast = document.createElement('div'); toast.dataset.flowStatus = ''; const bottom = document.querySelector('.app-bottom-nav') ? 'calc(76px + env(safe-area-inset-bottom))' : '16px'; toast.style.cssText = 'position:fixed;right:16px;bottom:' + bottom + ';z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white;box-shadow:0 12px 30px #0004'; document.body.append(toast) } toast.setAttribute('role', error ? 'alert' : 'status'); toast.style.background = error ? '#b42318' : '#172033'; toast.textContent = message; toast.hidden = false; window.setTimeout(() => { if (toast) toast.hidden = true }, 2600) }
-const graphScheduleLocalNotification = async (title = 'Reminder', body = '', delayMs = '0') => { const delay = Math.min(604800000, Math.max(0, Number(delayMs) || 0)), native = (window as typeof window & { frontendEditorLocalNotification?: (title: string, body: string, delayMs: number) => Promise<void> }).frontendEditorLocalNotification; if (native) return native(title, body, delay); if (!('Notification' in window)) throw new Error('Notifications are not available on this device'); const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission; if (permission !== 'granted') throw new Error('Notification permission was not granted'); window.setTimeout(() => new Notification(title, { body }), delay) }
-const graphPrepareFile = (value: unknown, maxMb = '2', accept = '') => new Promise<{ name: string; type: string; size: number; dataUrl: string }>((resolve, reject) => { if (!(value instanceof File)) return reject(new Error('Choose a file')); const limit = Math.min(10, Math.max(1, Number(maxMb) || 2)) * 1024 * 1024; if (value.size > limit) return reject(new Error('The file exceeds the ' + Math.round(limit / 1024 / 1024) + ' MB limit')); const allowed = accept.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean); const extension = '.' + (value.name.split('.').pop() || '').toLowerCase(), mime = value.type.toLowerCase(); if (allowed.length && !allowed.some((item) => item === extension || item === mime || (item.endsWith('/*') && mime.startsWith(item.slice(0, -1))))) return reject(new Error('This file type is not allowed')); const reader = new FileReader(); reader.onerror = () => reject(new Error('The file could not be read')); reader.onload = () => resolve({ name: value.name, type: value.type, size: value.size, dataUrl: String(reader.result || '') }); reader.readAsDataURL(value) })
-async function runGraph(flowId: string, input: unknown = '', ancestry: string[] = []): Promise<unknown> {
-  if (ancestry.includes(flowId)) throw new Error('Reusable flow cycle: ' + [...ancestry, flowId].join(' → ')); if (ancestry.length >= 20) throw new Error('Reusable flows exceeded the maximum depth of 20')
-  const flow = graphFlows.find((item) => item.id === flowId); if (!flow) throw new Error('Flow non trovato')
-  const nodes = new Map(flow.nodes.map((node) => [node.id, node])); let node: GraphNode | undefined = flow.nodes.find((item) => item.type === 'event'), value = input, path = 'success', steps = 0; const visited = new Map<string, number>(), loops = new Map<string, { items: unknown[]; index: number }>()
-  while (node) { if (++steps > 1000) throw new Error('Il flow ha superato il limite di 1000 passaggi'); const current: GraphNode = node, count = (visited.get(current.id) ?? 0) + 1; visited.set(current.id, count); if (count > 1 && loops.size === 0) throw new Error('Loop non controllato al nodo ' + current.label)
-    try {
-      if (current.type === 'readInput') value = (graphElement(current.config.componentId) as HTMLInputElement | null)?.value ?? input
-      if (current.type === 'validate') { const actual = current.config.field ? graphField(value, current.config.field) : value, rule = current.config.rule || 'required', expected = current.config.value || ''; const valid = rule === 'required' ? actual !== undefined && actual !== null && String(actual).trim() !== '' : rule === 'email' ? /^\\S+@\\S+\\.\\S+$/.test(String(actual ?? '')) : rule === 'minLength' ? String(actual ?? '').length >= Math.max(0, Number(expected) || 0) : rule === 'min' ? Number(actual) >= Number(expected) : rule === 'max' ? Number(actual) <= Number(expected) : false; if (!valid) throw new Error(current.config.message || 'The value is not valid') }
-      let condition = current.type === 'condition' ? graphMatches(value, current.config.field, current.config.operator, current.config.value) : true
-      if (current.type === 'requestPermission') { const granted = await requestNativePermission(current.config.permission, current.config.rationale); value = { permission: current.config.permission, granted }; condition = granted }
-      if (current.type === 'platformCondition') { const info = await getPlatformInfo(); condition = graphPlatformMatches(info, current.config.platform, current.config.minVersion, current.config.maxVersion); value = { ...info, matches: condition } }
-      const switchValue = current.type === 'switch' ? String(current.config.field ? graphField(value, current.config.field) ?? '' : value ?? '') : '', switchMatch = current.type === 'switch' ? (current.config.cases || '').split(',').map((item) => item.trim()).filter(Boolean).find((item) => item === switchValue) : undefined
-      let loopPath: string | undefined
-      if (current.type === 'loop') { let state = loops.get(current.id); if (!state) { if (!Array.isArray(value)) throw new Error('Il ciclo richiede un elenco'); const limit = Math.min(100, Math.max(1, Number(current.config.max) || 100)); if (value.length > limit) throw new Error('Il ciclo supera il limite di ' + limit + ' elementi'); state = { items: value, index: 0 }; loops.set(current.id, state) } else state.index += 1; if (state.index < state.items.length) { value = state.items[state.index]; loopPath = 'each' } else { value = state.items; loops.delete(current.id); loopPath = 'done' } }
-      if (current.type === 'getState') value = graphState[current.config.key || '']
-      if (current.type === 'setState') graphState[current.config.key || ''] = value
-      if (current.type === 'resetState') { delete graphState[current.config.key || '']; value = undefined }
-      if (current.type === 'delay') await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(current.config.ms) || 0))))
-      if (current.type === 'debounce') { const key = flow.id + ':' + current.id, version = (graphDebounce.get(key) ?? 0) + 1; graphDebounce.set(key, version); await new Promise((resolve) => setTimeout(resolve, Math.min(10000, Math.max(0, Number(current.config.ms) || 0)))); if (graphDebounce.get(key) !== version) return }
-      if (current.type === 'format') value = (current.config.template || '{{value}}').replaceAll('{{value}}', String(value ?? ''))
-      if (current.type === 'map') { if (!Array.isArray(value)) throw new Error('Il nodo trasformazione richiede un elenco'); value = value.map((item) => (current.config.template || '{{value}}').replaceAll('{{value}}', String(current.config.field ? graphField(item, current.config.field) ?? '' : item ?? ''))) }
-      if (current.type === 'http') { const url = new URL(current.config.url); if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Usa un indirizzo API HTTP o HTTPS'); const method = current.config.method || 'GET', body = ['GET', 'DELETE'].includes(method) ? undefined : (current.config.body || '{{value}}').replaceAll('{{value}}', typeof value === 'string' ? value : JSON.stringify(value)); const response = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : undefined, body }); if (!response.ok) throw new Error('API non disponibile (' + response.status + ')'); value = response.status === 204 ? undefined : response.headers.get('content-type')?.includes('json') ? await response.json() : await response.text() }
-      if (current.type === 'file') value = await graphPrepareFile(value, current.config.maxMb, current.config.accept)
-      if (current.type === 'requireRole') { const role = graphRole(); let allowed; try { const parsed = JSON.parse(current.config.roles || 'admin'); allowed = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)] } catch { allowed = (current.config.roles || 'admin').split(',') } allowed = allowed.map((item) => item.trim()).filter(Boolean); if (!allowed.includes(role)) throw new Error(current.config.message || 'You do not have permission for this action'); value = { role, allowed: true } }
-      if (current.type === 'signOut') graphSignOut()
-      if (current.type === 'insert') { const next = typeof value === 'string' ? value.trim() : value; await graphInsert(next, current.config.sourceId); value = next }
-      if (current.type === 'query') { const previous = value, records = await graphQuery(current.config.sourceId); if (current.config.mode === 'one') { const configured = current.config.id || '{{value}}', id = configured === '{{value}}' ? (previous && typeof previous === 'object' ? graphField(previous, current.config.field || 'id') : previous) : configured; if (id === undefined || id === null || String(id).trim() === '') throw new Error('Indica l’ID del record da caricare'); const record = records.find((item) => String(graphField(item, 'id') ?? '') === String(id)); if (!record) throw new Error('Record ' + String(id) + ' non trovato'); value = record } else value = records }
-      if (current.type === 'update') value = await graphUpdate(value, current.config.sourceId)
-      if (current.type === 'delete') { await graphRemove(value, current.config.sourceId); value = undefined }
-      if (current.type === 'filter') { if (!Array.isArray(value)) throw new Error('Il nodo filtro richiede un elenco'); const needle = (current.config.value || '').toLowerCase(); value = value.filter((item) => String(graphField(item, current.config.field) ?? '').toLowerCase().includes(needle)) }
-      if (current.type === 'sort') { if (!Array.isArray(value)) throw new Error('Il nodo ordinamento richiede un elenco'); value = [...value].sort((a, b) => String(graphField(a, current.config.field) ?? '').localeCompare(String(graphField(b, current.config.field) ?? '')) * (current.config.direction === 'desc' ? -1 : 1)) }
-      if (current.type === 'kpi') { if (!Array.isArray(value)) throw new Error('Il nodo KPI richiede un elenco'); const values = value.map((item) => Number(graphField(item, current.config.field))).filter(Number.isFinite); value = current.config.operation === 'sum' ? values.reduce((a, b) => a + b, 0) : current.config.operation === 'average' ? (values.reduce((a, b) => a + b, 0) / (values.length || 1)) : value.length }
-      if (current.type === 'module') { const runner = extensionRunners[current.config.moduleId]; if (!runner) throw new Error('Module not found'); value = runner(value as never) }
-      if (current.type === 'refresh') await graphRefresh(current.config.componentId)
-      if (current.type === 'navigate') graphNavigate(current.config.mode, current.config.path)
-      if (current.type === 'openModal') { const element = graphElement(current.config.componentId); if (current.config.operation === 'close') element?.setAttribute('hidden', ''); else element?.removeAttribute('hidden') }
-      if (current.type === 'updateUI') { const element = graphElement(current.config.componentId) as (HTMLElement & { value?: string; disabled?: boolean }) | null, operation = current.config.operation || 'show', next = current.config.value || ''; if (!element) throw new Error('Item da cambiare non trovato'); if (operation === 'show') element.hidden = false; if (operation === 'hide') element.hidden = true; if (operation === 'enable') element.disabled = false; if (operation === 'disable') element.disabled = true; if (operation === 'text') element.textContent = next; if (operation === 'value') element.value = next; if (['background', 'color', 'opacity'].includes(operation)) element.style[operation as 'background' | 'color' | 'opacity'] = next }
-      if (current.type === 'notify') graphNotify(current.config.message || String(value))
-      if (current.type === 'localNotification') await graphScheduleLocalNotification(current.config.title, current.config.body || String(value ?? ''), current.config.delayMs)
-      if (current.type === 'nativeAction') value = await runNativeAction(current.config.capability, current.config.action, value, current.config)
-      if (current.type === 'runFlow') value = await runGraph(current.config.flowId, value, [...ancestry, flowId])
-      if (current.type === 'log') console.debug(current.config.message || current.label, value)
-      path = loopPath ?? (current.type === 'switch' ? (switchMatch ? 'case:' + switchMatch : 'error') : condition ? 'success' : 'error')
-    } catch (error) { path = 'error'; graphNotify('Error: ' + (error instanceof Error ? error.message : String(error)), true); if (ancestry.length) throw error }
-    const edge = flow.edges.find((item) => item.source === current.id && item.path === path); node = edge ? nodes.get(edge.target) : undefined
-  }
-  return value
-}
-${bindings.map((binding) => `{ const element = graphElement(${JSON.stringify(binding.componentId)}); const run = (event: Event) => { event.preventDefault(); const target = event.target as HTMLInputElement, gesture = (event as CustomEvent).detail?.kyroGesture ? (event as CustomEvent).detail : undefined; const input = gesture ?? (event.type === 'submit' && event.currentTarget instanceof HTMLFormElement ? Object.fromEntries(new FormData(event.currentTarget)) : target?.type === 'file' ? target.files?.[0] : target?.value ?? ''); void runGraph(${JSON.stringify(binding.flowId)}, input) }; graphListen(element, ${JSON.stringify(binding.event)}, run); ${binding.event === "submit" ? `if (element instanceof HTMLFormElement) element.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); void runGraph(${JSON.stringify(binding.flowId)}, Object.fromEntries(new FormData(element))) }))` : ""} }`).join("\n")}
-const graphPath = () => decodeURIComponent(location.hash.slice(1) || ${JSON.stringify(project.pages[0]?.path ?? "/")})
-const graphPageMatches = (pagePath?: string) => !pagePath || graphPath() === pagePath
-const graphRunPageLoads = () => { ${automatic.filter((item) => item.trigger === "pageLoad").map((item) => `if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)})`).join("; ")} }
-graphRunPageLoads()
-addEventListener('hashchange', graphRunPageLoads)
-${automatic.filter((item) => item.trigger === "timer").map((item) => `setInterval(() => { if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)}) }, ${item.interval})`).join("\n")}
-${automatic.filter((item) => item.trigger === "online" || item.trigger === "offline").map((item) => `addEventListener(${JSON.stringify(item.trigger)}, () => { if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)}) })`).join("\n")}
-${automatic.filter((item) => item.trigger === "pageVisible" || item.trigger === "pageHidden").map((item) => `document.addEventListener('visibilitychange', () => { if (graphPageMatches(${JSON.stringify(item.pagePath)}) && (${JSON.stringify(item.trigger)} === 'pageVisible') === !document.hidden) void runGraph(${JSON.stringify(item.flowId)}) })`).join("\n")}
-${automatic.filter((item) => item.trigger === "deepLink").map((item) => `addEventListener('kyroDeepLink', (event) => { if (graphPageMatches(${JSON.stringify(item.pagePath)})) void runGraph(${JSON.stringify(item.flowId)}, (event as CustomEvent).detail) })`).join("\n")}
-${automatic.filter((item) => item.trigger === "deviceShake").map((item, index) => `{ let graphLastShake${index} = 0; addEventListener('devicemotion', (event) => { const value = event.accelerationIncludingGravity, strength = Math.abs(value?.x ?? 0) + Math.abs(value?.y ?? 0) + Math.abs(value?.z ?? 0); if (strength > 28 && Date.now() - graphLastShake${index} > 1200 && graphPageMatches(${JSON.stringify(item.pagePath)})) { graphLastShake${index} = Date.now(); void runGraph(${JSON.stringify(item.flowId)}, { x: value?.x, y: value?.y, z: value?.z }) } }) }`).join("\n")}`;
 }
 
 export async function downloadGeneratedApp(project: Project) {

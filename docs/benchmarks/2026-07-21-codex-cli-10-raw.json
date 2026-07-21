@@ -1,0 +1,165 @@
+﻿{
+    "protocol":  "Kyro vs Codex CLI â€” 10 cumulative Evaluation Prompts",
+    "results":  [
+                    {
+                        "id":  "primary-button",
+                        "prompt":  "Select the save button. Make the selected component the page\u0027s primary button. Change its text to \"Create Task\", apply a clearly visible blue style, and preserve its existing ID, actions, and flow connections. Verify the result in both desktop and mobile Preview.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  17042,
+                        "usage":  {
+                                      "inputTokens":  40956,
+                                      "cachedInputTokens":  34048,
+                                      "outputTokens":  477,
+                                      "totalTokens":  41433
+                                  },
+                        "commandExecutions":  6,
+                        "projectFileCount":  11,
+                        "result":  "I canÔÇÖt modify or verify the Kyro project because the required Kyro live-context tools (`kyro_get_context` and `kyro_apply_verified_transaction`) arenÔÇÖt available in this session. I stopped without changing files, so the buttonÔÇÖs ID, actions, and flow connections remain untouched.\n\nPlease open/reconnect the project in a Kyro-enabled session, then repeat the request."
+                    },
+                    {
+                        "id":  "form-card",
+                        "prompt":  "Select the form card. Improve the visual hierarchy of the selected card: set a maximum width of 640 px, center it, increase its internal spacing, add rounded corners, and apply a subtle shadow. Do not modify the internal components or the form logic. Verify that, on mobile, it uses the full available width with appropriate margins.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  26400,
+                        "usage":  {
+                                      "inputTokens":  55689,
+                                      "cachedInputTokens":  38912,
+                                      "outputTokens":  567,
+                                      "totalTokens":  56256
+                                  },
+                        "commandExecutions":  6,
+                        "projectFileCount":  11,
+                        "result":  "I canÔÇÖt modify the selected card because the required Kyro live-project tools arenÔÇÖt available in this session. Those tools are necessary to identify the selected component by stable ID, apply one verified styling transaction, and inspect desktop/mobile previews safely.\n\nNo project files or form logic were changed. Reconnect/open the project with the Kyro connector enabled, then rerun this request."
+                    },
+                    {
+                        "id":  "validation",
+                        "prompt":  "Select the title field. Make the selected field required. Accept values between 3 and 80 characters, display an accessible message when the value is invalid, and prevent saving until validation passes. Keep the data source unchanged.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  22744,
+                        "usage":  {
+                                      "inputTokens":  57917,
+                                      "cachedInputTokens":  44032,
+                                      "outputTokens":  472,
+                                      "totalTokens":  58389
+                                  },
+                        "commandExecutions":  2,
+                        "projectFileCount":  11,
+                        "result":  "I couldnÔÇÖt apply the change because the Kyro live-context and verified-transaction tools arenÔÇÖt available in this session. The workspace is also read-only, so I canÔÇÖt safely modify the project files as a fallback.\n\nNo changes were made; the data source remains unchanged."
+                    },
+                    {
+                        "id":  "data-evolution",
+                        "prompt":  "Select the `tasks` data source. Add an optional date field named `dueDate` to the selected data source. Add the corresponding control to the creation form and display the due date in the list only when it is present. Preserve all existing records and update both Preview and export.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  35973,
+                        "usage":  {
+                                      "inputTokens":  90136,
+                                      "cachedInputTokens":  65536,
+                                      "outputTokens":  761,
+                                      "totalTokens":  90897
+                                  },
+                        "commandExecutions":  2,
+                        "projectFileCount":  11,
+                        "result":  "I couldnÔÇÖt apply the change because the active Kyro graph interface is unavailable in this session. The required `kyro_get_context` and verified-transaction tools arenÔÇÖt connected, and the workspace is read-only.\n\nNo records or project files were changed. Open/connect the project in Kyro and retry; then I can update the `tasks` schema, form, conditional list display, Preview, and export atomically."
+                    },
+                    {
+                        "id":  "complete-flow",
+                        "prompt":  "Select the \"Create Task\" button. Create a flow for the selected component that reads the form values, validates them, inserts the record into the `tasks` data source, refreshes the list, and displays a confirmation message. If an error occurs, show an accessible error message without clearing the entered data. Reuse any existing nodes or flows where possible.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  27604,
+                        "usage":  {
+                                      "inputTokens":  81882,
+                                      "cachedInputTokens":  63232,
+                                      "outputTokens":  659,
+                                      "totalTokens":  82541
+                                  },
+                        "commandExecutions":  2,
+                        "projectFileCount":  11,
+                        "result":  "I couldnÔÇÖt apply the flow because the required Kyro live-project tools (`kyro_get_context` and `kyro_apply_verified_transaction`) arenÔÇÖt available in this session. The workspace is also read-only, so I canÔÇÖt safely modify project files as a fallback.\n\nOpen/connect the project in Kyro with its project bridge enabled, keep ÔÇ£Create TaskÔÇØ selected, and retry the request."
+                    },
+                    {
+                        "id":  "dependency-fix",
+                        "prompt":  "Intentionally introduce an issue: the list does not refresh after saving. Then select the list. After a task is created, the selected component does not display the new record until the page is reopened. Identify the root cause in the connected flow or bindings, correct it at the most appropriate shared point, and verify that saving, refreshing, and persistence work without regressions.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  29148,
+                        "usage":  {
+                                      "inputTokens":  81043,
+                                      "cachedInputTokens":  60160,
+                                      "outputTokens":  772,
+                                      "totalTokens":  81815
+                                  },
+                        "commandExecutions":  8,
+                        "projectFileCount":  11,
+                        "result":  "IÔÇÖm blocked because the required Kyro graph tools (`kyro_get_context` and `kyro_apply_verified_transaction`) arenÔÇÖt available in this session. The workspace is also read-only, so I canÔÇÖt safely inspect or modify the project through files.\n\nPlease open the project in Kyro with its MCP/visual-editing connection enabled, keep the affected list selected, and rerun the request. IÔÇÖll then trace the save flow, repair the shared refresh/binding point, and verify save, immediate list refresh, and persistence after reopening."
+                    },
+                    {
+                        "id":  "flow-refactor",
+                        "prompt":  "Select the save flow. The selected flow contains steps that may be duplicated or unnecessary. Simplify it while preserving validation, insertion, refresh, confirmation, and error handling exactly as they currently behave. Do not change any visible behavior. Before applying the modification, clearly show which nodes will be removed or reused.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  23450,
+                        "usage":  {
+                                      "inputTokens":  54839,
+                                      "cachedInputTokens":  47104,
+                                      "outputTokens":  549,
+                                      "totalTokens":  55388
+                                  },
+                        "commandExecutions":  2,
+                        "projectFileCount":  11,
+                        "result":  "I canÔÇÖt safely inspect or modify the selected save flow because the required Kyro live-context tools (`kyro_get_context` and `kyro_apply_verified_transaction`) arenÔÇÖt available in this session.\n\nNo nodes were removed or changed. Enable the Kyro tool connection, then I can:\n\n1. Show the exact nodes to remove and reuse.\n2. Preserve validation, insertion, refresh, confirmation, and error paths.\n3. Apply one verified transaction and report the resulting revision and preview validation."
+                    },
+                    {
+                        "id":  "accessibility",
+                        "prompt":  "Select the form. Perform an accessibility review of the selected form and the components it depends on. Correct missing labels, tab order, focus behavior after errors, status messages, and insufficient contrast. Do not change the design more than necessary. Verify the entire workflow using only the keyboard.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  22155,
+                        "usage":  {
+                                      "inputTokens":  83001,
+                                      "cachedInputTokens":  65536,
+                                      "outputTokens":  649,
+                                      "totalTokens":  83650
+                                  },
+                        "commandExecutions":  8,
+                        "projectFileCount":  11,
+                        "result":  "I couldnÔÇÖt access the active Kyro project: the required `kyro_get_context` and verified-transaction tools arenÔÇÖt available in this session. No changes were made, and I canÔÇÖt truthfully verify keyboard navigation without the live preview.\n\nPlease reopen this request with the Kyro editor connector enabled and the form selected."
+                    },
+                    {
+                        "id":  "pdf-capability",
+                        "prompt":  "Select the task detail card. Add an \"Export Summary as PDF\" action for the displayed task. If Kyro does not already provide the required capability, propose a reusable, versioned capability that defines its inputs, outputs, dependencies, permissions, error conditions, and tests. Do not install packages or activate services without explicit approval.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  39675,
+                        "usage":  {
+                                      "inputTokens":  84940,
+                                      "cachedInputTokens":  66304,
+                                      "outputTokens":  1078,
+                                      "totalTokens":  86018
+                                  },
+                        "commandExecutions":  4,
+                        "projectFileCount":  11,
+                        "result":  "I couldnÔÇÖt modify the Kyro project because the required live-editor operations (`kyro_get_context`, `kyro_resolve_capability`, and verified transaction apply) are unavailable in this session. Therefore, I could not safely select the task detail card, determine whether native PDF export exists, or apply an action against stable component IDs.\n\nNo packages were installed, no services activated, and no project files changed.\n\nIf Kyro confirms that PDF export is missing, I propose this inactive global capability draft:\n\n- Name/version: `document.exportPdf@1.0.0`\n- Scope: reusable, global Kyro action\n- Inputs: task summary data, document title, optional filename, locale, page size, branding/theme\n- Outputs: PDF bytes/blob, filename, MIME type, page count\n- Dependencies: a pinned, reviewed PDF renderer only if browser-native printing is insufficient\n- Permissions: file download/save; no network, storage, or task mutation permission by default\n- Errors: invalid input, rendering failure, unsupported content/font, permission denied, cancellation, insufficient memory, file-save failure\n- Tests: valid task export, missing optional fields, multiline/unicode content, long paginated summary, invalid input, cancellation, denied permission, renderer failure, filename sanitization, and PDF signature/MIME validation\n- Activation gate: explicit approval of the exact implementation and any dependency, followed by successful tests and preview verification\n\nThis proposal remains unregistered and inactive pending capability inspection and approval."
+                    },
+                    {
+                        "id":  "dashboard-filter-export",
+                        "prompt":  "Select the project or the Dashboard page. Add a status and priority filter to the Dashboard, a counter showing the number of visible tasks, and an empty state for cases where no records match the filters. Reuse the existing data source and components. Verify desktop and mobile behavior, persistence, accessibility, Preview, and Web export. Present a concise plan first, then apply everything as a single undoable modification.",
+                        "success":  true,
+                        "exitCode":  0,
+                        "elapsedMs":  30465,
+                        "usage":  {
+                                      "inputTokens":  126099,
+                                      "cachedInputTokens":  93696,
+                                      "outputTokens":  1082,
+                                      "totalTokens":  127181
+                                  },
+                        "commandExecutions":  12,
+                        "projectFileCount":  11,
+                        "result":  "I couldnÔÇÖt apply the modification because the required Kyro live-graph tools (`kyro_get_context` and `kyro_apply_verified_transaction`) are unavailable in this session. Per the Kyro workflow, I did not edit project files directly or make a partial, non-undoable change.\n\nNo project changes were made. Reconnect/open the project in a Kyro-enabled session, then rerun this request."
+                    }
+                ]
+}

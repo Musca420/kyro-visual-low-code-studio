@@ -58,6 +58,12 @@ describe('project model', () => {
     project.pages.push({ id: crypto.randomUUID(), name: 'Home', path: '/', components: [component] })
     expect(() => parseProject(project)).toThrow('Missing flow missing-flow')
   })
+  it('rejects duplicate flow IDs', () => {
+    const project = createProject('Duplicate flows')
+    const flow = { id: 'same', name: 'Flow', nodes: [], edges: [] }
+    project.flows.push(flow, { ...flow, name: 'Other flow' })
+    expect(() => parseProject(project)).toThrow('Duplicate flow ID')
+  })
 
   it('rejects unknown format versions safely', () => {
     expect(() => parseProject({ formatVersion: 99 })).toThrow('Versione progetto non supportata: 99')

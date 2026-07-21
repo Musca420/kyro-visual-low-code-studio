@@ -159,6 +159,16 @@ export const containerTypes = [
   "reusable",
 ] as const;
 
+export const componentIntentSchema = z.object({
+  role: z.string().default(""),
+  action: z.string().default(""),
+  entity: z.string().default(""),
+  expectedResult: z.string().default(""),
+  requiredStates: z.array(z.enum(["loading", "success", "error"])).default([]),
+  permissions: z.array(z.string()).default([]),
+  capabilityIds: z.array(z.string()).optional(),
+});
+
 export const componentSchema = z.object({
   id: z.string().min(1),
   type: z.enum(componentTypes),
@@ -186,18 +196,7 @@ export const componentSchema = z.object({
     })
     .optional(),
   accessibility: z.object({ label: z.string(), role: z.string().optional() }),
-  intent: z
-    .object({
-      role: z.string().default(""),
-      action: z.string().default(""),
-      entity: z.string().default(""),
-      expectedResult: z.string().default(""),
-      requiredStates: z
-        .array(z.enum(["loading", "success", "error"]))
-        .default([]),
-      permissions: z.array(z.string()).default([]),
-      capabilityIds: z.array(z.string()).optional(),
-    })
+  intent: componentIntentSchema
     .default({
       role: "",
       action: "",
@@ -261,9 +260,11 @@ export const flowNodeTypes = [
   "module",
   "log",
 ] as const;
+
+export const dataFieldTypes = ["string", "number", "boolean", "datetime"] as const;
 const nodeTypeSchema = z.enum(flowNodeTypes);
 
-const nodeSchema = z.object({
+export const flowNodeSchema = z.object({
   id: z.string(),
   type: nodeTypeSchema,
   label: z.string(),
@@ -271,11 +272,18 @@ const nodeSchema = z.object({
   config: z.record(z.string(), z.string()),
 });
 
-const edgeSchema = z.object({
+export const flowEdgeSchema = z.object({
   id: z.string(),
   source: z.string(),
   target: z.string(),
   path: z.string().min(1).default("success"),
+});
+
+export const flowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  nodes: z.array(flowNodeSchema),
+  edges: z.array(flowEdgeSchema),
 });
 
 export const pluginContributionSchema = z.discriminatedUnion("kind", [
@@ -363,14 +371,7 @@ export const projectSchema = z.object({
     }),
   ),
   reusableComponents: z.array(reusableComponentSchema).default([]),
-  flows: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      nodes: z.array(nodeSchema),
-      edges: z.array(edgeSchema),
-    }),
-  ),
+  flows: z.array(flowSchema),
   flowRuns: z.array(z.object({
     id: z.string(),
     flowId: z.string(),
@@ -390,13 +391,13 @@ export const projectSchema = z.object({
       name: z.string(),
       provider: z.enum(["indexeddb", "rest", "generated"]),
       collection: z.string(),
-      schema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
+      schema: z.record(z.string(), z.enum(dataFieldTypes)),
       schemaVersion: z.number().int().positive().default(1).optional(),
       migrations: z.array(z.object({
         version: z.number().int().positive(),
         createdAt: z.string().datetime(),
-        previousSchema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
-        nextSchema: z.record(z.string(), z.enum(["string", "number", "boolean", "datetime"])),
+        previousSchema: z.record(z.string(), z.enum(dataFieldTypes)),
+        nextSchema: z.record(z.string(), z.enum(dataFieldTypes)),
       })).default([]).optional(),
       relations: z.array(z.object({
         id: z.string(),
@@ -532,8 +533,8 @@ export type FlowNode = Flow["nodes"][number];
 const baseStyle = {
   width: "100%",
   minHeight: "44px",
-  color: "#172033",
-  background: "#ffffff",
+  color: "var(--kyro-text, #172033)",
+  background: "var(--kyro-surface, #ffffff)",
   borderRadius: "10px",
   padding: "12px",
   fontSize: "16px",
@@ -566,7 +567,7 @@ export function makeComponent(type: EditorComponent["type"]): EditorComponent {
       label: label[type] ?? type,
       placeholder: type === "input" ? "Type something…" : "",
     },
-    styles: { desktop: { ...baseStyle, ...layout }, tablet: {}, mobile: { fontSize: "15px" } },
+    styles: { desktop: { ...baseStyle, ...(type === "button" ? { background: "var(--kyro-primary, #6d5dfc)", color: "#ffffff" } : {}), ...layout }, tablet: {}, mobile: { fontSize: "15px" } },
     events: {},
     accessibility: { label: label[type] ?? type },
   });
@@ -670,6 +671,7 @@ export function validateReferences(project: Project) {
     ),
   );
   const flowIds = new Set(project.flows.map((flow) => flow.id));
+  if (flowIds.size !== project.flows.length) throw new Error("Duplicate flow ID");
   const sourceIds = new Set(project.dataSources.map((source) => source.id));
   const moduleIds = new Set(project.codeModules.map((module) => module.id));
   for (const definition of project.reusableComponents) {

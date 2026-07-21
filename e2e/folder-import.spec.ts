@@ -50,10 +50,11 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   await expect(page.locator(".import-source-banner")).toContainText(
     "complete Kyro model was restored",
   );
-  await expect(page.getByText("Titolo", { exact: true }).first()).toBeVisible();
-
-  await page.getByTestId("component-title").click();
+  const importedHeading = "Imported Android project";
+  await expect(page.getByTestId("component-hero")).toBeVisible();
+  await page.getByTestId("component-hero").click();
   const inspector = page.locator(".right-panel");
+  await inspector.getByLabel("Text or label").fill(importedHeading);
   await inspector.getByRole("button", { name: "Advanced" }).click();
   await inspector.getByText("Effects and animations").click();
   await inspector
@@ -63,7 +64,7 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   await inspector.getByLabel("Background value", { exact: true }).fill("#fff1cc");
   await page.getByRole("button", { name: "Preview" }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');
-  await expect(preview.getByRole("heading", { name: "Titolo" })).toBeVisible();
+  await expect(preview.getByText(importedHeading, { exact: true })).toBeVisible();
   await page.screenshot({
     path: "artifacts/imported-android-app.png",
     fullPage: true,
@@ -86,6 +87,6 @@ test("importa la sorgente dell'app Android e continua visualmente", async ({
   await expect(
     page
       .frameLocator('iframe[title="Preview isolata"]')
-      .getByRole("heading", { name: "Titolo" }),
+      .getByText(importedHeading, { exact: true }),
   ).toBeVisible();
 });

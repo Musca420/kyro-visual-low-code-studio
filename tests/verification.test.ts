@@ -78,4 +78,34 @@ describe("Transaction Verification", () => {
     expect(persistedRevision).toBe(0);
     expect(records.get(mutation.transactionId)).toMatchObject({ status: "failed", verification: { status: "failed" } });
   });
+
+  it("rejects a visual operation that changes no rendered property", async () => {
+    const before = projectWithPage();
+    const noOp = changed(before, "set_theme_token", { token: "unusedInternalToken", value: "value" });
+    const report = await verifyProjectTransaction(before, noOp.after, noOp.transaction.operations);
+    expect(report.status).toBe("failed");
+    expect(report.stages.find((stage) => stage.name === "visual")?.detail).toContain("no observable render change");
+  });
+
+  it("accepts a visible layer rename and keeps flow-only changes out of visual verification", async () => {
+    const before = projectWithPage();
+    const renamed = changed(before, "set_component_property", {
+      componentId: before.pages[0].components[0].id, property: "name", value: "Hero title",
+    });
+    expect((await verifyProjectTransaction(before, renamed.after, renamed.transaction.operations)).status).toBe("verified");
+
+    const flow = changed(before, "add_flow", { flowId: "flow", name: "Flow" });
+    const report = await verifyProjectTransaction(before, flow.after, flow.transaction.operations);
+    expect(report.effects).toEqual(["graph", "runtime", "behavior"]);
+    expect(report.stages.find((stage) => stage.name === "visual")?.status).toBe("skipped");
+  });
+
+  it("observes component events and intent shown by the editor", async () => {
+    const before = changed(projectWithPage(), "add_flow", { flowId: "flow", name: "Flow" }).after;
+    const component = before.pages[0].components[0];
+    const after = changed(before, "set_page_components", {
+      components: [{ ...component, events: { click: "flow" }, intent: { ...component.intent, expectedResult: "Open details" } }],
+    });
+    expect((await verifyProjectTransaction(before, after.after, after.transaction.operations)).status).toBe("verified");
+  });
 });

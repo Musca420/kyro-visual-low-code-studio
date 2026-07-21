@@ -1,49 +1,88 @@
 import { describe, expect, it } from "vitest";
-import { resolveCapability } from "../src/capabilityResolver";
+import { proposalCoversCapabilityGap, resolveCapability } from "../src/capabilityResolver";
 import { createGlobalCapabilityVersion, transitionGlobalCapability } from "../src/globalCapability";
 
 describe("Kyro capability resolver", () => {
-  it("keeps Codex in charge and composes registered graph operations", () => {
-    const result = resolveCapability({ request: "Save this form", domains: ["actions", "data"] });
-    expect(result.codexRequired).toBe(false);
-    expect(result.strategy).toBe("compose_visual_graph");
-    expect(result.registeredOperations).toContain("add_flow_node");
-    expect(result.registeredOperations).toContain("create_data_source");
-    expect(result.fallback.doesNotBlockOnMissingSkill).toBe(true);
+  it("returns unknown without typed requirements instead of guessing from words", () => {
+    expect(resolveCapability({ request: "Change a button", targetPlatforms: ["web"] }).status).toBe("unknown");
+    expect(resolveCapability({ request: "Photograph a comet", targetPlatforms: ["web"] }).status).toBe("unknown");
   });
 
-  it("does not route capabilities from the wording of the request", () => {
-    const context = { domains: ["actions", "data"] };
-    const first = resolveCapability({ ...context, request: "Create a checkout" });
-    const second = resolveCapability({ ...context, request: "Photograph a comet" });
-    expect({ ...first, request: "" }).toEqual({ ...second, request: "" });
+  it("publishes the exact reusable capability proposal contract", () => {
+    const result = resolveCapability({ requirements: [{ kind: "capability", id: "pdf_export" }], targetPlatforms: ["web"] });
+    expect(result.capabilityProposalContract).toMatchObject({
+      type: "object",
+      required: expect.arrayContaining(["scope", "kind", "name", "generalizedIntent", "inputs", "outputs", "permissions", "dependencies", "validationTests", "activation"]),
+      properties: { inputs: { type: "array" }, outputs: { type: "array" }, activation: { enum: ["passing_tests", "explicit_review"] } },
+    });
+    expect(result.registeredEffects).toEqual(["ui", "state", "data", "network", "filesystem", "native", "dependency"]);
   });
 
-  it("turns a pure transformation gap into a tested reusable module candidate", () => {
-    const result = resolveCapability({ request: "Transform records", domains: ["actions"], prefersModule: true });
-    expect(result.strategy).toBe("tested_typed_module");
-    expect(result.learningCandidate).toMatchObject({ kind: "typed_module", activationRequiresPassingTests: true });
+  it("covers only explicitly proposed capability effects", () => {
+    const resolution = resolveCapability({ requirements: [{ kind: "capability", id: "pdf_export" }, { kind: "effect", id: "filesystem" }, { kind: "effect", id: "dependency" }], targetPlatforms: ["web"] });
+    expect(proposalCoversCapabilityGap(resolution, { effects: ["filesystem", "dependency"] })).toBe(true);
+    expect(proposalCoversCapabilityGap(resolution, { effects: ["filesystem"] })).toBe(false);
   });
 
-  it("requires review for external packages and forbids app-specific learning", () => {
-    const result = resolveCapability({ request: "Scan a sensor", domains: ["extensions"], capabilityIds: ["bluetooth.scan"], requiresExternal: true });
-    expect(result.strategy).toBe("reviewed_extension");
-    expect(result.status).toBe("extension_required");
-    expect(result.learningCandidate).toMatchObject({ kind: "plugin", installationRequiresApproval: true, generalizeFromIntent: true });
-    expect(result.learningCandidate.rule).toMatch(/never hard-code/i);
+  it("proves one registered operation", () => {
+    const result = resolveCapability({ requirements: [{ kind: "operation", id: "set_component_style" }], targetPlatforms: ["web"] });
+    expect(result.status).toBe("supported");
+    expect(result.selectedOperations).toEqual(["set_component_style"]);
+    expect(result.operationContracts).toHaveLength(1);
+    expect(result.operationContracts[0]).toMatchObject({
+      name: "set_component_style",
+      args: { required: ["componentId", "property", "value"] },
+    });
+    expect(result.missingRequirements).toEqual([]);
   });
 
-  it("reuses an active global capability across projects", () => {
-    const proposal = { scope: "global" as const, kind: "typed_module" as const, name: "Signed document delivery", generalizedIntent: "Generate and sign PDF documents for delivery", inputs: ["document"], outputs: ["signed document"], permissions: [], dependencies: [], validationTests: ["Signs a document"], activation: "passing_tests" as const, effects: ["data" as const], platforms: ["web" as const] };
-    const draft = createGlobalCapabilityVersion(proposal, { jobId: "job", prompt: "Sign" });
+  it("returns the exact nested intent contract instead of making Codex guess arguments", () => {
+    const result = resolveCapability({ requirements: [{ kind: "operation", id: "set_component_intent" }], targetPlatforms: ["web"] });
+    expect(result.operationContracts[0]).toMatchObject({
+      name: "set_component_intent",
+      args: { required: ["componentId", "intent"] },
+    });
+  });
+
+  it("proves a composition and its declared effect", () => {
+    const result = resolveCapability({ requirements: [{ kind: "operation", id: "add_flow_node" }, { kind: "operation", id: "connect_nodes" }, { kind: "effect", id: "state" }], targetPlatforms: ["web"] });
+    expect(result.status).toBe("composable");
+    expect(result.supportedRequirements).toHaveLength(3);
+  });
+
+  it("reports partial, unsupported and unknown IDs honestly", () => {
+    expect(resolveCapability({ requirements: [{ kind: "operation", id: "set_theme_token" }, { kind: "operation", id: "invented" }], targetPlatforms: ["web"] }).status).toBe("partial");
+    const unsupported = resolveCapability({ requirements: [{ kind: "operation", id: "invented" }], targetPlatforms: ["web"] });
+    expect(unsupported.status).toBe("unsupported");
+    expect(unsupported.missingRequirements[0]).toMatchObject({ id: "invented" });
+    expect(resolveCapability({ requirements: [{ kind: "effect", id: "teleport" }], targetPlatforms: ["web"] }).status).toBe("unsupported");
+  });
+
+  it("blocks a registered operation on an unsupported target platform", () => {
+    const result = resolveCapability({ requirements: [{ kind: "operation", id: "compose_native_action" }], targetPlatforms: ["desktop"] });
+    expect(result.status).toBe("unsupported");
+    expect(result.blockedRequirements[0].reason).toMatch(/desktop/);
+  });
+
+  it("lists destructive confirmations before apply", () => {
+    const result = resolveCapability({ requirements: [{ kind: "operation", id: "remove_component" }], targetPlatforms: ["web"] });
+    expect(result.requiredConfirmations).toEqual(["remove_component"]);
+  });
+
+  it("selects global capabilities only with platform-specific runtime evidence", () => {
+    const proposal = { scope: "global" as const, kind: "typed_module" as const, name: "Normalize records", generalizedIntent: "Normalize records consistently in every project", inputs: ["record"], outputs: ["record"], permissions: [], dependencies: [], validationTests: ["Normalizes a record"], activation: "passing_tests" as const, effects: ["data" as const], platforms: ["web" as const, "android" as const] };
+    const draft = createGlobalCapabilityVersion(proposal, { jobId: "job", prompt: "Normalize" });
     const testing = transitionGlobalCapability(draft, "testing");
-    const implemented = { ...testing, contract: { ...testing.contract, implementation: { ...testing.contract.implementation, reference: "module:sign", status: "verified" as const } } };
+    const implemented = { ...testing, contract: { ...testing.contract, implementation: { ...testing.contract.implementation, reference: "module:normalize", status: "verified" as const } } };
+    const environment = { platform: "web" as const, runtimeVersion: "0.1.0", dependencyVersions: {}, implementationHash: "c".repeat(64) };
     const active = transitionGlobalCapability(implemented, "active", [
-      { id: "test", kind: "test", check: "Signs a document", passed: true, hash: "a".repeat(64), createdAt: new Date().toISOString() },
-      { id: "runtime", kind: "runtime", check: "Runs", passed: true, hash: "b".repeat(64), createdAt: new Date().toISOString() },
+      { id: "test", kind: "test", check: "Normalizes a record", passed: true, hash: "a".repeat(64), ...environment, createdAt: new Date().toISOString() },
+      { id: "runtime", kind: "runtime", check: "Runs", passed: true, hash: "b".repeat(64), ...environment, createdAt: new Date().toISOString() },
     ]);
-    const result = resolveCapability({ request: "Sign a document", capabilityIds: [active.capabilityId] }, { globalCapabilities: [active] });
-    expect(result.strategy).toBe("reuse_global_capability");
-    expect(result.globalCapabilities).toHaveLength(1);
+    const requirement = [{ kind: "capability" as const, id: active.capabilityId }];
+    expect(resolveCapability({ requirements: requirement, targetPlatforms: ["web"] }, { globalCapabilities: [active] }).status).toBe("supported");
+    const android = resolveCapability({ requirements: requirement, targetPlatforms: ["android"] }, { globalCapabilities: [active] });
+    expect(android.status).toBe("unsupported");
+    expect(android.blockedRequirements[0].reason).toMatch(/evidence.*android/i);
   });
 });

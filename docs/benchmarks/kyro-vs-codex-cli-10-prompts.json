@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "title": "Kyro vs Codex CLI — 10 cumulative Evaluation Prompts",
+  "source": "Evaluation Prompts.md",
+  "modelPolicy": "Same locally authenticated Codex CLI and default model; no project-specific user configuration",
+  "sequencePolicy": "Fresh Codex session per prompt; cumulative state within each lane; identical prompt order",
+  "prompts": [
+    {
+      "id": "primary-button",
+      "selection": { "kind": "component", "name": "Save button" },
+      "prompt": "Select the save button. Make the selected component the page's primary button. Change its text to \"Create Task\", apply a clearly visible blue style, and preserve its existing ID, actions, and flow connections. Verify the result in both desktop and mobile Preview.",
+      "acceptance": ["The same button ID remains", "The label is Create Task", "The button is visibly blue", "Existing event and flow references remain valid", "Desktop and mobile Preview render without overflow"]
+    },
+    {
+      "id": "form-card",
+      "selection": { "kind": "component", "name": "Task form card" },
+      "prompt": "Select the form card. Improve the visual hierarchy of the selected card: set a maximum width of 640 px, center it, increase its internal spacing, add rounded corners, and apply a subtle shadow. Do not modify the internal components or the form logic. Verify that, on mobile, it uses the full available width with appropriate margins.",
+      "acceptance": ["Maximum width is 640px", "The form is centered", "Spacing, rounded corners and a subtle shadow are present", "Children and flow references are unchanged", "Mobile uses the available width without overflow"]
+    },
+    {
+      "id": "validation",
+      "selection": { "kind": "component", "name": "Title field" },
+      "prompt": "Select the title field. Make the selected field required. Accept values between 3 and 80 characters, display an accessible message when the value is invalid, and prevent saving until validation passes. Keep the data source unchanged.",
+      "acceptance": ["Title is required", "Length 3 through 80 is enforced", "Invalid input exposes an accessible message", "Save is blocked for invalid input", "Data-source schema is unchanged"]
+    },
+    {
+      "id": "data-evolution",
+      "selection": { "kind": "dependency", "name": "tasks", "fallbackComponent": "Task list" },
+      "prompt": "Select the `tasks` data source. Add an optional date field named `dueDate` to the selected data source. Add the corresponding control to the creation form and display the due date in the list only when it is present. Preserve all existing records and update both Preview and export.",
+      "acceptance": ["tasks has an optional dueDate field", "The creation form contains a due-date control", "The list renders dueDate conditionally", "Existing records remain valid", "Preview and Web export agree"]
+    },
+    {
+      "id": "complete-flow",
+      "selection": { "kind": "component", "name": "Save button" },
+      "prompt": "Select the \"Create Task\" button. Create a flow for the selected component that reads the form values, validates them, inserts the record into the `tasks` data source, refreshes the list, and displays a confirmation message. If an error occurs, show an accessible error message without clearing the entered data. Reuse any existing nodes or flows where possible.",
+      "acceptance": ["One connected flow reads and validates form values", "A valid submit inserts into tasks and refreshes the list", "Success feedback is visible", "Failure feedback is accessible and preserves input", "Existing compatible nodes are reused"]
+    },
+    {
+      "id": "dependency-fix",
+      "selection": { "kind": "component", "name": "Task list" },
+      "prompt": "Intentionally introduce an issue: the list does not refresh after saving. Then select the list. After a task is created, the selected component does not display the new record until the page is reopened. Identify the root cause in the connected flow or bindings, correct it at the most appropriate shared point, and verify that saving, refreshing, and persistence work without regressions.",
+      "acceptance": ["The root cause is identified in a flow or binding", "A created task appears without reopening", "Explicit refresh still works", "The record persists after reopen", "No unrelated visual change is introduced"]
+    },
+    {
+      "id": "flow-refactor",
+      "selection": { "kind": "dependency", "name": "Save task flow", "fallbackComponent": "Save button" },
+      "prompt": "Select the save flow. The selected flow contains steps that may be duplicated or unnecessary. Simplify it while preserving validation, insertion, refresh, confirmation, and error handling exactly as they currently behave. Do not change any visible behavior. Before applying the modification, clearly show which nodes will be removed or reused.",
+      "acceptance": ["The plan names nodes to remove or reuse", "Validation, insertion, refresh, confirmation and error behavior remain", "No visible behavior changes", "No dangling node or edge remains"]
+    },
+    {
+      "id": "accessibility",
+      "selection": { "kind": "component", "name": "Task form card" },
+      "prompt": "Select the form. Perform an accessibility review of the selected form and the components it depends on. Correct missing labels, tab order, focus behavior after errors, status messages, and insufficient contrast. Do not change the design more than necessary. Verify the entire workflow using only the keyboard.",
+      "acceptance": ["Form controls have accessible labels", "Keyboard order follows the visual order", "Invalid submit moves or exposes focus correctly", "Status messages use accessible semantics", "Text and controls meet WCAG AA contrast"]
+    },
+    {
+      "id": "pdf-capability",
+      "selection": { "kind": "component", "name": "Task detail card" },
+      "prompt": "Select the task detail card. Add an \"Export Summary as PDF\" action for the displayed task. If Kyro does not already provide the required capability, propose a reusable, versioned capability that defines its inputs, outputs, dependencies, permissions, error conditions, and tests. Do not install packages or activate services without explicit approval.",
+      "acceptance": ["The action is attached to task detail", "An existing verified capability is reused or an inactive reusable contract is proposed", "Inputs, outputs, dependencies, permissions, errors and tests are explicit", "No package or service is activated without approval"]
+    },
+    {
+      "id": "dashboard-filter-export",
+      "selection": { "kind": "page", "name": "Dashboard", "fallbackComponent": "Dashboard heading" },
+      "prompt": "Select the project or the Dashboard page. Add a status and priority filter to the Dashboard, a counter showing the number of visible tasks, and an empty state for cases where no records match the filters. Reuse the existing data source and components. Verify desktop and mobile behavior, persistence, accessibility, Preview, and Web export. Present a concise plan first, then apply everything as a single undoable modification.",
+      "acceptance": ["Status and priority filters affect visible tasks", "A visible-task counter updates", "A no-match empty state appears", "The existing tasks source is reused", "The change is one undoable transaction and Preview matches Web export"]
+    }
+  ]
+}

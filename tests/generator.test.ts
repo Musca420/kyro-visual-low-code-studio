@@ -60,6 +60,8 @@ describe("web generator", () => {
     expect(source).toContain('"metric":"completed"');
     expect(source).toContain("const renderBoundData");
     expect(source).toContain("No items on this date");
+    expect(source).toContain("record.dueDate ?? record.date");
+    expect(source).toContain("if (dateValue)");
   });
   it("esporta notifiche locali web e Android solo quando il grafo le usa", () => {
     const project = createProject("Reminder app");
@@ -546,6 +548,7 @@ describe("web generator", () => {
     expect(files["src/main.ts"]).toContain("StatusBar.setStyle");
     expect(files["src/main.ts"]).toContain("Capacitor.isNativePlatform()");
     expect(files["src/main.ts"]).toContain("const graphNotify");
+    expect(files["src/main.ts"]).toContain("async function runGraph");
     expect(files["src/main.ts"]).toContain("location.hash.slice(1) || \"/home\"");
     expect(files["src/main.ts"]).toContain("StatusBarStyle.Light");
     expect(files["src/style.css"]).toContain("safe-area-inset-top");

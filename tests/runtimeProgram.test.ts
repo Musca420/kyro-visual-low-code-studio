@@ -49,4 +49,13 @@ describe("immutable runtime program", () => {
     expect(previewRuntimeAdapter.target).toBe("preview");
     expect(exportRuntimeAdapter("android").native).toBe("capacitor");
   });
+
+  it("does not expose a container type placeholder when it wraps content", () => {
+    const card = makeComponent("card");
+    const title = makeComponent("title");
+    title.props.label = "Visible title";
+    const html = runtimeComponentHtml(card, runtimeComponentHtml(title));
+    expect(html).toContain("Visible title");
+    expect(html).not.toContain("<strong>card</strong>");
+  });
 });

@@ -1,5 +1,5 @@
 param(
-  [string]$Output = "artifacts/nexusfield/Kyro-Hackathon-Demo-2m47.mp4",
+  [string]$Output = "artifacts/nexusfield/Kyro-2.1-Hackathon-Demo-2m47-Silent.mp4",
   [string]$NarrationPath = "",
   [switch]$Silent
 )
@@ -62,7 +62,7 @@ $segments += New-VideoSegment "02-design-live" (Join-Path $raw "page@bc357f3cd4c
 $segments += New-StillSegment "03-responsive-result" (Join-Path $shots "25-mobile-core-authored.png") 7
 $segments += New-StillSegment "04-ask-codex" (Join-Path $repo "docs/images/kyro-live-codex-plan.png") 9
 $segments += New-StillSegment "05-capability" (Join-Path $repo "docs/images/kyro-global-capability-draft.png") 10
-$segments += New-StillSegment "06-benchmark" (Join-Path $repo "docs/images/kyro-vs-repository-benchmark.png") 10
+$segments += New-StillSegment "06-benchmark" (Join-Path $repo "docs/images/kyro-benchmark-10-desktop.png") 10
 $segments += New-VideoSegment "07-flow" (Join-Path $raw "page@1ea74b5cd2eb77cc89d024702c15b590.webm") 13.5
 $segments += New-VideoSegment "08-data" (Join-Path $raw "page@0a460d33323f00b988077d4a66775b5d.webm") 16 4
 $segments += New-StillSegment "09-preview-quote" (Join-Path $shots "35-preview-quote.png") 4

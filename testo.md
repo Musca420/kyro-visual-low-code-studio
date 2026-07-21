@@ -1,56 +1,25 @@
-# Kyro demo — voice recording script
+Visual builders are easy to start with, but become limiting when an application needs real behavior. Coding agents are powerful, but they usually see files—not the component, flow, or data source the user is looking at.
 
-Target: **2 minutes 47 seconds**. Speak conversationally, around 125 words per minute. The pauses are intentional; do not rush to fill them.
+Kyro connects these two worlds.
 
-## 00:00–00:16 — The problem
+Kyro is a local-first visual studio for Web, PWA, and Android applications. Pages, components, data, events, flows, native capabilities, and generated files live in one versioned project graph.
 
-Kyro started from a simple frustration. Visual tools are easy until an app needs real behavior, while coding agents spend time rediscovering the project. Kyro joins both in one open visual graph.
+Users can design responsive interfaces, bind data, create visual flows, preview their application, and export it without using AI.
 
-## 00:16–00:53 — Start and Design
+When a request becomes more complex, Ask Codex receives the selected stable component, its page, hierarchy, linked flows, data sources, runtime errors, capabilities, and current graph revision.
 
-I can start from a blank canvas, a template, or an existing folder. In Design, I add real interface elements, organize layers, create columns, resize directly, and control color, typography, spacing, states, animation, and accessibility. Desktop, tablet, and mobile are responsive views of the same editable components. This is not a mock-up. Every element already knows its intent, events, data, dependencies, and generated files.
+Here, I ask Codex to add an optional due date to the task model, update the selected form, display the value in the task list, preserve existing records, and verify desktop and mobile Preview.
 
-## 00:53–01:13 — Ask Codex and a difficult request
+Codex proposes typed graph operations instead of editing arbitrary files. Nothing changes until I review and approve the plan.
 
-Now I select a button and open Ask Codex from the context menu. Kyro sends GPT‑5.6 the stable element, a compact graph slice, connected flows and data, errors, screenshot, and revision. For this PDF, QR code, digital signature, and SMTP request, Codex does not pretend the feature exists. It proposes a reusable global capability with typed inputs, permissions, dependencies, tests, and an explicit review gate.
+Kyro then applies the operations as one atomic transaction, validates the project, persists the next graph revision, and captures visual verification.
 
-## 01:13–01:23 — Measured context advantage
+Manual and AI changes pass through the same Transaction Engine. Codex cannot apply operations outside the approved plan, project, or revision. I can also undo the complete modification and return to the previous verified state.
 
-In matched three-run tests, Kyro planning was just over three times faster and used about ninety-two percent fewer tokens than repository-first Codex CLI. The exact prompts, raw values, and limitations are public in the repository.
+When a request cannot be expressed safely, Kyro does not pretend that the feature exists. For a signed PDF with a QR code and email delivery, Codex proposes a reusable, versioned capability with explicit inputs, outputs, permissions, dependencies, and tests. It remains inactive until implementation, verification, and approval.
 
-## 01:23–01:36 — Flow
+The finished project is not locked inside Kyro. It exports as readable Web and PWA code, or as an Android project through Capacitor, and the generated application runs independently from the editor.
 
-Behavior remains visual. An event enters this Node-RED-style flow, validation branches, data is updated, the interface refreshes, and success and error paths stay visible, traceable, and reusable.
+I used Codex with GPT‑5.6 throughout Build Week to evolve a pre-existing visual-editor prototype into this graph-native system. Codex accelerated architecture, implementation, security review, browser testing, Android validation, and release evidence, while I made the core product and engineering decisions.
 
-## 01:36–01:52 — Data and capability resolution
-
-Data creates local IndexedDB or REST sources, schemas, relationships, permissions, and bindings. If an idea needs a backend, device permission, external provider, or package, the Capability Resolver advises Codex. Nothing is installed, connected, or activated without the required review.
-
-## 01:52–02:08 — Preview
-
-Preview runs the same verified graph used by export. NexusField Web and Mobile were built through Kyro and tested with authentication, role guards, real data mutations, responsive layouts, empty and error states, and offline queue and replay.
-
-## 02:08–02:20 — Publish
-
-Publish generates readable TypeScript and Vite, an offline PWA, or a Capacitor Android project. The result runs independently and remains editable outside Kyro, so there is no platform lock-in.
-
-## 02:20–02:39 — Physical Android result
-
-Here the generated Android app is running on a physical phone. Authentication persists, native camera and notification permissions use the operating system flow, and an offline mutation is queued and synchronized after reconnection. The APK was built and updated with a real Android toolchain.
-
-## 02:39–02:47 — Close
-
-Codex and GPT‑5.6 helped us build, test, visually verify, and deploy Kyro. Kyro gives that same power to visual creators: inspectable, undoable, local-first, and open.
-
-## Recording checklist
-
-- Record in English in a quiet room, ideally as WAV, 48 kHz, mono or stereo.
-- Keep the microphone 15–20 cm away and do one complete natural take.
-- Leave half a second of silence at the beginning and end.
-- Say “Codex” and “GPT‑5.6” clearly; do not replace them with “AI”.
-- No background music is needed.
-- Save the file as `kyro-voice.wav` or `kyro-voice.mp3`; it can be inserted with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-hackathon-video.ps1 -NarrationPath kyro-voice.wav
-```
+Kyro lets visual users keep ownership of their product while giving Codex the exact context and controlled operations it needs to handle complexity.

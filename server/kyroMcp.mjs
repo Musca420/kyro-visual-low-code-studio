@@ -17,13 +17,13 @@ async function json(url, init) {
   return value;
 }
 
-async function status(projectId) { return json(`${base}/api/live/status${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`); }
+async function status(projectId, clientId) { const query = projectId ? `?projectId=${encodeURIComponent(projectId)}${clientId ? `&clientId=${encodeURIComponent(clientId)}` : ""}` : ""; return json(`${base}/api/live/status${query}`); }
 async function authorization() {
   if (!agentToken) throw new Error("Kyro agent authorization is unavailable");
   return json(`${base}/api/agent/authorization`, { headers: { authorization: `Bearer ${agentToken}` } });
 }
 async function authorizedScope() {
-  const permission = await authorization(), live = await status(permission.projectId);
+  const permission = await authorization(), live = await status(permission.projectId, permission.clientId);
   if (permission.projectId !== live.projectId) throw new Error("The active Job is scoped to another Kyro project");
   if (Number(live.revision) < Number(permission.revision) || Number(live.revision) > Number(permission.revision) + 1)
     throw new Error("The active Job authorization is stale for this Graph revision");
@@ -37,7 +37,7 @@ async function audit(name, result, detail = "") {
   });
 }
 async function tool(name, args = {}) {
-  const permission = await authorization(), live = await status(permission.projectId);
+  const permission = await authorization(), live = await status(permission.projectId, permission.clientId);
   let result = await json(`${base}/api/live/tools/${name}`, {
     method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
     body: JSON.stringify({ projectId: live.projectId, pageId: live.pageId, revision: live.revision, args }),
@@ -48,10 +48,10 @@ async function tool(name, args = {}) {
   }
   if (result.status === "pending" || result.status === "error") throw new Error(result.error || `Kyro ${name} did not complete`);
   if (result.tool === "apply_editor_transaction" && Number.isInteger(result.revision)) {
-    let live = await status(permission.projectId);
+    let live = await status(permission.projectId, permission.clientId);
     for (let attempt = 0; attempt < 80 && Number(live.revision) <= Number(result.revision); attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 250));
-      live = await status(permission.projectId);
+      live = await status(permission.projectId, permission.clientId);
     }
     if (Number(live.revision) <= Number(result.revision)) throw new Error("Kyro applied the transaction but did not publish the next graph revision");
     result = { ...result, finalRevision: live.revision };
@@ -121,7 +121,10 @@ function previewContent(transaction, evidence = {}) {
 register("kyro_describe_tools", {
   description: "Read the versioned typed contract and declared effects for every Kyro MCP tool.",
   inputSchema: {},
-}, async () => text({ version: kyroMcpContractVersion, tools: kyroMcpContracts }));
+}, async () => {
+  const registry = await json(`${base}/api/agent/operations`, { headers: { authorization: `Bearer ${agentToken}` } });
+  return text({ version: kyroMcpContractVersion, tools: kyroMcpContracts, operationRegistry: registry });
+});
 
 register("kyro_get_context", {
   description: "Read the compact indexed slice for the current Kyro selection without scanning project files.",
@@ -130,10 +133,8 @@ register("kyro_get_context", {
 
 const planSchema = {
   request: z.string().max(4000).optional(),
-  domains: z.array(z.enum(["app", "design", "actions", "data", "extensions", "publish"])).optional(),
-  capabilityIds: z.array(z.string()).max(24).optional(),
-  requiresExternal: z.boolean().optional(),
-  prefersModule: z.boolean().optional(),
+  requirements: z.array(z.object({ kind: z.enum(["operation", "capability", "effect"]), id: z.string().min(1).max(160) })).max(50),
+  targetPlatforms: z.array(z.enum(["web", "pwa", "android", "desktop"])).min(1).max(4),
 };
 const plan = async (input) => text(await json(`${base}/api/agent/capability`, {
   method: "POST",
@@ -142,12 +143,12 @@ const plan = async (input) => text(await json(`${base}/api/agent/capability`, {
 }));
 
 register("kyro_plan", {
-  description: "Plan against explicit operation domains and capability IDs; descriptive text never routes Core decisions.",
+  description: "Resolve explicit operation, capability and effect IDs for target platforms; descriptive text never routes Core decisions.",
   inputSchema: planSchema,
 }, plan);
 
 register("kyro_resolve_capability", {
-  description: "Resolve typed capability IDs, domains and declared effects. Free text is descriptive and is never used for Core routing.",
+  description: "Resolve typed requirements against registered support and platform evidence. Free text is descriptive only.",
   inputSchema: planSchema,
 }, plan);
 

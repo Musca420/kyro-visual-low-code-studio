@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Breakpoint, EditorComponent, Project } from "./model";
 import type { LocalRecord } from "./db";
-import { canContain } from "./hierarchy";
 import { compileRuntimeProgram, previewRuntimeAdapter, runtimeComponentCss, runtimeComponentHtml } from "./runtimeProgram";
 
 type Props = {
@@ -11,7 +10,7 @@ type Props = {
   breakpoint: Breakpoint;
   interactive: boolean;
   onAdd: (value: string) => Promise<void>;
-  onRunFlow?: (flowId: string, input: unknown) => Promise<{ notification?: string; level?: string; navigate?: { path: string; mode: "page" | "back" | "url" }; modal?: { componentId: string; operation: "open" | "close" }; ui?: { componentId: string; operation: string; value: string } }>;
+  onRunFlow?: (flowId: string, input: unknown) => Promise<{ notification?: string; level?: string; error?: string; navigate?: { path: string; mode: "page" | "back" | "url" }; modal?: { componentId: string; operation: "open" | "close" }; ui?: { componentId: string; operation: string; value: unknown }; uis?: { componentId: string; operation: string; value: unknown }[] }>;
   onRefresh: (sourceId?: string) => Promise<LocalRecord[]>;
   onDashboardAction?: (
     action: string,
@@ -107,95 +106,10 @@ async function rasterizePreview(html: string, width: number, height: number) {
 
 export function renderComponent(component: EditorComponent, children = "") {
   return runtimeComponentHtml(component, children);
-  /* Legacy implementation retained temporarily for format-1 fixture comparison. */
-  const text = label(component);
-  const fieldName = escapeHtml(component.props.fieldName || component.id);
-  const common = `data-component="${component.id}" id="preview-${component.id}"${component.props.tooltip ? ` title="${escapeHtml(component.props.tooltip)}"` : ""}${component.props.disabled === true ? ' aria-disabled="true"' : ""}`;
-  if (component.type === "input")
-    return `<label>${escapeHtml(component.accessibility.label)}<input ${common} data-kind="input" name="${fieldName}" type="${["text", "email", "number", "password", "search", "date", "time"].includes(String(component.props.inputType)) ? escapeHtml(component.props.inputType) : "text"}" placeholder="${escapeHtml(component.props.placeholder)}"${component.props.required === true ? " required" : ""}></label>`;
-  if (component.type === "button")
-    return `<button ${common} data-kind="button" type="${["button", "submit", "reset"].includes(String(component.props.buttonType)) ? escapeHtml(component.props.buttonType) : "button"}"${component.props.disabled === true ? " disabled" : ""}>${text}</button>`;
-  if (component.type === "list")
-    return `<section ${common} data-kind="list"${component.binding?.sourceId ? ` data-source="${escapeHtml(component.binding?.sourceId)}"` : ""}${component.events.recordUpdate ? ` data-record-update-flow="${escapeHtml(component.events.recordUpdate)}"` : ""}${component.events.recordDelete ? ` data-record-delete-flow="${escapeHtml(component.events.recordDelete)}"` : ""} aria-label="${escapeHtml(component.accessibility.label)}"><div class="loading" role="status">Loading…</div><div class="empty" hidden>No items yet. Add your first one.</div><div class="error" role="alert" hidden></div><ul></ul></section>`;
-  if (component.type === "toast")
-    return `<div ${common} data-kind="toast" role="status" aria-live="polite" hidden>${text}</div>`;
-  if (component.type === "title") return `<h1 ${common}>${text}</h1>`;
-  if (component.type === "textarea")
-    return `<label>${escapeHtml(component.accessibility.label)}<textarea ${common} name="${fieldName}"${component.props.required === true ? " required" : ""} placeholder="${escapeHtml(component.props.placeholder)}"></textarea></label>`;
-  if (component.type === "select")
-    return `<label>${escapeHtml(component.accessibility.label)}<select ${common} name="${fieldName}">${String(component.props.options || component.props.label || component.name).split("|").map((option) => `<option>${escapeHtml(option)}</option>`).join("")}</select></label>`;
-  if (component.type === "checkbox" || component.type === "radio")
-    return `<label ${common} class="choice-control"><input id="preview-${component.id}-control" name="${fieldName}" type="${component.type}"><span>${text}</span></label>`;
-  if (component.type === "image")
-    return `<img ${common} src="${escapeHtml(component.props.src || "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22160%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23e8eaf2%22/%3E%3C/svg%3E")}" alt="${escapeHtml(component.accessibility.label)}">`;
-  if (component.type === "link")
-    return `<a ${common} href="${escapeHtml(component.props.href || "#")}">${text}</a>`;
-  if (component.type === "upload")
-    return `<label>${text}<input ${common} type="file"></label>`;
-  if (component.type === "signature")
-    return `<label ${common} class="signature-pad">${text}<canvas data-signature-canvas role="img" aria-label="${escapeHtml(component.accessibility.label)}"></canvas><input type="hidden" name="${fieldName}"><button type="button" data-clear-signature>Clear signature</button></label>`;
-  if (component.type === "progress")
-    return `<label>${text}<progress ${common} max="${escapeHtml(component.props.max || 100)}" value="${escapeHtml(component.props.value || 60)}">${escapeHtml(component.props.value || 60)}</progress></label>`;
-  if (component.type === "table")
-    return `<div ${common} class="table-scroll"><table><caption>${text}</caption><thead><tr><th>Name</th><th>Status</th><th>Date</th></tr></thead><tbody><tr><td>Example item</td><td><span class="chip">Active</span></td><td>Today</td></tr></tbody></table></div>`;
-  if (component.type === "chart")
-    return `<figure ${common} data-kind="chart" aria-label="${escapeHtml(component.accessibility.label)}"><svg viewBox="0 0 320 140" role="img" aria-label="Bar chart"><rect x="18" y="70" width="34" height="54" rx="6"></rect><rect x="60" y="38" width="34" height="86" rx="6"></rect><rect x="102" y="52" width="34" height="72" rx="6"></rect><rect x="144" y="18" width="34" height="106" rx="6"></rect><rect x="186" y="58" width="34" height="66" rx="6"></rect><rect x="228" y="44" width="34" height="80" rx="6"></rect><rect x="270" y="30" width="34" height="94" rx="6"></rect></svg><figcaption>${text}</figcaption></figure>`;
-  if (component.type === "calendar")
-    return `<section ${common} data-kind="calendar"><label>${text}<input id="preview-${component.id}-control" type="date"></label><ul aria-live="polite"></ul></section>`;
-  if (component.type === "audio" || component.type === "video")
-    return `<${component.type} ${common} controls src="${escapeHtml(component.props.src || "")}">${text}</${component.type}>`;
-  if (component.type === "avatar")
-    return `<span ${common} class="avatar" role="img" aria-label="${escapeHtml(component.accessibility.label)}">${escapeHtml(
-      String(component.props.initials || text)
-        .slice(0, 2)
-        .toUpperCase(),
-    )}</span>`;
-  if (component.type === "badge")
-    return `<span ${common} class="chip">${text}</span>`;
-  if (component.type === "accordion")
-    return `<details ${common}><summary>${text}</summary>${children || `<p>${escapeHtml(component.props.description || "Expandable content")}</p>`}</details>`;
-  if (canContain(component)) {
-    const ownContent = `${text ? `<strong>${text}</strong>` : ""}${component.props.description ? `<p>${escapeHtml(component.props.description)}</p>` : ""}`;
-    const content = `${ownContent}${children}`;
-    const tag =
-      component.type === "header" ||
-      component.type === "footer" ||
-      component.type === "section" ||
-      component.type === "form"
-        ? component.type
-        : component.type === "sidebar" ||
-            component.type === "drawer" ||
-            component.type === "menu"
-          ? "aside"
-          : component.type === "navbar"
-            ? "nav"
-            : "div";
-    const role =
-      component.type === "modal"
-        ? "dialog"
-        : component.accessibility.role ||
-          (component.type === "hero" ? "region" : "group");
-    return `<${tag} ${common} class="preview-container preview-${component.type}" role="${escapeHtml(role)}">${content}</${tag}>`;
-  }
-  return `<div ${common} role="${escapeHtml(component.accessibility.role || "group")}">${text}</div>`;
 }
 
 function styleFor(component: EditorComponent, breakpoint: Breakpoint) {
   return runtimeComponentCss(component, breakpoint);
-  /* Legacy implementation retained temporarily for format-1 fixture comparison. */
-  const style = {
-    ...component.styles.desktop,
-    ...(breakpoint === "desktop" ? {} : component.styles[breakpoint]),
-  };
-  const declarations = (value: Record<string, unknown>) =>
-    Object.entries(value)
-      .map(
-        ([key, item]) =>
-          `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${String(item).replace(/[{};]/g, "")}`,
-      )
-      .join(";");
-  const target = `[data-component="${component.id}"]`;
-  return `${target}{${declarations(style)}}${target}:hover{${declarations(component.states.hover)}}${target}:focus-visible,${target}:focus-within{${declarations(component.states.focus)}}${target}:active{${declarations(component.states.active)}}${target}:disabled,${target}[aria-disabled="true"]{${declarations(component.states.disabled)}}`;
 }
 
 function flowTriggerScript(pages: Project["pages"], flows: Project["flows"], experience: unknown, interactive: boolean, activePageId?: string) {
@@ -211,10 +125,10 @@ function flowTriggerScript(pages: Project["pages"], flows: Project["flows"], exp
   return `;const feBindings=${safe(bindings)},feAutomatic=${safe(automatic)};
 const feInput=(event,binding)=>{const configured=binding.inputId&&document.querySelector('[data-component="'+CSS.escape(binding.inputId)+'"]');if(configured&&'value'in configured)return configured.value;const target=event.target;if(event.type==='submit'&&target instanceof HTMLFormElement)return Object.fromEntries(new FormData(target));if(target instanceof HTMLInputElement&&target.type==='file')return target.files?.[0];if(event.detail&&Object.hasOwn(event.detail,'value'))return event.detail.value;if(event.detail?.kyroGesture)return event.detail;return target&&'value'in target?target.value:''};
 const feListen=(element,name,run)=>{if(!element)return;const native={doubleClick:'dblclick',pointerEnter:'pointerenter',pointerLeave:'pointerleave',keyDown:'keydown'}[name];if(native){element.addEventListener(native,run);return}if(name==='longPress'){let timer,start;const cancel=()=>{clearTimeout(timer);timer=undefined};element.addEventListener('pointerdown',(event)=>{start={x:event.clientX,y:event.clientY,time:Date.now()};timer=setTimeout(()=>run(new CustomEvent('longPress',{detail:{kyroGesture:true,x:start.x,y:start.y,duration:Date.now()-start.time}})),600)});element.addEventListener('pointerup',cancel);element.addEventListener('pointercancel',cancel);element.addEventListener('pointerleave',cancel);return}if(name==='swipeLeft'||name==='swipeRight'){let start;element.addEventListener('pointerdown',(event)=>{start={x:event.clientX,y:event.clientY,time:Date.now()}});element.addEventListener('pointerup',(event)=>{if(!start)return;const dx=event.clientX-start.x,dy=event.clientY-start.y,duration=Math.max(1,Date.now()-start.time),matches=Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)&&(name==='swipeLeft'?dx<0:dx>0);if(matches)run(new CustomEvent(name,{detail:{kyroGesture:true,distanceX:dx,distanceY:dy,duration,velocity:dx/duration}}));start=undefined});return}element.addEventListener(name,run)};
-const feUpdate=(change)=>{const element=change&&document.querySelector('[data-component="'+CSS.escape(change.componentId)+'"]');if(!element)return;if(change.operation==='show')element.hidden=false;if(change.operation==='hide')element.hidden=true;if(change.operation==='enable'){element.removeAttribute('disabled');element.removeAttribute('aria-disabled')}if(change.operation==='disable'){element.setAttribute('disabled','');element.setAttribute('aria-disabled','true')}if(change.operation==='text')element.textContent=change.value;if(change.operation==='value'&&'value'in element)element.value=change.value;if(['background','color','opacity'].includes(change.operation))element.style[change.operation]=change.value};
+const feUpdate=(change)=>{const element=change&&document.querySelector('[data-component="'+CSS.escape(change.componentId)+'"]');if(!element)return;if(change.operation==='show')element.hidden=false;if(change.operation==='hide')element.hidden=true;if(change.operation==='enable'){element.removeAttribute('disabled');element.removeAttribute('aria-disabled')}if(change.operation==='disable'){element.setAttribute('disabled','');element.setAttribute('aria-disabled','true')}if(change.operation==='focus')element.focus();if(change.operation==='text')element.textContent=String(change.value??'');if(change.operation==='value'&&'value'in element)element.value=String(change.value??'');if(change.operation==='visibleWhenZero'){const visible=Number(change.value)===0;element.hidden=!visible;element.style.display=visible?'block':'none'}if(change.operation==='data'&&Array.isArray(change.value)){const list=element.querySelector('ul');if(list)list.replaceChildren(...change.value.map((item)=>{const row=document.createElement('li'),title=document.createElement('strong'),description=document.createElement('p'),meta=document.createElement('div');row.className='record-row';title.textContent=String(item.text||item.title||item.name||'Item');description.textContent=String(item.description||'');['status','priority'].forEach((key)=>{if(item[key]){const chip=document.createElement('span');chip.className='chip';chip.textContent=String(item[key]);meta.append(chip)}});if(item.dueDate||item.date){const time=document.createElement('time');time.dateTime=String(item.dueDate||item.date);time.textContent=new Date(String(item.dueDate||item.date)).toLocaleDateString('en');meta.append(time)}row.append(title,description,meta);return row}))}if(['background','color','opacity'].includes(change.operation))element.style[change.operation]=String(change.value??'')};
 feBindings.forEach((binding)=>{const element=document.querySelector('[data-component="'+CSS.escape(binding.componentId)+'"]'),run=(event)=>{event.preventDefault?.();send('RUN_FLOW',{flowId:binding.flowId,input:feInput(event,binding)})};feListen(element,binding.event,run);if(binding.event==='submit'&&element instanceof HTMLFormElement)element.querySelectorAll('button[type="submit"]').forEach((button)=>button.addEventListener('click',(event)=>{event.preventDefault();send('RUN_FLOW',{flowId:binding.flowId,input:Object.fromEntries(new FormData(element))})}))});
 feAutomatic.forEach((item)=>{const run=(input='')=>send('RUN_FLOW',{flowId:item.flowId,input});if(item.trigger==='pageLoad')run();else if(item.trigger==='timer')setInterval(run,item.interval);else if(item.trigger==='online'||item.trigger==='offline')addEventListener(item.trigger,()=>run());else if(item.trigger==='deepLink')addEventListener('kyroDeepLink',(event)=>run(event.detail));else if(item.trigger==='pageVisible'||item.trigger==='pageHidden')document.addEventListener('visibilitychange',()=>{if((item.trigger==='pageVisible')===!document.hidden)run()});else if(item.trigger==='deviceShake'){let last=0;addEventListener('devicemotion',(event)=>{const value=event.accelerationIncludingGravity||{},strength=Math.abs(value.x||0)+Math.abs(value.y||0)+Math.abs(value.z||0);if(strength>28&&Date.now()-last>1200){last=Date.now();run()}})}});
-addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host'||message.action!=='flow')return;let status=document.querySelector('[data-flow-status]');if(!status){status=document.createElement('div');status.dataset.flowStatus='';status.setAttribute('role','status');status.style.cssText='position:fixed;right:16px;bottom:16px;z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white;box-shadow:0 12px 30px #0004';document.body.append(status)}if(message.notification){status.textContent=message.notification;status.hidden=false;clearTimeout(window.feStatusTimer);window.feStatusTimer=setTimeout(()=>status.hidden=true,2600)}if(!message.error&&message.level!=='error')feBindings.forEach((binding)=>{const input=binding.inputId&&document.querySelector('[data-component="'+CSS.escape(binding.inputId)+'"]');if(input&&'value'in input)input.value=''});if(message.navigate?.mode==='back')history.back();else if(message.navigate?.mode==='url')location.assign(message.navigate.path);else if(message.navigate)location.hash=message.navigate.path;if(message.modal){const element=document.querySelector('[data-component="'+CSS.escape(message.modal.componentId)+'"]');if(message.modal.operation==='close')element?.setAttribute('hidden','');else element?.removeAttribute('hidden')}if(message.ui)feUpdate(message.ui)});`;
+addEventListener('message',(event)=>{const message=event.data;if(message?.channel!=='frontend-editor-host'||message.action!=='flow')return;let status=document.querySelector('[data-flow-status]');if(!status){status=document.createElement('div');status.dataset.flowStatus='';status.setAttribute('role','status');status.style.cssText='position:fixed;right:16px;bottom:16px;z-index:9999;padding:12px 16px;border-radius:10px;background:#172033;color:white;box-shadow:0 12px 30px #0004';document.body.append(status)}if(message.notification){status.textContent=message.notification;status.hidden=false;clearTimeout(window.feStatusTimer);window.feStatusTimer=setTimeout(()=>status.hidden=true,2600)}if(!message.error&&message.level!=='error')feBindings.forEach((binding)=>{const input=binding.inputId&&document.querySelector('[data-component="'+CSS.escape(binding.inputId)+'"]');if(input&&'value'in input)input.value=''});if(message.navigate?.mode==='back')history.back();else if(message.navigate?.mode==='url')location.assign(message.navigate.path);else if(message.navigate)location.hash=message.navigate.path;if(message.modal){const element=document.querySelector('[data-component="'+CSS.escape(message.modal.componentId)+'"]');if(message.modal.operation==='close')element?.setAttribute('hidden','');else element?.removeAttribute('hidden')}if(Array.isArray(message.uis))message.uis.forEach(feUpdate);else if(message.ui)feUpdate(message.ui)});`;
 }
 
 function dataVisualizationScript(components: EditorComponent[]) {

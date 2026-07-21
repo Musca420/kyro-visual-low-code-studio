@@ -17,8 +17,10 @@ test("un utente configura pagina, indietro e sito esterno dal flow", async ({ pa
   await nodePalette.getByRole("button", { name: "Navigate", exact: true }).click();
   await page.getByLabel("Navigation type").selectOption("page");
   await page.getByLabel("Navigation path").fill("/destination");
-  const eventNode = page.locator(".react-flow__node").filter({ hasText: "Button click" });
-  await eventNode.click({ force: true });
+  await page
+    .getByRole("navigation", { name: "Flow steps" })
+    .getByRole("button", { name: "Button click" })
+    .click();
   await page.getByLabel("Next step").selectOption({ label: "Navigate" });
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   const preview = page.frameLocator('iframe[title="Preview isolata"]');

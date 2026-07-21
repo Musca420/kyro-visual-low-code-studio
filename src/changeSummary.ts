@@ -7,7 +7,7 @@ const labels: Record<string, string> = {
   remove_component: "Remove an element", set_component_property: "Change content", set_component_style: "Change appearance",
   set_responsive_style: "Adjust responsive design", set_component_state_style: "Style an interaction state",
   set_component_accessibility: "Improve accessibility", set_component_intent: "Describe element intent",
-  create_flow: "Create an interaction", compose_record_action: "Create a record action", compose_native_action: "Create a device action",
+  create_flow: "Create an interaction", compose_record_action: "Create a record action", compose_collection_filter: "Connect collection filters", compose_native_action: "Create a device action",
   add_flow: "Add an interaction", update_flow: "Update an interaction", remove_flow: "Remove an interaction",
   add_flow_node: "Add an action step", update_flow_node: "Update an action step", remove_flow_node: "Remove an action step",
   connect_nodes: "Connect action steps", remove_flow_edge: "Disconnect action steps", set_component_event: "Connect an event",

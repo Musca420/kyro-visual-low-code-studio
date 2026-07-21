@@ -52,19 +52,20 @@ async function connect(liveUrl = "http://127.0.0.1:1", token = "") {
 }
 
 async function bridge(options: { projectId?: string; statusProjectId?: string; expired?: boolean; approvedCapabilityProposal?: Record<string, unknown> } = {}) {
-  const projectId = options.projectId ?? "project-a", audits: Record<string, unknown>[] = [], registrations: Record<string, unknown>[] = [];
+  const projectId = options.projectId ?? "project-a", audits: Record<string, unknown>[] = [], registrations: Record<string, unknown>[] = [], statusQueries: string[] = [];
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const send = (status: number, value: unknown) => { response.writeHead(status, { "content-type": "application/json" }); response.end(JSON.stringify(value)); };
-    if (url.pathname === "/api/live/status") return send(200, { projectId: options.statusProjectId ?? projectId, pageId: "home", revision: 3 });
+    if (url.pathname === "/api/live/status") { statusQueries.push(url.search); return send(200, { projectId: options.statusProjectId ?? projectId, pageId: "home", revision: 3 }); }
     if (request.headers.authorization !== "Bearer test-token") return send(401, { error: "bad token" });
     if (url.pathname === "/api/agent/authorization") return send(200, {
-      jobId: "job-1", projectId, revision: 3, deadlineAt: new Date(Date.now() + (options.expired ? -1_000 : 60_000)).toISOString(),
+      jobId: "job-1", projectId, clientId: "client-1", revision: 3, deadlineAt: new Date(Date.now() + (options.expired ? -1_000 : 60_000)).toISOString(),
       mode: options.approvedCapabilityProposal ? "apply" : "plan",
       ...(options.approvedCapabilityProposal ? { approvedCapabilityProposal: options.approvedCapabilityProposal } : {}),
     });
     if (url.pathname === "/api/agent/context") return send(200, { project: { id: projectId, revision: 3 }, contextBytes: 64 });
-    if (url.pathname === "/api/agent/capability") return send(200, { status: "resolvable", domains: ["design"], registeredOperations: ["add_component"] });
+    if (url.pathname === "/api/agent/operations") return send(200, { version: 1, operations: [{ name: "add_component", description: "Add component", args: { type: "object" }, limitations: [], effects: ["ui"], permissions: ["graph:write"], platforms: ["web"], support: "stable" }] });
+    if (url.pathname === "/api/agent/capability") return send(200, { status: "supported", supportedRequirements: [{ kind: "operation", id: "add_component" }], selectedOperations: ["add_component"] });
     if (url.pathname === "/api/live/tools/get_build_preflight") return send(200, { target: "web", revision: 3, blockers: [] });
     if (url.pathname === "/api/live/tools/register_global_capability") {
       let body = ""; request.on("data", (chunk) => body += chunk); request.on("end", () => { registrations.push(JSON.parse(body)); send(202, { id: "capability-command", status: "applied", result: { state: "draft", version: "0.1.0" } }); }); return;
@@ -78,7 +79,7 @@ async function bridge(options: { projectId?: string; statusProjectId?: string; e
   servers.push(server);
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Test bridge did not start");
-  return { url: `http://127.0.0.1:${address.port}`, audits, registrations };
+  return { url: `http://127.0.0.1:${address.port}`, audits, registrations, statusQueries };
 }
 
 async function call(child: ReturnType<typeof spawn>, id: number, name: string, args: object = {}) {
@@ -131,9 +132,20 @@ describe("Kyro live MCP", () => {
 
   it("audits typed planning and rejects wrong scope, expired authorization, and operation excess", async () => {
     const active = await bridge(), child = await connect(active.url, "test-token");
-    const planned = await call(child, 4, "kyro_plan", { request: "description only", domains: ["design"] });
+    const described = await call(child, 10, "kyro_describe_tools");
+    const describedText = ((described.result as { content: { text: string }[] }).content[0].text);
+    expect(describedText).toContain('"description":"Add component"');
+    expect(describedText).toContain('"platforms":["web"]');
+    const planned = await call(child, 4, "kyro_plan", { request: "description only", requirements: [{ kind: "operation", id: "add_component" }], targetPlatforms: ["web"] });
     expect((planned.result as { isError?: boolean }).isError).not.toBe(true);
+    const discovery = await call(child, 11, "kyro_plan", { request: "discover typed IDs", requirements: [], targetPlatforms: ["web"] });
+    expect((discovery.result as { isError?: boolean }).isError).not.toBe(true);
+    expect(active.statusQueries).toContain("?projectId=project-a&clientId=client-1");
     expect(active.audits).toEqual([
+      { tool: "kyro_describe_tools", result: "allowed", detail: "started" },
+      { tool: "kyro_describe_tools", result: "allowed", detail: "completed" },
+      { tool: "kyro_plan", result: "allowed", detail: "started" },
+      { tool: "kyro_plan", result: "allowed", detail: "completed" },
       { tool: "kyro_plan", result: "allowed", detail: "started" },
       { tool: "kyro_plan", result: "allowed", detail: "completed" },
     ]);
@@ -148,6 +160,10 @@ describe("Kyro live MCP", () => {
     const operations = Array.from({ length: 51 }, (_, index) => ({ type: "set_project_property", args: { property: "name", value: String(index) } }));
     expect((await call(child, 7, "kyro_apply_operations", { operations })).result).toMatchObject({ isError: true });
     expect(active.audits).toEqual([
+      { tool: "kyro_describe_tools", result: "allowed", detail: "started" },
+      { tool: "kyro_describe_tools", result: "allowed", detail: "completed" },
+      { tool: "kyro_plan", result: "allowed", detail: "started" },
+      { tool: "kyro_plan", result: "allowed", detail: "completed" },
       { tool: "kyro_plan", result: "allowed", detail: "started" },
       { tool: "kyro_plan", result: "allowed", detail: "completed" },
       { tool: "kyro_build_preflight", result: "allowed", detail: "started" },

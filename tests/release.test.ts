@@ -20,11 +20,11 @@ describe("Kyro release", () => {
     const packageLock = JSON.parse(await readFile(resolve(root, "package-lock.json"), "utf8"));
     const changelog = await readFile(resolve(root, "CHANGELOG.md"), "utf8");
     const rollback = await readFile(resolve(root, "ROLLBACK.md"), "utf8");
-    expect(packageJson.version).toBe("2.0.0");
+    expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(packageLock.version).toBe(packageJson.version);
     expect(packageLock.packages[""].version).toBe(packageJson.version);
     expect(changelog).toContain(`## [${packageJson.version}]`);
-    expect(rollback).toContain("v0.1.15");
+    expect(rollback).toContain("v2.0.0");
     expect(rollback).toContain("npm run release:verify");
   });
 
@@ -34,7 +34,8 @@ describe("Kyro release", () => {
     const zip = await JSZip.loadAsync(archive);
     const bundledManifest = JSON.parse(await zip.file("manifest.json")!.async("string"));
     expect(bundledManifest).toEqual(manifest);
-    expect(manifest).toMatchObject({ schemaVersion: 1, product: "Kyro", version: "2.0.0" });
+    const packageJson = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
+    expect(manifest).toMatchObject({ schemaVersion: 1, product: "Kyro", version: packageJson.version });
     expect(manifest.files.length).toBeGreaterThanOrEqual(16);
     for (const expected of manifest.files) {
       const data = await zip.file(expected.path)?.async("nodebuffer");

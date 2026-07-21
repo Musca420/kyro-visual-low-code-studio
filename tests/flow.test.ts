@@ -46,6 +46,15 @@ describe('flow runtime', () => {
     expect(logs.at(-1)?.nodeId).toBe('error')
   })
 
+  it('validates maximum text length without treating text as a number', async () => {
+    const limited: Flow = { id: 'length', name: 'Length', nodes: [
+      { id: 'event', type: 'event', label: 'Start', position: { x: 0, y: 0 }, config: {} },
+      { id: 'max', type: 'validate', label: 'Maximum', position: { x: 1, y: 0 }, config: { field: 'text', rule: 'maxLength', value: '3', message: 'Too long' } },
+    ], edges: [{ id: 'edge', source: 'event', target: 'max', path: 'success' }] }
+    expect((await runFlow(limited, { input: { text: 'abc' }, insert: async () => undefined, refresh: async () => undefined })).at(-1)?.level).toBe('info')
+    expect((await runFlow(limited, { input: { text: 'abcd' }, insert: async () => undefined, refresh: async () => undefined })).at(-1)).toMatchObject({ level: 'error', message: 'Too long' })
+  })
+
   it('stops uncontrolled loops', async () => {
     const cyclic: Flow = { id: 'cycle', name: 'cycle', nodes: [{ id: 'event', type: 'event', label: 'Event', position: { x: 0, y: 0 }, config: {} }], edges: [{ id: 'loop', source: 'event', target: 'event', path: 'success' }] }
     await expect(runFlow(cyclic, { input: '', insert: async () => undefined, refresh: async () => undefined })).rejects.toThrow('Uncontrolled loop')
@@ -71,6 +80,26 @@ describe('flow runtime', () => {
     const logs = await runFlow(visual, { input: '', insert: async () => undefined, refresh: async () => undefined, query: async () => [{ name: 'Alpha', status: 'done' }, { name: 'Beta', status: 'todo' }, { name: 'Gamma', status: 'done' }], notify })
     expect(logs.find((entry) => entry.nodeId === 'kpi')?.value).toBe(2)
     expect(notify).toHaveBeenCalledWith('Calcolo pronto', 'success')
+  })
+
+  it('filters from visual state and forwards every dynamic UI update', async () => {
+    const nodes: Flow['nodes'] = [
+      { id: 'event', type: 'event', label: 'Change', position: { x: 0, y: 0 }, config: {} },
+      { id: 'query', type: 'query', label: 'Tasks', position: { x: 1, y: 0 }, config: { sourceId: 'tasks' } },
+      { id: 'filter', type: 'filter', label: 'Status', position: { x: 2, y: 0 }, config: { field: 'status', stateKey: 'filters.status' } },
+      { id: 'list', type: 'updateUI', label: 'List', position: { x: 3, y: 0 }, config: { componentId: 'list', operation: 'data', value: '{{value}}' } },
+      { id: 'count', type: 'kpi', label: 'Count', position: { x: 4, y: 0 }, config: { operation: 'count' } },
+      { id: 'text', type: 'updateUI', label: 'Counter', position: { x: 5, y: 0 }, config: { componentId: 'count', operation: 'text', value: '{{value}} visible tasks' } },
+      { id: 'empty', type: 'updateUI', label: 'Empty', position: { x: 6, y: 0 }, config: { componentId: 'empty', operation: 'visibleWhenZero', value: '{{value}}' } },
+    ]
+    const collection: Flow = { id: 'collection', name: 'Collection', nodes, edges: nodes.slice(0, -1).map((node, index) => ({ id: String(index), source: node.id, target: nodes[index + 1].id, path: 'success' })) }
+    const updateUI = vi.fn()
+    await runFlow(collection, { input: '', insert: async () => undefined, refresh: async () => undefined, query: async () => [{ text: 'A', status: 'Open' }, { text: 'B', status: 'Done' }], getState: () => 'Done', updateUI })
+    expect(updateUI.mock.calls).toEqual([
+      ['list', 'data', [{ text: 'B', status: 'Done' }]],
+      ['count', 'text', '1 visible tasks'],
+      ['empty', 'visibleWhenZero', 1],
+    ])
   })
 
   it('dirama una condizione non verificata senza trasformarla in errore runtime', async () => {
@@ -204,6 +233,9 @@ describe('flow runtime', () => {
     const updateUI = vi.fn()
     await runFlow(visual, { input: '', insert: async () => undefined, refresh: async () => undefined, updateUI })
     expect(updateUI).toHaveBeenCalledWith('panel', 'hide', '')
+    visual.nodes[1].config.operation = 'focus'
+    await runFlow(visual, { input: '', insert: async () => undefined, refresh: async () => undefined, updateUI })
+    expect(updateUI).toHaveBeenLastCalledWith('panel', 'focus', '')
   })
 
   it('conserva tutti i campi di un record proveniente da un form', async () => {

@@ -42,6 +42,10 @@ export const capabilityEvidenceSchema = z.object({
   check: z.string().trim().min(1).max(240),
   passed: z.boolean(),
   hash: z.string().regex(/^[a-f0-9]{64}$/),
+  platform: capabilityPlatformSchema.optional(),
+  runtimeVersion: semanticVersionSchema.optional(),
+  dependencyVersions: z.record(z.string(), z.string()).optional(),
+  implementationHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   createdAt: z.string().datetime(),
 });
 

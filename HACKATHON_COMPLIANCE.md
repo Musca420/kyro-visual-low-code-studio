@@ -7,7 +7,7 @@ Kyro targets the **Developer Tools** track of OpenAI Build Week. This checklist 
 - [x] Public source repository with an MIT license.
 - [x] English installation and testing entry point in `README.md`.
 - [x] Dated Git history distinguishing pre-existing work from Build Week extensions.
-- [x] Public working demo and unrestricted Web/PWA and Android test builds published in the [v0.1.15 GitHub Release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15).
+- [x] Public working source, reproducible Web export evidence, and Android validation material prepared for the [v2.1.0 GitHub Release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v2.1.0).
 - [ ] Public YouTube demonstration with audio, shorter than three minutes.
 - [x] Devpost English project description and testing instructions in `DEVPOST_SUBMISSION.md`.
 - [x] `/feedback` Codex Session ID for the main project thread: `019f7465-48aa-78e3-8531-1e4b6342b31e`.
@@ -28,15 +28,15 @@ The entrant retains product and engineering decisions: frontend-first visual pro
 ## Judge setup
 
 ```bash
-npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.0.0/kyro-studio-2.0.0.tgz
+npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.1.0/kyro-studio-2.1.0.tgz
 kyro --home
 ```
 
 Supported local judge platforms: Windows, macOS, and Linux with Node.js 20 or newer and a Chromium-based browser. The final device build was verified on Windows and a physical Android device. Generated web/PWA projects run independently on any platform supported by Node/Vite. Android export uses Capacitor and the Android SDK.
 
-This prebuilt CLI tarball is the supported no-rebuild judge route. The unsigned Windows desktop archive was removed from the public release because asking judges to bypass operating-system trust warnings would not be a consistent installation experience. Desktop source and packaging tests remain in the repository for future signed distribution.
+This prebuilt CLI tarball is the supported no-rebuild judge route. The unsigned Windows desktop archive, source, packaging tests, and update workflow were removed because asking judges to bypass operating-system trust warnings would not be a consistent installation experience.
 
-The public repository needs no Devpost reviewer invitation. The no-rebuild NexusField Web/PWA and Android test builds remain available from the linked release throughout judging.
+The public repository needs no Devpost reviewer invitation. The release includes the installable CLI, evidence bundle, benchmark records, and independently verified generated-output material.
 
 ## Safety and data
 

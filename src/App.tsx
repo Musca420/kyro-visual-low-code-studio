@@ -57,6 +57,9 @@ import {
   type TemplateId,
 } from "./templates";
 import { CodexPanel, type CodexContext } from "./CodexPanel";
+import { PanelTitle, ThemeToggle } from "./editor/EditorChrome";
+import { LogConsole } from "./editor/flow/LogConsole";
+import { FlowRunHistory } from "./editor/flow/FlowRunHistory";
 import type { EditorOperation } from "./editorOperations";
 import { executeProjectTransaction, rollbackProjectTransaction } from "./transactionEngine";
 import type { VerificationReport } from "./verification";
@@ -76,7 +79,7 @@ import { isComponentEvent, type ActionEventDefinition } from "./actionCatalog";
 import { runNativeWeb } from "./nativeCapabilities";
 import { clampContextMenuPosition } from "./contextMenu";
 import { visualGradients, visualPalettes } from "./visualPresets";
-import { importExistingFolder, readFolderFiles } from "./folderImport";
+import { importExistingFolder, readFolderFiles, type FolderTextFile } from "./folderImport";
 import { TerminalPanel } from "./TerminalPanel";
 import { createReusableComponent, instantiateReusableComponent } from "./reusableComponents";
 import { createBackup, restoreBackup, serializeBackup } from "./backup";
@@ -160,7 +163,7 @@ function Dashboard({
   onOpen: (id: string) => void;
   onRefresh: () => Promise<void>;
 }) {
-  const desktopImportStarted = useRef(false);
+  const workspaceImportStarted = useRef(false);
   const [name, setName] = useState("");
   const [brief, setBrief] = useState("");
   const [error, setError] = useState("");
@@ -169,30 +172,20 @@ function Dashboard({
   const [templateQuery, setTemplateQuery] = useState("");
   const [projectQuery, setProjectQuery] = useState("");
   const [importResult, setImportResult] = useState("");
-  const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus>();
   const importRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const backupRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const desktop = window.frontendEditorDesktop;
-    if (!desktop) return;
-    void desktop.getUpdateStatus().then(setUpdateStatus);
-    return desktop.onUpdateStatus(setUpdateStatus);
-  }, []);
-  useEffect(() => {
-    const desktop = window.frontendEditorDesktop;
-    if (loading || desktopImportStarted.current) return;
-    desktopImportStarted.current = true;
-    const readWorkspace = desktop
-      ? desktop.readWorkspace()
-      : fetch("/api/workspace").then((response) => {
-          if (!response.ok) throw new Error(`Workspace unavailable (${response.status})`);
-          return response.json() as Promise<DesktopWorkspace | null>;
-        });
+    if (loading || workspaceImportStarted.current) return;
+    workspaceImportStarted.current = true;
+    const readWorkspace = fetch("/api/workspace").then((response) => {
+      if (!response.ok) throw new Error(`Workspace unavailable (${response.status})`);
+      return response.json() as Promise<{ root: string; name: string; files: FolderTextFile[] } | null>;
+    });
     void readWorkspace.then(async (workspace) => {
       if (!workspace) return;
-      const storageKey = `frontend-editor-desktop:${workspace.root}`;
-      const existingId = localStorage.getItem(storageKey);
+      const storageKey = `kyro-workspace:${workspace.root}`;
+      const existingId = localStorage.getItem(storageKey) ?? localStorage.getItem(`frontend-editor-desktop:${workspace.root}`);
       const existing = existingId ? await getProject(existingId) : undefined;
       if (existing) {
         onOpen(existing.id);
@@ -206,8 +199,8 @@ function Dashboard({
       setImportResult(`${workspace.name} is ready on the visual canvas.`);
       onOpen(project.id);
     }).catch((problem) => {
-      setError(`Apertura desktop non riuscita: ${problem instanceof Error ? problem.message : String(problem)}`);
-      desktopImportStarted.current = false;
+      setError(`Apertura cartella non riuscita: ${problem instanceof Error ? problem.message : String(problem)}`);
+      workspaceImportStarted.current = false;
     });
   }, [loading, onOpen, onRefresh]);
   const create = async (template: "blank" | "todo" | TemplateId = "blank") => {
@@ -344,14 +337,6 @@ function Dashboard({
   return (
     <main className="dashboard">
       <ThemeToggle theme={uiTheme} onToggle={onToggleTheme} />
-      {updateStatus && updateStatus.state !== "disabled" && (
-        <p
-          className={`desktop-update-status ${updateStatus.state}`}
-          role={updateStatus.state === "rejected" ? "alert" : "status"}
-        >
-          {updateStatus.state === "available" ? "Secure update available" : "Update rejected"}: {updateStatus.message}
-        </p>
-      )}
       <header className="hero">
         <div className="brand-mark">K</div>
         <p className="eyebrow">Kyro · Visual Low-Code Studio</p>
@@ -2016,7 +2001,8 @@ function Editor({
     const activeFlow = project.flows.find((item) => item.id === flowId);
     const source = project.dataSources[0];
     if (!activeFlow) throw new Error("Flow non trovato");
-    let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modal: { componentId: string; operation: "open" | "close" } | undefined, ui: { componentId: string; operation: string; value: string } | undefined;
+    let notification: string | undefined, level: string | undefined, navigate: { path: string; mode: "page" | "back" | "url" } | undefined, modal: { componentId: string; operation: "open" | "close" } | undefined;
+    const uis: { componentId: string; operation: string; value: unknown }[] = [];
     setLogs([]);
     const startedAt = new Date().toISOString();
     const result = await runProjectFlow(activeFlow.id, project.flows, {
@@ -2035,7 +2021,7 @@ function Editor({
       refresh: async () => { if (source) await refreshRecords(); },
       navigate: (path, mode) => { navigate = { path, mode }; },
       openModal: (componentId, operation) => { modal = { componentId, operation }; },
-      updateUI: (componentId, operation, value) => { ui = { componentId, operation, value }; },
+      updateUI: (componentId, operation, value) => { uis.push({ componentId, operation, value }); },
       notify: (message, kind) => { notification = message; level = kind; },
       localNotification: (title, body, delayMs) => {
         notification = `Reminder scheduled: ${title}${body ? ` · ${body}` : ""} (${Math.round(delayMs / 1000)} s)`;
@@ -2071,8 +2057,8 @@ function Editor({
     setLogs(result);
     await persistFlowRun(activeFlow.id, startedAt, result);
     const failure = result.find((entry) => entry.level === "error");
-    if (failure) throw new Error(failure.message);
-    return { notification, level, navigate, modal, ui };
+    if (failure) return { notification: notification ?? failure.message, level: "error", navigate, modal, ui: uis.at(-1), uis, error: failure.message };
+    return { notification, level, navigate, modal, ui: uis.at(-1), uis };
   }, [project.flows, project.dataSources, project.codeModules, refreshRecords, persistFlowRun]);
 
   const dashboardAction = useCallback(
@@ -3004,13 +2990,19 @@ function Editor({
               onChange={(updated) =>
                 transact((value) => {
                   const triggers = updated.nodes.filter((node) => node.type === "event" && isComponentEvent(node.config.trigger ?? "click") && node.config.componentId);
-                  return [
-                    { type: "replace_flow", args: { flow: updated } },
-                    ...value.pages.map((page) => ({ type: "set_page_components", pageId: page.id, args: { components: page.components.map((component) => {
+                  const eventOperations = value.pages.flatMap<EditorOperation>((page) => {
+                    const components = page.components.map((component) => {
                       const events = Object.fromEntries(Object.entries(component.events).filter(([, targetFlowId]) => targetFlowId !== updated.id));
                       for (const node of triggers) if (node.config.componentId === component.id) events[node.config.trigger ?? "click"] = updated.id;
                       return { ...component, events };
-                    }) } })),
+                    });
+                    const changed = components.some((component, index) =>
+                      JSON.stringify(component.events) !== JSON.stringify(page.components[index].events));
+                    return changed ? [{ type: "set_page_components", pageId: page.id, args: { components } }] : [];
+                  });
+                  return [
+                    { type: "replace_flow", args: { flow: updated } },
+                    ...eventOperations,
                   ];
                 })
               }
@@ -3384,7 +3376,9 @@ function Editor({
             project={project}
             onChange={(next) => transact([
               { type: "set_project_plugins", args: { plugins: next.plugins } },
-              { type: "set_theme_tokens", args: { tokens: next.theme.tokens } },
+              ...(JSON.stringify(next.theme.tokens) === JSON.stringify(project.theme.tokens)
+                ? []
+                : [{ type: "set_theme_tokens", args: { tokens: next.theme.tokens } }]),
             ])}
             onInstallModule={(module) => commitOperations([{ type: "create_code_module", args: { module } }]).then((result) => result.transaction)}
             onCatalogChange={refreshPlugins}
@@ -3465,39 +3459,11 @@ function Editor({
         captureEvidence={async () => {
           const canvas = document.querySelector<HTMLElement>(".design-canvas");
           if (!canvas) throw new Error("Canvas is unavailable for visual verification");
-          const nativeCapture = window.frontendEditorDesktop?.captureRegion;
-          if (nativeCapture) {
-            const rect = canvas.getBoundingClientRect();
-            return nativeCapture({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-          }
           return captureElement(canvas);
         }}
         onClose={() => setCodexRequest(undefined)}
       />
     </div>
-  );
-}
-
-function PanelTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return (
-    <div className="panel-title">
-      <p className="eyebrow">{eyebrow}</p>
-      <h2>{title}</h2>
-    </div>
-  );
-}
-
-function ThemeToggle({ theme, onToggle }: { theme: "light" | "dark"; onToggle: () => void }) {
-  return (
-    <button
-      className="theme-toggle secondary"
-      aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
-      aria-pressed={theme === "dark"}
-      onClick={onToggle}
-    >
-      <span aria-hidden="true">{theme === "dark" ? "☀" : "◐"}</span>
-      <span>{theme === "dark" ? "Light" : "Dark"}</span>
-    </button>
   );
 }
 
@@ -4749,67 +4715,6 @@ function Properties({
         </button>
       </div>
     </div>
-  );
-}
-
-function LogConsole({ logs, paused, onResume, onSelect }: { logs: FlowLog[]; paused?: { nodeId: string; value: unknown }; onResume?: () => void; onSelect?: (nodeId: string) => void }) {
-  const [cursor, setCursor] = useState(-1);
-  const [playing, setPlaying] = useState(false);
-  const showStep = useCallback((index: number) => {
-    const next = Math.max(0, Math.min(logs.length - 1, index));
-    setCursor(next);
-    if (logs[next]) onSelect?.(logs[next].nodeId);
-  }, [logs, onSelect]);
-  useEffect(() => {
-    if (!playing || !logs.length) return;
-    const timer = setInterval(() => setCursor((current) => {
-      const next = current < 0 ? 0 : current + 1;
-      if (next >= logs.length) { setPlaying(false); return logs.length - 1; }
-      onSelect?.(logs[next].nodeId);
-      return next;
-    }), 650);
-    return () => clearInterval(timer);
-  }, [playing, logs, onSelect]);
-  return (
-    <section className="log-console" aria-labelledby="log-title">
-      <div>
-        <h2 id="log-title">Flow console</h2>
-        <span>{logs.length ? `${logs.length} operations` : "Waiting"}</span>
-      </div>
-      {paused && <div className="flow-paused" role="status"><strong>Paused at node</strong><pre>{JSON.stringify(paused.value, null, 2)}</pre><button type="button" onClick={onResume}>Continue execution</button></div>}
-      {logs.length > 0 && <div className="log-replay" role="group" aria-label="Flow replay"><button type="button" className="secondary" onClick={() => showStep(0)}>From start</button><button type="button" className="secondary" aria-label="Previous step" disabled={cursor <= 0} onClick={() => showStep(cursor - 1)}>←</button><output>{cursor < 0 ? `— / ${logs.length}` : `${cursor + 1} / ${logs.length}`}</output><button type="button" className="secondary" aria-label="Next step" disabled={cursor >= logs.length - 1} onClick={() => showStep(cursor + 1)}>→</button><button type="button" className="secondary" aria-pressed={playing} onClick={() => { setCursor(-1); setPlaying((value) => !value); }}>{playing ? "Stop replay" : "Replay"}</button></div>}
-      {logs.length === 0 ? (
-        <p>
-          Run the flow from Preview to inspect input, output, and errors.
-        </p>
-      ) : (
-        <ol>
-          {logs.map((log, index) => (
-            <li key={`${log.nodeId}-${index}`} className={`${log.level}${cursor === index ? " current" : ""}`}>
-              <code>{log.level}</code>
-              <button type="button" className="log-step" onClick={() => showStep(index)}><span>{log.message}</span>{log.durationMs !== undefined && <time>{log.durationMs.toFixed(1)} ms</time>}{log.value !== undefined && <pre>{JSON.stringify(log.value, null, 2)}</pre>}</button>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-  );
-}
-
-function FlowRunHistory({ runs, flows, onOpen }: { runs: Project["flowRuns"]; flows: Project["flows"]; onOpen: (logs: FlowLog[]) => void }) {
-  return (
-    <details className="flow-run-history">
-      <summary>Run history <span>{runs.length}</span></summary>
-      <div>
-        {runs.length === 0 ? <p>No runs recorded.</p> : [...runs].reverse().map((run) => (
-          <button key={run.id} type="button" className="secondary" onClick={() => onOpen(run.logs)}>
-            <strong>{flows.find((flow) => flow.id === run.flowId)?.name ?? "Removed flow"}</strong>
-            <span>{run.logs.length} steps · {run.durationMs.toFixed(1)} ms</span>
-            <time>{new Date(run.startedAt).toLocaleString("en")}</time>
-          </button>
-        ))}
-      </div>
-    </details>
   );
 }
 
