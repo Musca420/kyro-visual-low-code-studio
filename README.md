@@ -43,7 +43,7 @@ Ask Codex receives a compact graph slice containing the selected object and its 
 
 Planning is read-only. Kyro applies only the exact approved operations, against the approved project revision. Each transaction is validated, audited, persisted, and undoable.
 
-### Unsupported features remain honest
+### Missing capabilities are handled transparently
 
 When a request needs a missing package, provider, permission, backend, or native capability, Kyro can propose a reusable typed capability. Proposals remain inactive until their implementation, dependencies, permissions, and tests are explicitly reviewed.
 
