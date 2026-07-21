@@ -1,94 +1,85 @@
 # Kyro — Visual Low-Code Studio
 
-> **Design like a creative tool. Program through a graph. Give Codex the exact context it needs.**
+> Build real applications visually. Use Codex exactly where the difficult work begins.
 
-Kyro is an open, local-first visual studio for building real Web, PWA, and Android applications. Pages, components, events, flows, data, native capabilities, and generated files live in one versioned Graph. A visual user can build without AI; when a request becomes difficult, **Ask Codex** receives the selected graph slice and proposes a typed, reviewable, verifiable transaction.
+Kyro is an open, local-first studio for building Web, PWA, and Android applications. Design pages, connect behavior, model data, test the result, and export readable code—all from one versioned application graph.
 
-Built with **Codex and GPT‑5.6** for the **OpenAI Build Week 2026 — Developer Tools** track.
+When a change becomes difficult, **Ask Codex** sends only the relevant selection, dependencies, flows, data, errors, and available operations. Codex proposes a typed plan; you review it before Kyro applies the change as one verifiable, undoable transaction.
+
+**The visual interface is not a mock-up in front of the program. It is the entry point to the program.**
 
 | Design visually | Ask Codex in context |
 | --- | --- |
-| ![Kyro Design canvas with pages, layers, responsive viewport, and visual properties](./docs/images/kyro-design-canvas.png) | ![Ask Codex showing compact context, a typed plan, and approval](./docs/images/kyro-live-codex-plan.png) |
+| ![Kyro Design canvas](./docs/images/kyro-design-canvas.png) | ![Ask Codex typed plan](./docs/images/kyro-live-codex-plan.png) |
 
-## Why I built Kyro
+Built with Codex and GPT-5.6 for **OpenAI Build Week 2026 — Developer Tools**.
 
-Visual builders are welcoming until the product needs real behavior. Code agents are powerful, but they usually meet a repository before they understand what the user selected, what that component means, or which flows and data depend on it.
+## Why Kyro
 
-Kyro closes that gap. The interface is not a mock-up placed in front of the program: **it is the entry point to the program**.
+Visual builders are easy to start with, but often become restrictive when an application needs real behavior. Coding agents are powerful, but usually see files without knowing which visual element the user selected or how it relates to the rest of the product.
 
-1. Draw the interface with familiar direct manipulation.
-2. Select an element and see its actions, bindings, dependencies, and errors.
-3. Connect behavior through reusable Node-RED-style flows.
-4. Ask Codex for the difficult part without copying a selector or explaining the whole repository.
-5. Review the plan, apply one verified transaction, inspect Preview, and undo it atomically.
-6. Export readable code that keeps working outside Kyro.
+Kyro connects those two worlds:
 
-The goal is not to replace the user with AI. It is to let a visual thinker keep ownership of the product while Codex handles complexity at the exact point where it appears.
+1. Design the interface through direct manipulation.
+2. Add reusable behavior with visual flows.
+3. Model local or generated data and bind it to components.
+4. Select a page, component, flow, or data source and ask Codex for a difficult change.
+5. Review the exact plan, apply it once, inspect the result, and undo it atomically if needed.
+6. Export a readable application that runs independently of Kyro.
 
-## What makes Kyro different
+Codex is optional. Manual and AI-assisted edits use the same Core, transaction boundary, runtime, Preview, and export pipeline.
 
-- **Graph-native, not prompt-native.** Design, state, flows, data, services, permissions, and provenance share stable IDs in one source of truth.
-- **Real contextual Codex.** Ask Codex always calls authenticated Codex; Kyro skills and typed tools guide it but never replace the model with a scripted answer.
-- **Capability Resolver as an adviser.** If a feature needs storage, a backend, a provider, credentials, permissions, or a package, Kyro explains the missing pieces to Codex and keeps activation behind review.
-- **Safe self-extension.** An unsupported request can become a global, versioned capability draft with typed inputs, outputs, permissions, dependencies, tests, and an activation gate. It is never presented as working before implementation and verification.
-- **Manual and AI parity.** A manual edit and a Codex edit pass through the same Core, Transaction Engine, Verification pipeline, Runtime, Preview, and Export.
-- **No lock-in.** Projects are local and versionable. Web/PWA exports are readable TypeScript/Vite; Android exports use Capacitor and can be built independently.
-- **Codex remains optional.** Design, data, actions, flow debugging, Preview, and Publish remain usable without AI.
+## What makes it different
 
-| Reusable visual behavior | Visual data and bindings |
+### One graph, not a collection of prompts
+
+Pages, components, responsive styles, events, flows, data, permissions, capabilities, and provenance share stable IDs in a single versioned source of truth.
+
+### Codex understands the current selection
+
+Ask Codex receives a compact graph slice containing the selected object and its relevant dependencies. You do not need to explain the whole repository or copy selectors into a prompt.
+
+### Changes are reviewable transactions
+
+Planning is read-only. Kyro applies only the exact approved operations, against the approved project revision. Each transaction is validated, audited, persisted, and undoable.
+
+### Unsupported features remain honest
+
+When a request needs a missing package, provider, permission, backend, or native capability, Kyro can propose a reusable typed capability. Proposals remain inactive until their implementation, dependencies, permissions, and tests are explicitly reviewed.
+
+### Export without lock-in
+
+Projects remain local and versionable. Web and PWA exports use readable TypeScript and Vite. Android exports use Capacitor and can be built outside Kyro.
+
+| Visual behavior | Data and bindings |
 | --- | --- |
-| ![Node-RED-style flow with validation and success/error branches](./docs/images/kyro-visual-flow.png) | ![Local data source, schema, and visual bindings](./docs/images/kyro-data-model.png) |
+| ![Node-based visual flow](./docs/images/kyro-visual-flow.png) | ![Visual data model](./docs/images/kyro-data-model.png) |
 
-## Measured: Kyro versus Codex CLI in PowerShell
+## Try Kyro
 
-The release benchmark starts with one minimal project built visually in Kyro, exports it, and creates two byte-identical copies. Ten cumulative prompts are then sent in the same order:
+Requirements:
 
-- **Kyro path:** Ask Codex receives the live selection, stable IDs, compact Graph slice, linked flows and data, typed operation contracts, and current revision. Every change requires approval, a transaction, and Preview verification.
-- **PowerShell path:** Codex CLI starts inside the exported project folder in a fresh ephemeral session for every prompt, without the Live Bridge or active visual selection.
+- Node.js 20 or newer
+- npm and Git
+- a Chromium-based browser
 
-The prompt set covers styling, responsive layout, validation, schema evolution, CRUD flows, dependency repair, flow refactoring, accessibility, a missing PDF capability, and a filtered dashboard export.
-
-| Ten identical cumulative prompts | Kyro | Codex CLI |
-| --- | ---: | ---: |
-| Functionally accepted | **10/10** | **0/10** |
-| Process exit reported success | 10/10 | 10/10 |
-| Median wall time per turn | 44.8 s | **27.0 s** |
-| Total wall time | 509.5 s | **274.7 s** |
-| Median tokens per turn | **79.0k** | 82.2k |
-| Total tokens | 784.3k | **763.6k** |
-| Output project | Changed and independently verified | Byte-identical to baseline |
-
-![Ten-prompt Kyro and Codex CLI benchmark](./docs/images/kyro-vs-codex-cli-10.svg)
-
-This result is deliberately not presented as a latency or token win. Codex CLI was faster and used slightly fewer total tokens, but all ten turns explained that they could not safely target the active Kyro component or apply a verified Graph transaction. Exit code zero meant “the agent answered,” not “the task worked.” The CLI output tree retained the baseline SHA-256; Kyro produced a different verified tree and completed the workflow.
-
-Kyro's final checkpoint was then tested as a real user in a headed browser: invalid submit and focus recovery, optional due date, filters, empty state, desktop/mobile layout, persistence after reload, export, clean install, production build, and independent runtime. Console and runtime errors were zero.
-
-| Headed Kyro Preview | Mobile breakpoint |
-| --- | --- |
-| ![Final benchmark project running in Kyro Preview](./docs/images/kyro-benchmark-10-desktop.png) | ![Final benchmark project at the mobile breakpoint](./docs/images/kyro-benchmark-10-mobile.png) |
-
-This is a local product-context benchmark, not a universal claim about Codex CLI. The prompts intentionally depend on live visual selection and Graph context because that is the feature under test. The repository publishes the [protocol](./docs/benchmarks/kyro-vs-codex-cli-10-prompts.json), [scored result](./docs/benchmarks/2026-07-21-kyro-vs-codex-cli-10-results.json), [raw Kyro run](./docs/benchmarks/2026-07-21-kyro-10-raw.json), [raw CLI run](./docs/benchmarks/2026-07-21-codex-cli-10-raw.json), and both runners: [`benchmark-kyro-vs-cli-10.mjs`](./scripts/benchmark-kyro-vs-cli-10.mjs) and [`benchmark-codex-cli-10.ps1`](./scripts/benchmark-codex-cli-10.ps1).
-
-## Install in one command
-
-The CLI is designed for **Windows, macOS, and Linux** with Node.js 20+, npm, Git, and a Chromium-based browser. The v2.1.0 release installation below was freshly verified on Windows; the repository CI verifies the portable Node/Vite path.
+Install the v2.1.0 release:
 
 ```bash
 npm install -g https://github.com/Musca420/kyro-visual-low-code-studio/releases/download/v2.1.0/kyro-studio-2.1.0.tgz
 kyro --home
 ```
 
-Then:
+Useful commands:
 
-- run `kyro` inside an existing project folder to import and open it;
-- run `kyro` elsewhere to open Home and create or import visually;
-- run `kyro path/to/project` to choose a folder explicitly;
-- run `kyro --check` to inspect what Kyro would open without starting it.
+```bash
+kyro --home            # Open Home to create or import a project
+kyro                   # Open or import the current folder
+kyro path/to/project   # Open a specific folder
+kyro --check           # Inspect what Kyro would open without starting it
+```
 
-Kyro binds only to `127.0.0.1`, and project state stays in local IndexedDB. A complete Android build additionally requires Java 21 and the Android SDK. The supported install is the cross-platform `kyro` CLI; the discontinued unsigned desktop installer is not distributed.
-
-![Kyro 2.1.0 running from a clean CLI installation](./docs/images/kyro-2.1-fresh-install.png)
+Kyro binds only to `127.0.0.1`, and project state remains in local IndexedDB. Building Android applications additionally requires Java 21 and the Android SDK.
 
 ### Build from source
 
@@ -101,38 +92,55 @@ npm link
 kyro --home
 ```
 
-## Five-minute judge path
+## A five-minute walkthrough
 
-1. Start `kyro --home` and create a blank project or import a folder.
-2. Add a page, drag components onto the canvas, resize and nest them, then switch Desktop, Tablet, and Mobile.
-3. Select a component, open **Actions**, choose an event, and connect visual nodes in **Flow**.
-4. Right-click the component, choose **Ask Codex**, inspect the captured context and typed plan, then approve and undo once.
-5. Add a local IndexedDB source, bind a form or list, and exercise success, validation, empty, loading, and error states.
-6. Open **Preview**, then **Publish** a Web/PWA or Android export.
+1. Run `kyro --home` and create a blank project or import a folder.
+2. Add a page and drag components onto the canvas.
+3. Resize and nest components, then check Desktop, Tablet, and Mobile.
+4. Select a component, open **Actions**, and connect an event to a visual flow.
+5. Right-click the component and choose **Ask Codex**.
+6. Inspect the captured context and typed plan before approving it.
+7. Open **Preview**, test the behavior, and try undoing the transaction.
+8. Open **Publish** and export a Web/PWA or Android project.
 
-Judges can test generated outputs without rebuilding Kyro from the [NexusField demo release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15), which includes an independent Web/PWA export, Android APK, test evidence, and demo assets.
+For a prepared output, see the [NexusField demo release](https://github.com/Musca420/kyro-visual-low-code-studio/releases/tag/v0.1.15), including an independent Web/PWA export, Android APK, and validation evidence.
 
-| Publish an independent Web/PWA | Verify the generated Android app |
-| --- | --- |
-| ![Publish panel configuring Web and PWA export](./docs/images/kyro-publish-web.png) | <img src="./docs/images/kyro-android-device.png" alt="Generated Android app running on a physical device" width="280"> |
+## How Ask Codex works
 
-## How Codex and GPT‑5.6 were used
+```text
+Selection + dependencies + errors
+                │
+                ▼
+        Compact graph context
+                │
+                ▼
+        Read-only Codex plan
+                │
+                ▼
+           User approval
+                │
+                ▼
+   Typed transaction → verification → new graph revision
+                │
+                ├── Preview
+                ├── Undo
+                └── Export
+```
 
-Codex with GPT‑5.6 was both the main engineering collaborator during Build Week and the reasoning engine embedded behind Ask Codex.
+The agent bridge is intentionally narrow:
 
-The human decisions shaped the product: visual-first interaction, Canva-like direct manipulation, a single open Graph, local-first storage, explicit approval for capabilities and dependencies, generic fixes instead of demo-specific shortcuts, and exports that remain useful outside Kyro. Development happened as repeated goal loops: define a verifiable outcome, implement the smallest vertical slice, run tests, use the product visually, correct the root cause, and capture evidence.
+- authorization is scoped to one project, client, revision, and deadline;
+- planning cannot mutate the project;
+- approved operations are compared exactly with attempted operations;
+- a plan can be applied only once;
+- tools declare their access and effects;
+- external services, secrets, dependencies, signing, and publication require explicit approval.
 
-Codex accelerated repository analysis, architecture work, implementation, test generation, visual browser verification, Android deployment, security review, benchmark design, and release documentation. Inside Kyro, GPT‑5.6 receives only the relevant project brief, page, selected stable component, semantic intent, nearby dependencies, linked flows and data, runtime errors, revision, and available typed operations. Planning is read-only; approved mutations pass through the same Transaction Engine and Verification used by manual edits.
-
-The main Build Week session ID and safe session metadata are documented in [`CODEX_SESSION_EVIDENCE.md`](./CODEX_SESSION_EVIDENCE.md). No credentials, account tokens, or private conversation transcript are committed.
-
-## Build Week boundary
-
-Kyro began as a pre-existing local visual-editor prototype. Commit [`38a72eb`](https://github.com/Musca420/kyro-visual-low-code-studio/commit/38a72eb3467d28371a9c3d0894753a3c2bcf9321) is the imported baseline dated **18 July 2026**. The dated commits after that point are the Build Week extension: unified graph context, stable contextual selection, Live Bridge, Codex transactions and undo, visual flows, data bindings and generated backend, native capability nodes, folder import, CLI, Web/PWA/Android export, security boundaries, and real browser/device verification.
-
-See [`HACKATHON_COMPLIANCE.md`](./HACKATHON_COMPLIANCE.md) for the submission audit and the [official rules](https://openai.devpost.com/rules) for the authoritative requirements.
+Imported source is analyzed but never executed automatically.
 
 ## Verification
+
+Run the portable verification path:
 
 ```bash
 npm run check
@@ -144,37 +152,91 @@ npm --prefix generated-app run build
 npm run test:generated
 ```
 
-Current release evidence records **241 unit/integration tests passed** and **55 standard Playwright scenarios passed** on the prepared release workstation. A clean CI runner can explicitly gate three environment-dependent scenarios: the full Android build, reimport of that generated Android source, and already-running specialized exports. The same release run completed the headed ten-prompt workflow, independent Web export installation/build/runtime verification, and fresh installed-CLI acceptance. The dedicated headed Android scenario also passed: Kyro generated a project through Publish, installed only reviewed dependencies, built the web bundle, added and synced Capacitor 8, ran Gradle `assembleDebug`, produced a 4,144,292-byte APK, and verified manifest permissions, version, orientation, keyboard behavior, theme resources, and the final UI status.
+The v2.1.0 release records:
 
-![Kyro completing the independently verified Android debug build](./docs/images/kyro-android-build-verified.png)
+- **241** unit and integration tests passed;
+- **55** standard Playwright scenarios passed on the prepared release workstation;
+- an independently installed and built Web export;
+- headed desktop and mobile interaction checks with zero console or runtime errors;
+- a generated Android project built with Capacitor 8 and Gradle, producing a verified debug APK;
+- a fresh installation test using the published CLI tarball.
 
-The reproducible manifest and proof bundle are in [`release/kyro-2.1.0-evidence.zip`](./release/kyro-2.1.0-evidence.zip). Additional reports: [`NEXUSFIELD_VALIDATION_REPORT.md`](./NEXUSFIELD_VALIDATION_REPORT.md), [`CHANGELOG.md`](./CHANGELOG.md), and [`ROLLBACK.md`](./ROLLBACK.md).
+Three clean-runner environment gates remain explicit: a full Android build, reimport of generated Android source, and already-running specialized exports.
 
-## Architecture in one minute
+The reproducible proof bundle is available at [`release/kyro-2.1.0-evidence.zip`](./release/kyro-2.1.0-evidence.zip). See also:
+
+- [`CHANGELOG.md`](./CHANGELOG.md)
+- [`NEXUSFIELD_VALIDATION_REPORT.md`](./NEXUSFIELD_VALIDATION_REPORT.md)
+- [`ROLLBACK.md`](./ROLLBACK.md)
+
+## Context benchmark
+
+Kyro includes a reproducible ten-prompt benchmark designed to measure one specific question:
+
+> What changes when Codex receives the active visual selection, stable graph IDs, linked dependencies, typed operations, approval, and Preview verification?
+
+The test begins with byte-identical exported projects and sends ten cumulative tasks covering styling, responsive layout, validation, schema evolution, CRUD flows, dependency repair, accessibility, capability proposals, and dashboard filtering.
+
+| Result across ten cumulative prompts | Kyro | Codex CLI baseline |
+| --- | ---: | ---: |
+| Functionally accepted | **10/10** | **0/10** |
+| Median wall time | 44.8 s | **27.0 s** |
+| Total tokens | 784.3k | **763.6k** |
+| Output tree | Changed and independently verified | Unchanged from baseline |
+
+This is **not a general benchmark of Kyro against Codex CLI**. The prompts intentionally depend on live visual selection and graph tools, while the CLI baseline runs in fresh sessions without the Kyro Live Bridge. The result isolates the value of Kyro's contextual execution path; it does not claim lower latency, lower token use, or superior general coding ability.
+
+The complete material is published for inspection:
+
+- [benchmark protocol](./docs/benchmarks/kyro-vs-codex-cli-10-prompts.json)
+- [scored results](./docs/benchmarks/2026-07-21-kyro-vs-codex-cli-10-results.json)
+- [raw Kyro run](./docs/benchmarks/2026-07-21-kyro-10-raw.json)
+- [raw CLI run](./docs/benchmarks/2026-07-21-codex-cli-10-raw.json)
+- [`benchmark-kyro-vs-cli-10.mjs`](./scripts/benchmark-kyro-vs-cli-10.mjs)
+- [`benchmark-codex-cli-10.ps1`](./scripts/benchmark-codex-cli-10.ps1)
+
+![Kyro and Codex CLI context benchmark](./docs/images/kyro-vs-codex-cli-10.svg)
+
+## Architecture
 
 ```text
 Visual Editor ─┐
-Ask Codex ─────┼─> typed operation ─> Transaction Engine ─> Verification ─> Graph revision
-Manual Flow ───┘                                                        │
-                                              Runtime <─ Preview <─ Export
+Ask Codex ─────┼── typed operation ── Transaction Engine ── Graph revision
+Manual Flow ───┘                            │
+                                            ├── Verification
+                                            ├── Preview / Runtime
+                                            └── Export
 ```
 
-- `src/model.ts` — validated, versioned unified Graph.
-- `src/projectCore.ts` and `src/transactionEngine.ts` — authority, atomic mutations, revision, audit, rollback.
+Key modules:
+
+- `src/model.ts` — validated, versioned application graph.
+- `src/projectCore.ts` — authority and atomic graph mutations.
+- `src/transactionEngine.ts` — revision checks, audit, persistence, replay protection, and rollback.
+- `src/verification.ts` — graph, runtime, behavior, visual, and build-preflight stages.
 - `src/flow.ts` — deterministic visual-flow runtime and traces.
-- `src/PreviewFrame.tsx` — sandboxed interactive Preview using the shared Runtime.
-- `src/generator.ts` — readable Web/PWA/Android generation and local backend.
-- `src/CodexPanel.tsx` — context, plan, approval, evidence, history, and undo.
+- `src/PreviewFrame.tsx` — sandboxed interactive Preview.
+- `src/generator.ts` — Web, PWA, Android, and local-backend generation.
+- `src/CodexPanel.tsx` — context, plans, approval, evidence, history, and undo.
 - `server/kyroMcp.mjs` — allow-listed typed tools for contextual Codex work.
-- `.agents/skills/` — focused design, app, data, actions, native, extension, test, and publish workflows.
+- `.agents/skills/` — focused design, application, data, action, native, testing, and publishing workflows.
 
-External providers, secrets, dependency installation, signing, paid services, and store publication remain behind explicit approval. Imported source is analyzed but never executed automatically.
+## Build Week
 
-## License and submission material
+Kyro began as a pre-existing local visual-editor prototype. Commit [`38a72eb`](https://github.com/Musca420/kyro-visual-low-code-studio/commit/38a72eb3467d28371a9c3d0894753a3c2bcf9321) is the imported baseline dated **18 July 2026**.
 
-- [MIT License](./LICENSE)
-- [Devpost submission copy](./DEVPOST_SUBMISSION.md)
-- [Codex session evidence](./CODEX_SESSION_EVIDENCE.md)
-- [OpenAI Build Week compliance](./HACKATHON_COMPLIANCE.md)
+The Build Week work added the unified graph context, stable contextual selection, Live Bridge, Codex transactions and undo, visual flows, data bindings, generated backend, native capability nodes, folder import, CLI distribution, Web/PWA/Android export, security boundaries, and browser/device verification.
+
+Development used Codex and GPT-5.6 for repository analysis, architecture, implementation, test generation, visual verification, Android deployment, security review, benchmarking, and release documentation. Product direction and final decisions remained human-owned.
+
+For submission details and boundaries, see:
+
+- [`HACKATHON_COMPLIANCE.md`](./HACKATHON_COMPLIANCE.md)
+- [`CODEX_SESSION_EVIDENCE.md`](./CODEX_SESSION_EVIDENCE.md)
+- [`DEVPOST_SUBMISSION.md`](./DEVPOST_SUBMISSION.md)
+
+## License
+
+Kyro is released under the [MIT License](./LICENSE).
 
 Copyright © 2026 Kyro contributors.
